@@ -182,7 +182,7 @@ func (h *Handler) noteRoute(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	if backlinks {
-		writeJSON(writer, http.StatusOK, map[string]any{"noteId": id, "items": snapshot.Backlinks[id]})
+		writeJSON(writer, http.StatusOK, map[string]any{"noteId": id, "items": orEmpty(snapshot.Backlinks[id])})
 		return
 	}
 	if request.Header.Get("If-None-Match") == quoteETag(note.Revision) {
@@ -203,8 +203,8 @@ func (h *Handler) noteRoute(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("ETag", quoteETag(note.Revision))
 	writeJSON(writer, http.StatusOK, map[string]any{
 		"id": note.ID, "path": note.Path, "filename": note.Filename, "title": note.Title,
-		"aliases": note.Aliases, "headings": note.Headings, "links": note.Links,
-		"attachments": note.Attachments, "modifiedAt": note.ModifiedAt, "size": note.Size,
+		"aliases": orEmpty(note.Aliases), "headings": orEmpty(note.Headings), "links": orEmpty(note.Links),
+		"attachments": orEmpty(note.Attachments), "modifiedAt": note.ModifiedAt, "size": note.Size,
 		"revision": note.Revision, "content": string(content), "error": note.Error,
 	})
 }
@@ -358,6 +358,13 @@ func writeJSON(writer http.ResponseWriter, status int, value any) {
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	writer.WriteHeader(status)
 	_ = json.NewEncoder(writer).Encode(value)
+}
+
+func orEmpty[T any](values []T) []T {
+	if values == nil {
+		return []T{}
+	}
+	return values
 }
 
 var _ = time.Time{}

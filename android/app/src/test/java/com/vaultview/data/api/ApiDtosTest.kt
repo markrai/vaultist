@@ -34,6 +34,22 @@ class ApiDtosTest {
     }
 
     @Test
+    fun mapsNoteWhenCollectionFieldsAreNull() {
+        val note = JSONObject(
+            """{
+              "id":"Plain","path":"Plain.md","filename":"Plain.md","title":"Plain",
+              "aliases":null,"headings":null,"links":null,"attachments":null,
+              "revision":"sha256:abc","content":"# Plain","error":""
+            }"""
+        ).toNote()
+        assertEquals("Plain", note.id)
+        assertEquals(emptyList<String>(), note.aliases)
+        assertEquals(emptyList<com.vaultview.domain.Heading>(), note.headings)
+        assertEquals(emptyList<com.vaultview.domain.NoteLink>(), note.links)
+        assertEquals(emptyList<String>(), note.attachments)
+    }
+
+    @Test
     fun mapsBrowseKindsAndCursor() {
         val page = JSONObject("""{"items":[{"kind":"folder","name":"Projects","path":"Projects"}],"nextCursor":"50","folder":""}""").toBrowsePage()
         assertEquals(com.vaultview.domain.BrowseKind.Folder, page.items.single().kind)

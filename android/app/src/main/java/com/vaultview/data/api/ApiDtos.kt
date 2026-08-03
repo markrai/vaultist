@@ -58,12 +58,12 @@ internal fun JSONObject.toNote(): Note = Note(
     path = getString("path"),
     filename = getString("filename"),
     title = getString("title"),
-    aliases = getJSONArray("aliases").mapStrings(),
-    headings = getJSONArray("headings").mapObjects {
+    aliases = arrayOrEmpty("aliases").mapStrings(),
+    headings = arrayOrEmpty("headings").mapObjects {
         Heading(level = it.getInt("level"), text = it.getString("text"), slug = it.getString("slug"))
     },
-    links = getJSONArray("links").mapObjects { it.toNoteLink() },
-    attachments = getJSONArray("attachments").mapStrings(),
+    links = arrayOrEmpty("links").mapObjects { it.toNoteLink() },
+    attachments = arrayOrEmpty("attachments").mapStrings(),
     revision = getString("revision"),
     content = getString("content"),
     error = optString("error").takeIf(String::isNotBlank),
@@ -97,7 +97,7 @@ internal fun JSONObject.toResolution(): LinkResolution = LinkResolution(
     }.orEmpty(),
 )
 
-internal fun JSONObject.toBacklinks(): List<Backlink> = getJSONArray("items").mapObjects {
+internal fun JSONObject.toBacklinks(): List<Backlink> = arrayOrEmpty("items").mapObjects {
     Backlink(
         sourceId = it.getString("sourceId"),
         sourceTitle = it.getString("sourceTitle"),
@@ -109,6 +109,9 @@ internal fun JSONObject.toBacklinks(): List<Backlink> = getJSONArray("items").ma
         display = it.optString("display").takeIf(String::isNotBlank),
     )
 }
+
+private fun JSONObject.arrayOrEmpty(name: String): JSONArray =
+    optJSONArray(name) ?: JSONArray()
 
 private inline fun <T> JSONArray.mapObjects(transform: (JSONObject) -> T): List<T> =
     List(length()) { index -> transform(getJSONObject(index)) }

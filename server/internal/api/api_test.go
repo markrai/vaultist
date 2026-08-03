@@ -48,6 +48,27 @@ func TestHTTPContract(t *testing.T) {
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("note status = %d", response.StatusCode)
 	}
+	var noteBody map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&noteBody); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"aliases", "headings", "links", "attachments"} {
+		if _, ok := noteBody[key].([]any); !ok {
+			t.Fatalf("%s must be a JSON array, got %#v", key, noteBody[key])
+		}
+	}
+
+	emptyNoteURL := server.URL + "/api/v1/notes/Folder/Other"
+	emptyNote := getJSON(t, emptyNoteURL)
+	for _, key := range []string{"aliases", "headings", "links", "attachments"} {
+		values, ok := emptyNote[key].([]any)
+		if !ok {
+			t.Fatalf("empty note %s must be a JSON array, got %#v", key, emptyNote[key])
+		}
+		if values == nil {
+			t.Fatalf("empty note %s must not be null", key)
+		}
+	}
 	encodedResponse, err := http.Get(server.URL + "/api/v1/notes/Folder%2FNote")
 	if err != nil {
 		t.Fatal(err)
