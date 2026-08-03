@@ -1,0 +1,340 @@
+openapi: 3.1.0
+info:
+  title: VaultView API
+  version: 1.0.0
+  description: Read-only, tailnet-scoped API for an indexed Markdown Vault.
+  license:
+    name: AGPL-3.0-only
+    url: https://www.gnu.org/licenses/agpl-3.0.html
+servers:
+  - url: /api/v1
+security: []
+paths:
+  /status:
+    get:
+      summary: Get process and indexing status
+      operationId: getStatus
+      responses:
+        "200":
+          description: Process and indexing status; available while the index is building.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatusResponse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /vault:
+    get:
+      summary: Get vault metadata
+      operationId: getVault
+      responses:
+        "200":
+          description: Vault metadata.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VaultResponse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /notes:
+    get:
+      summary: Browse a vault folder
+      operationId: listNotes
+      parameters:
+        - name: folder
+          in: query
+          schema: { type: string }
+          description: Vault-relative folder; empty selects the root.
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: A deterministic page of immediate folders followed by notes.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrowseResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /notes/{id}:
+    get:
+      summary: Get a note and its resolved links
+      operationId: getNote
+      parameters:
+        - $ref: "#/components/parameters/NoteId"
+        - name: If-None-Match
+          in: header
+          schema: { type: string }
+      responses:
+        "200":
+          description: Indexed metadata, original Markdown, and structured link resolutions.
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NoteResponse" }
+        "304": { description: The note revision has not changed. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /notes/{id}/backlinks:
+    get:
+      summary: Get incoming note-link occurrences
+      operationId: getBacklinks
+      parameters:
+        - $ref: "#/components/parameters/NoteId"
+      responses:
+        "200":
+          description: All meaningful resolved references to the note.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BacklinksResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /search:
+    get:
+      summary: Search note filenames, titles, and aliases
+      operationId: searchNotes
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Filename, title, and alias matches ordered by vault path.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SearchResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /assets/{id}:
+    get:
+      summary: Stream an indexed image asset
+      operationId: getAsset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Normalized vault-relative asset path; slash-containing values are supported.
+        - name: Range
+          in: header
+          schema: { type: string }
+        - name: If-None-Match
+          in: header
+          schema: { type: string }
+      responses:
+        "200":
+          description: Original image bytes.
+          headers:
+            ETag: { schema: { type: string } }
+            Accept-Ranges: { schema: { type: string } }
+          content:
+            image/png: { schema: { type: string, contentEncoding: binary } }
+            image/jpeg: { schema: { type: string, contentEncoding: binary } }
+            image/webp: { schema: { type: string, contentEncoding: binary } }
+            image/gif: { schema: { type: string, contentEncoding: binary } }
+            image/svg+xml: { schema: { type: string, contentEncoding: binary } }
+        "206": { description: Requested byte range. }
+        "304": { description: The asset has not changed. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /index/refresh:
+    post:
+      summary: Start an asynchronous index refresh
+      operationId: refreshIndex
+      responses:
+        "202":
+          description: Refresh accepted and running outside the request path.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties: { status: { type: string, const: indexing } }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /index/status:
+    get:
+      summary: Get current index state
+      operationId: getIndexStatus
+      responses:
+        "200":
+          description: Current refresh state and last completed generation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IndexState" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+components:
+  parameters:
+    NoteId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+      description: Stable ID derived from the normalized vault-relative Markdown path without .md.
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+      description: Opaque deterministic page cursor returned by the previous request.
+  responses:
+    BadRequest:
+      description: Invalid ID, folder, query, or pagination input.
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    NotFound:
+      description: Note or asset not found.
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    Conflict:
+      description: An index refresh is already running.
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    Forbidden:
+      description: The current authorization policy does not allow this operation.
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    Unavailable:
+      description: The vault is unavailable or the index is not ready.
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+  schemas:
+    IndexState:
+      type: object
+      required: [state, generation, noteCount, assetCount, errorCount]
+      properties:
+        state: { type: string, enum: [not_ready, indexing, ready, unavailable] }
+        generation: { type: integer, format: uint64 }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+        noteCount: { type: integer }
+        assetCount: { type: integer }
+        errorCount: { type: integer }
+    StatusResponse:
+      type: object
+      required: [service, version, status, index]
+      properties:
+        service: { type: string, const: vaultview }
+        version: { type: string }
+        status: { type: string, const: ok }
+        index: { $ref: "#/components/schemas/IndexState" }
+    VaultResponse:
+      type: object
+      required: [name, noteCount, assetCount, generation, indexedAt, readOnly]
+      properties:
+        name: { type: string }
+        noteCount: { type: integer }
+        assetCount: { type: integer }
+        generation: { type: integer, format: uint64 }
+        indexedAt: { type: string, format: date-time }
+        readOnly: { type: boolean, const: true }
+    BrowseItem:
+      type: object
+      required: [kind, name, path]
+      properties:
+        kind: { type: string, enum: [folder, note] }
+        id: { type: string }
+        name: { type: string }
+        title: { type: string }
+        path: { type: string }
+        error: { type: string }
+    BrowseResponse:
+      type: object
+      required: [items, nextCursor, folder]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/BrowseItem" } }
+        nextCursor: { type: string }
+        folder: { type: string }
+    SearchResponse:
+      type: object
+      required: [items, nextCursor, query]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/BrowseItem" } }
+        nextCursor: { type: string }
+        query: { type: string }
+    Heading:
+      type: object
+      required: [level, text, slug]
+      properties:
+        level: { type: integer, minimum: 1, maximum: 6 }
+        text: { type: string }
+        slug: { type: string }
+    Candidate:
+      type: object
+      required: [id, title, path]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        path: { type: string }
+    Resolution:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [resolved, missing, ambiguous, external] }
+        noteId: { type: string }
+        assetId: { type: string }
+        candidates: { type: array, items: { $ref: "#/components/schemas/Candidate" } }
+    LinkOccurrence:
+      type: object
+      required: [kind, raw, target, line, column, isEmbed, isAsset, resolution]
+      properties:
+        kind: { type: string, enum: [wiki, wiki_embed, markdown, image] }
+        raw: { type: string }
+        target: { type: string }
+        fragment: { type: string }
+        display: { type: string }
+        line: { type: integer, minimum: 1 }
+        column: { type: integer, minimum: 1 }
+        context: { type: string }
+        isEmbed: { type: boolean }
+        isAsset: { type: boolean }
+        resolution: { $ref: "#/components/schemas/Resolution" }
+    NoteResponse:
+      type: object
+      required: [id, path, filename, title, aliases, headings, links, attachments, modifiedAt, size, revision, content, error]
+      properties:
+        id: { type: string }
+        path: { type: string }
+        filename: { type: string }
+        title: { type: string }
+        aliases: { type: array, items: { type: string } }
+        headings: { type: array, items: { $ref: "#/components/schemas/Heading" } }
+        links: { type: array, items: { $ref: "#/components/schemas/LinkOccurrence" } }
+        attachments: { type: array, items: { type: string } }
+        modifiedAt: { type: string, format: date-time }
+        size: { type: integer, format: int64 }
+        revision: { type: string, pattern: "^sha256:[0-9a-f]{64}$" }
+        content: { type: string }
+        error: { type: string }
+    Backlink:
+      type: object
+      required: [sourceId, sourceTitle, sourcePath, line, column, context, occurrenceKind]
+      properties:
+        sourceId: { type: string }
+        sourceTitle: { type: string }
+        sourcePath: { type: string }
+        line: { type: integer, minimum: 1 }
+        column: { type: integer, minimum: 1 }
+        context: { type: string }
+        fragment: { type: string }
+        display: { type: string }
+        occurrenceKind: { type: string, enum: [wiki, wiki_embed, markdown, image] }
+    BacklinksResponse:
+      type: object
+      required: [noteId, items]
+      properties:
+        noteId: { type: string }
+        items: { type: array, items: { $ref: "#/components/schemas/Backlink" } }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [vault_unavailable, note_not_found, link_target_missing, link_target_ambiguous, asset_not_found, invalid_note_id, invalid_asset_id, invalid_folder, invalid_query, invalid_pagination, index_not_ready, index_refresh_running, note_read_failed, asset_read_failed, route_not_found, forbidden, index_refresh_failed]
+            message: { type: string }
+            details: { type: object, additionalProperties: true }

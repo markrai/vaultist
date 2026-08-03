@@ -1,0 +1,13 @@
+# Local build products
+android/.gradle/
+android/**/build/
+android/local.properties
+server/bin/
+server/coverage.out
+
+# IDE and OS state
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

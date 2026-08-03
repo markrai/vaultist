@@ -1,0 +1,28 @@
+name: Android CI
+
+on:
+  push:
+    paths: ["android/**", "api/**", ".github/workflows/android-ci.yml"]
+  pull_request:
+    paths: ["android/**", "api/**", ".github/workflows/android-ci.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Make wrapper executable
+        run: chmod +x gradlew
+      - name: Unit tests, lint, debug APK, and instrumentation compilation
+        run: ./gradlew testDebugUnitTest lintDebug assembleDebug compileDebugAndroidTestKotlin --no-daemon
