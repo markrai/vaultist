@@ -18,6 +18,8 @@ data class VaultMetadata(
 
 enum class BrowseKind { Folder, Note }
 
+enum class SearchMode { Files, Content }
+
 data class BrowseItem(
     val kind: BrowseKind,
     val id: String?,

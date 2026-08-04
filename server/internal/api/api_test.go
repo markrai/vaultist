@@ -39,6 +39,15 @@ func TestHTTPContract(t *testing.T) {
 	if len(search["items"].([]any)) != 1 {
 		t.Fatalf("search = %#v", search)
 	}
+	contentSearch := getJSON(t, server.URL+"/api/v1/search?q=Folder%2FNote&mode=content&limit=10")
+	if len(contentSearch["items"].([]any)) != 1 {
+		t.Fatalf("content search = %#v", contentSearch)
+	}
+	contentMiss := getJSON(t, server.URL+"/api/v1/search?q=not-in-body&mode=content&limit=10")
+	if len(contentMiss["items"].([]any)) != 0 {
+		t.Fatalf("content miss = %#v", contentMiss)
+	}
+	assertAPIError(t, server.URL+"/api/v1/search?q=test&mode=invalid", http.StatusBadRequest, "invalid_query")
 
 	response, err := http.Get(server.URL + "/api/v1/notes/Folder/Note")
 	if err != nil {

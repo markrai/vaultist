@@ -90,18 +90,22 @@ paths:
         "503": { $ref: "#/components/responses/Unavailable" }
   /search:
     get:
-      summary: Search note filenames, titles, and aliases
+      summary: Search notes by metadata or body content
       operationId: searchNotes
       parameters:
         - name: q
           in: query
           required: true
           schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: mode
+          in: query
+          schema: { type: string, enum: [files, content], default: files }
+          description: files matches filename, title, and alias; content matches note body text.
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
-          description: Filename, title, and alias matches ordered by vault path.
+          description: Matching notes ordered by vault path.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SearchResponse" }

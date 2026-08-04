@@ -1,5 +1,6 @@
 package com.vaultview.data.api
 
+import com.vaultview.domain.SearchMode
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,8 +25,16 @@ class VaultViewApi @Inject constructor(private val client: OkHttpClient) {
     suspend fun browse(baseUrl: String, folder: String, cursor: String? = null): ApiPayload =
         get(baseUrl, listOf("notes"), mapOf("folder" to folder, "limit" to "100", "cursor" to cursor))
 
-    suspend fun search(baseUrl: String, query: String, cursor: String? = null): ApiPayload =
-        get(baseUrl, listOf("search"), mapOf("q" to query, "limit" to "100", "cursor" to cursor))
+    suspend fun search(baseUrl: String, query: String, mode: SearchMode = SearchMode.Files, cursor: String? = null): ApiPayload =
+        get(baseUrl, listOf("search"), mapOf(
+            "q" to query,
+            "mode" to when (mode) {
+                SearchMode.Files -> "files"
+                SearchMode.Content -> "content"
+            },
+            "limit" to "100",
+            "cursor" to cursor,
+        ))
 
     suspend fun note(baseUrl: String, id: String): ApiPayload = get(baseUrl, listOf("notes", id))
 

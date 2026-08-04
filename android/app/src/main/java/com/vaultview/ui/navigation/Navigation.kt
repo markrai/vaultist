@@ -23,13 +23,11 @@ import com.vaultview.ui.backlinks.BacklinksScreen
 import com.vaultview.ui.browser.BrowserScreen
 import com.vaultview.ui.image.ImageViewerScreen
 import com.vaultview.ui.note.NoteScreen
-import com.vaultview.ui.search.SearchScreen
 import com.vaultview.ui.setup.SetupScreen
 
 private const val GateRoute = "gate"
 private const val SetupRoute = "setup"
 private const val BrowserRoute = "browser"
-private const val SearchRoute = "search"
 
 @Composable
 fun VaultViewNavigation(
@@ -59,12 +57,8 @@ fun VaultViewNavigation(
             BrowserScreen(
                 onOpenFolder = {},
                 onOpenNote = { id -> navController.navigate(noteRoute(id)) },
-                onSearch = { navController.navigate(SearchRoute) },
                 onSettings = { navController.navigate(SetupRoute) },
             )
-        }
-        composable(SearchRoute) {
-            SearchScreen(onBack = navController::popBackStack, onOpenNote = { id -> navController.navigate(noteRoute(id)) })
         }
         composable(
             route = "note/{id}?fragment={fragment}",

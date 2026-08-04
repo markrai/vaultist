@@ -11,6 +11,7 @@ import com.vaultview.data.api.toNote
 import com.vaultview.data.api.toSearchPage
 import com.vaultview.data.api.toVaultMetadata
 import com.vaultview.data.settings.ServerSettings
+import com.vaultview.domain.SearchMode
 import com.vaultview.domain.VaultError
 import com.vaultview.domain.VaultResult
 import java.io.IOException
@@ -54,8 +55,8 @@ class DefaultVaultRepository @Inject constructor(
         JSONObject(api.note(base, id).requireSuccess().body).toNote()
     }
 
-    override suspend fun searchNotes(query: String, cursor: String?) = configuredResult { base ->
-        JSONObject(api.search(base, query, cursor).requireSuccess().body).toSearchPage()
+    override suspend fun searchNotes(query: String, mode: SearchMode, cursor: String?) = configuredResult { base ->
+        JSONObject(api.search(base, query, mode, cursor).requireSuccess().body).toSearchPage()
     }
 
     override suspend fun getBacklinks(id: String) = configuredResult { base ->
