@@ -20,8 +20,8 @@ class BacklinksViewModelTest {
         val repository = FakeVaultRepository().apply {
             backlinksResult = VaultResult.Success(
                 listOf(
-                    Backlink("Source", "Source", "Source.md", 2, 1, "[[Target]]", null, null),
-                    Backlink("Source", "Source", "Source.md", 8, 3, "[[Target|again]]", null, "again"),
+                    Backlink("Source", "Source", "Source.md", 2, 1, "[[Target]]", null, null, "wiki"),
+                    Backlink("Source", "Source", "Source.md", 8, 3, "[[Target|again]]", null, "again", "wiki"),
                 )
             )
         }

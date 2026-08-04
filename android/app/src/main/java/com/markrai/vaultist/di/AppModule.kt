@@ -3,13 +3,15 @@ package com.markrai.vaultist.di
 import com.markrai.vaultist.data.repository.DefaultVaultRepository
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.AskPreferences
+import com.markrai.vaultist.data.settings.DataStoreAskPreferences
 import com.markrai.vaultist.data.settings.ServerSettings
+import com.markrai.vaultist.data.settings.ServerUrlSettings
+import com.markrai.vaultist.di.config.NetworkConfig
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import okhttp3.OkHttpClient
 
@@ -22,7 +24,11 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindAskPreferences(settings: ServerSettings): AskPreferences
+    abstract fun bindAskPreferences(preferences: DataStoreAskPreferences): AskPreferences
+
+    @Binds
+    @Singleton
+    abstract fun bindServerUrlSettings(settings: ServerSettings): ServerUrlSettings
 }
 
 @Module
@@ -30,10 +36,5 @@ abstract class RepositoryModule {
 object NetworkModule {
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(10, TimeUnit.SECONDS)
-        .retryOnConnectionFailure(false)
-        .build()
+    fun provideOkHttpClient(networkConfig: NetworkConfig): OkHttpClient = networkConfig.toOkHttpClient()
 }

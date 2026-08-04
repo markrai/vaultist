@@ -5,6 +5,8 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.darkColors
 import androidx.compose.material.lightColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
@@ -30,9 +32,39 @@ private val DarkColors = darkColors(
     onSurface = Color(0xFFE6E1E5),
 )
 
+data class VaultistExtendedColors(
+    val browseModeToggle: Color,
+    val onBrowseModeToggle: Color,
+)
+
+private val LightExtendedColors = VaultistExtendedColors(
+    browseModeToggle = Color(0xFF2E5A3C),
+    onBrowseModeToggle = Color.White,
+)
+
+private val DarkExtendedColors = VaultistExtendedColors(
+    browseModeToggle = Color(0xFF4A8B5E),
+    onBrowseModeToggle = Color(0xFFE8F5E9),
+)
+
+val LocalVaultistExtendedColors = staticCompositionLocalOf { LightExtendedColors }
+
+object VaultistThemeColors {
+    val browseModeToggle: Color
+        @Composable get() = LocalVaultistExtendedColors.current.browseModeToggle
+
+    val onBrowseModeToggle: Color
+        @Composable get() = LocalVaultistExtendedColors.current.onBrowseModeToggle
+}
+
 @Composable
 fun VaultistTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colors = if (isSystemInDarkTheme()) DarkColors else LightColors, content = content)
+    val darkTheme = isSystemInDarkTheme()
+    CompositionLocalProvider(
+        LocalVaultistExtendedColors provides if (darkTheme) DarkExtendedColors else LightExtendedColors,
+    ) {
+        MaterialTheme(colors = if (darkTheme) DarkColors else LightColors, content = content)
+    }
 }
 
 object Spacing {

@@ -21,7 +21,6 @@ import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
@@ -36,7 +35,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -47,26 +45,28 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.R
-import com.markrai.vaultist.data.ask.AskStage
-import com.markrai.vaultist.data.genai.LocalAiCapability
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.SearchMode
+import com.markrai.vaultist.ui.ask.AskHint
+import com.markrai.vaultist.ui.ask.AskResultsPane
+import com.markrai.vaultist.ui.ask.AskViewModel
 import com.markrai.vaultist.ui.components.ErrorPanel
 import com.markrai.vaultist.ui.components.NoteResultCard
 import com.markrai.vaultist.ui.theme.Spacing
+import com.markrai.vaultist.ui.theme.VaultistThemeColors
 
-private val ForestGreen = Color(0xFF2E5A3C)
 private val ModeButtonWidth = 104.dp
 private val SearchControlHeight = 56.dp
 
 @Composable
 fun BrowserScreen(
-    onOpenFolder: (String) -> Unit,
     onOpenNote: (String) -> Unit,
     onSettings: () -> Unit,
     viewModel: BrowserViewModel = hiltViewModel(),
+    askViewModel: AskViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val askState by askViewModel.state.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner, state.searchMode) {
@@ -75,7 +75,7 @@ fun BrowserScreen(
         }
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onAskResumed()
+                askViewModel.onResumed()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -106,11 +106,34 @@ fun BrowserScreen(
             SearchBar(
                 query = state.query,
                 searchMode = state.searchMode,
-                askSubmitting = state.askSubmitting,
-                onQueryChange = viewModel::updateQuery,
-                onClear = { viewModel.updateQuery("") },
-                onToggleMode = viewModel::toggleSearchMode,
-                onSubmit = viewModel::submitSearch,
+                askSubmitting = askState.askSubmitting,
+                onQueryChange = { query ->
+                    viewModel.updateQuery(query)
+                    if (state.searchMode == SearchMode.Ask && query.isBlank()) {
+                        askViewModel.clearResults()
+                    }
+                },
+                onClear = {
+                    viewModel.updateQuery("")
+                    if (state.searchMode == SearchMode.Ask) {
+                        askViewModel.clearResults()
+                    }
+                },
+                onToggleMode = {
+                    if (state.searchMode == SearchMode.Ask) {
+                        askViewModel.onLeftAsk()
+                    }
+                    viewModel.toggleSearchMode()
+                    if (viewModel.state.value.searchMode == SearchMode.Ask) {
+                        askViewModel.onEnteredAsk()
+                    }
+                },
+                onSubmit = {
+                    when (state.searchMode) {
+                        SearchMode.Ask -> askViewModel.submit(state.query)
+                        else -> viewModel.submitSearch()
+                    }
+                },
             )
             when (state.searchMode) {
                 SearchMode.Content -> if (!state.isSearchResults) {
@@ -121,25 +144,25 @@ fun BrowserScreen(
                     )
                 }
                 SearchMode.Ask -> AskHint(
-                    capability = state.askCapability,
-                    onRetry = viewModel::recheckCapability,
-                    onDownload = viewModel::downloadAskModel,
+                    capability = askState.askCapability,
+                    onRetry = askViewModel::recheckCapability,
+                    onDownload = askViewModel::downloadAskModel,
                 )
                 SearchMode.Files -> Unit
             }
             if (state.searchMode == SearchMode.Ask) {
                 AskResultsPane(
-                    state = state,
+                    state = askState,
                     onOpenNote = onOpenNote,
-                    onCancel = viewModel::cancelAsk,
-                    onRetry = viewModel::retry,
+                    onCancel = askViewModel::cancel,
+                    onRetry = { askViewModel.retry(state.query) },
                 )
             } else {
                 ResultsPane(
                     state = state,
                     onOpenFolder = { path ->
+                        askViewModel.invalidate()
                         viewModel.openFolder(path)
-                        onOpenFolder(path)
                     },
                     onOpenNote = onOpenNote,
                     onUp = viewModel::up,
@@ -147,80 +170,6 @@ fun BrowserScreen(
                     onLoadMore = viewModel::loadMore,
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun AskHint(
-    capability: LocalAiCapability,
-    onRetry: () -> Unit,
-    onDownload: () -> Unit,
-) {
-    Column(Modifier.padding(horizontal = Spacing.md).padding(bottom = Spacing.xs)) {
-        Text(
-            "Press Enter to ask. Vault search runs on the Linux host; answering is on-device.",
-            style = MaterialTheme.typography.caption,
-        )
-        when (capability) {
-            LocalAiCapability.Checking -> Row(
-                Modifier.padding(top = Spacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.height(14.dp).width(14.dp),
-                    strokeWidth = 2.dp,
-                )
-                Text("Checking on-device AI…", style = MaterialTheme.typography.caption)
-            }
-            LocalAiCapability.Downloadable -> Column(
-                Modifier.padding(top = Spacing.xs),
-                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-            ) {
-                Text("On-device AI needs a one-time download.", style = MaterialTheme.typography.caption)
-                OutlinedButton(onClick = onDownload, contentPadding = PaddingValues(horizontal = Spacing.sm)) {
-                    Text("Download", style = MaterialTheme.typography.caption)
-                }
-            }
-            is LocalAiCapability.Downloading -> Row(
-                Modifier.padding(top = Spacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.height(14.dp).width(14.dp),
-                    strokeWidth = 2.dp,
-                )
-                Text(
-                    "Setting up on-device AI… (one-time download)",
-                    style = MaterialTheme.typography.caption,
-                )
-            }
-            is LocalAiCapability.Failed -> Column(
-                Modifier.padding(top = Spacing.xs),
-                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-            ) {
-                Text(
-                    if (capability.retryable) capability.reason else "On-device AI is currently unavailable.",
-                    style = MaterialTheme.typography.caption,
-                )
-                OutlinedButton(onClick = onRetry, contentPadding = PaddingValues(horizontal = Spacing.sm)) {
-                    Text("Retry", style = MaterialTheme.typography.caption)
-                }
-            }
-            LocalAiCapability.Unavailable,
-            LocalAiCapability.Unchecked,
-            -> Column(
-                Modifier.padding(top = Spacing.xs),
-                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-            ) {
-                Text("On-device AI is currently unavailable.", style = MaterialTheme.typography.caption)
-                OutlinedButton(onClick = onRetry, contentPadding = PaddingValues(horizontal = Spacing.sm)) {
-                    Text("Retry", style = MaterialTheme.typography.caption)
-                }
-            }
-            is LocalAiCapability.Ready -> Unit
         }
     }
 }
@@ -284,8 +233,8 @@ private fun SearchBar(
             elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
             contentPadding = PaddingValues(horizontal = Spacing.xs),
             colors = ButtonDefaults.buttonColors(
-                backgroundColor = ForestGreen,
-                contentColor = Color.White,
+                backgroundColor = VaultistThemeColors.browseModeToggle,
+                contentColor = VaultistThemeColors.onBrowseModeToggle,
             ),
         ) {
             Text(
@@ -299,109 +248,6 @@ private fun SearchBar(
                 textAlign = TextAlign.Center,
                 maxLines = 1,
             )
-        }
-    }
-}
-
-@Composable
-private fun AskResultsPane(
-    state: BrowserUiState,
-    onOpenNote: (String) -> Unit,
-    onCancel: () -> Unit,
-    onRetry: () -> Unit,
-) {
-    LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal = Spacing.md),
-        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        if (state.askSubmitting) {
-            item {
-                Column(
-                    Modifier.fillMaxWidth().padding(Spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-                ) {
-                    Text(
-                        when (state.askStage) {
-                            AskStage.CheckingOnDeviceAi -> "Checking on-device AI…"
-                            AskStage.SearchingHost -> "Searching vault on the Linux host…"
-                            AskStage.LoadingNotes -> "Loading matching notes…"
-                            AskStage.AnsweringOnDevice -> "Answering on device…"
-                            null -> "Starting Ask…"
-                        },
-                        style = MaterialTheme.typography.body2,
-                    )
-                    Text(
-                        when (state.askStage) {
-                            AskStage.CheckingOnDeviceAi -> "Making sure Gemini Nano is ready"
-                            AskStage.SearchingHost -> "Running Files + Content search over the network"
-                            AskStage.LoadingNotes -> "Fetching note text for evidence"
-                            AskStage.AnsweringOnDevice -> "Generating a cited answer on this phone"
-                            null -> "Preparing your question"
-                        },
-                        style = MaterialTheme.typography.caption,
-                        color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
-                    )
-                    state.submittedQuestion?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.caption,
-                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
-                        )
-                    }
-                    OutlinedButton(onClick = onCancel) { Text("Cancel") }
-                }
-            }
-            item {
-                Box(Modifier.fillMaxWidth().padding(Spacing.sm), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-        }
-
-        state.submittedQuestion?.let { question ->
-            if (!state.askSubmitting) {
-                item {
-                    Text("Question", style = MaterialTheme.typography.overline)
-                    Text(question, style = MaterialTheme.typography.body1, modifier = Modifier.padding(bottom = Spacing.sm))
-                }
-            }
-        }
-
-        state.askAnswer?.let { answer ->
-            item {
-                Text("Answer", style = MaterialTheme.typography.overline)
-                Text(answer, style = MaterialTheme.typography.body1, modifier = Modifier.padding(bottom = Spacing.sm))
-                if (state.askHadInvalidCitations) {
-                    Text(
-                        "Some citation markers were removed because they did not match sources.",
-                        style = MaterialTheme.typography.caption,
-                        color = MaterialTheme.colors.onSurface.copy(alpha = 0.65f),
-                    )
-                }
-            }
-        }
-
-        state.askMessage?.let { message ->
-            item {
-                Text(message, style = MaterialTheme.typography.body2, modifier = Modifier.padding(vertical = Spacing.sm))
-            }
-        }
-
-        if (state.askSources.isNotEmpty()) {
-            item { Text("Sources", style = MaterialTheme.typography.overline) }
-            items(state.askSources, key = { "ask:${it.path}" }) { item ->
-                NoteResultCard(item, onClick = { item.id?.let(onOpenNote) })
-            }
-        }
-
-        if (!state.askSubmitting && state.submittedQuestion != null &&
-            state.askAnswer == null && state.askSources.isEmpty() && state.askMessage == null && state.error == null
-        ) {
-            item { Text("No matching notes.", Modifier.padding(vertical = Spacing.lg)) }
-        }
-
-        state.error?.let { message ->
-            item { ErrorPanel(message, onRetry = onRetry) }
         }
     }
 }

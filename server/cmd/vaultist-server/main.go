@@ -4,18 +4,20 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/okayt/vaultist/server/internal/api"
-	"github.com/okayt/vaultist/server/internal/config"
-	"github.com/okayt/vaultist/server/internal/index"
+	"github.com/markrai/vaultist/server/internal/api"
+	"github.com/markrai/vaultist/server/internal/config"
+	"github.com/markrai/vaultist/server/internal/index"
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	if len(os.Args) == 2 && os.Args[1] == "--healthcheck" {
 		healthcheck()
 		return

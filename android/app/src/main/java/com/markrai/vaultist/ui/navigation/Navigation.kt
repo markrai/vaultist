@@ -55,7 +55,6 @@ fun VaultistNavigation(
         }
         composable(BrowserRoute) {
             BrowserScreen(
-                onOpenFolder = {},
                 onOpenNote = { id -> navController.navigate(noteRoute(id)) },
                 onSettings = { navController.navigate(SetupRoute) },
             )

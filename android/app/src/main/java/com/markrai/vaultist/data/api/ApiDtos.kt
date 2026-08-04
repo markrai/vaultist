@@ -64,6 +64,8 @@ internal fun JSONObject.toNote(): Note = Note(
     },
     links = arrayOrEmpty("links").mapObjects { it.toNoteLink() },
     attachments = arrayOrEmpty("attachments").mapStrings(),
+    modifiedAt = getString("modifiedAt"),
+    size = getLong("size"),
     revision = getString("revision"),
     content = getString("content"),
     error = optString("error").takeIf(String::isNotBlank),
@@ -107,6 +109,7 @@ internal fun JSONObject.toBacklinks(): List<Backlink> = arrayOrEmpty("items").ma
         context = it.getString("context"),
         fragment = it.optString("fragment").takeIf(String::isNotBlank),
         display = it.optString("display").takeIf(String::isNotBlank),
+        occurrenceKind = it.getString("occurrenceKind"),
     )
 }
 

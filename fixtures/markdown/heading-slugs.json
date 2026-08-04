@@ -1,0 +1,38 @@
+[
+  {
+    "input": "First Heading",
+    "slug": "first-heading"
+  },
+  {
+    "input": "A: Better Title",
+    "slug": "a-better-title"
+  },
+  {
+    "input": "Multiple   Spaces",
+    "slug": "multiple---spaces"
+  },
+  {
+    "input": "Unicode Δ",
+    "slug": "unicode-δ"
+  },
+  {
+    "input": "Café",
+    "slug": "café"
+  },
+  {
+    "input": "Heading",
+    "slug": "heading"
+  },
+  {
+    "input": "  Trimmed  ",
+    "slug": "trimmed"
+  },
+  {
+    "input": "---dashes---",
+    "slug": "dashes"
+  },
+  {
+    "input": "Hello, World!",
+    "slug": "hello-world"
+  }
+]

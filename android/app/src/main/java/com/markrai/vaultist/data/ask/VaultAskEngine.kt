@@ -6,7 +6,7 @@ import com.markrai.vaultist.data.genai.PromptGenerationResult
 import com.markrai.vaultist.data.genai.PromptRequest
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.AskPreferences
-import com.markrai.vaultist.data.settings.ServerSettings
+import com.markrai.vaultist.di.config.AskRuntimeConfig
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.SearchMode
@@ -26,6 +26,7 @@ class VaultAskEngine @Inject constructor(
     private val repository: VaultRepository,
     private val promptClient: PromptGenerationClient,
     private val askPreferences: AskPreferences,
+    private val config: AskRuntimeConfig,
 ) {
     suspend fun ask(
         question: String,
@@ -57,7 +58,7 @@ class VaultAskEngine @Inject constructor(
         }
 
         val fused = RetrievalFusion.fuse(searchHits, analyzed)
-        val candidates = RetrievalFusion.filterRelevant(fused, analyzed).take(TOP_CANDIDATES)
+        val candidates = RetrievalFusion.filterRelevant(fused, analyzed).take(config.topCandidates)
 
         if (candidates.isEmpty()) {
             return AskOutcome.NoMatches(
@@ -87,7 +88,7 @@ class VaultAskEngine @Inject constructor(
             )
         }
 
-        val tokenLimit = promptClient.getTokenLimit() ?: DEFAULT_TOKEN_LIMIT
+        val tokenLimit = promptClient.getTokenLimit() ?: config.defaultTokenLimit
         val packed = packPassages(trimmed, passages, tokenLimit)
         if (packed.isEmpty()) {
             return AskOutcome.Partial(
@@ -105,12 +106,13 @@ class VaultAskEngine @Inject constructor(
         val request = PromptRequest(
             systemInstruction = AskPromptComposer.SYSTEM_INSTRUCTION,
             userText = userText,
+            maxOutputTokens = config.maxOutputTokens,
             enableThinking = enableThinking,
         )
 
         if (!isActive()) return AskOutcome.Cancelled
 
-        val generation = withTimeoutOrNull(ASK_TIMEOUT_MS) {
+        val generation = withTimeoutOrNull(config.askTimeout.toMillis()) {
             promptClient.generate(request)
         }
 
@@ -158,7 +160,7 @@ class VaultAskEngine @Inject constructor(
         analyzed: AnalyzedQuery,
         isActive: () -> Boolean,
     ): List<TermSearchHit>? = coroutineScope {
-        val semaphore = Semaphore(MAX_SEARCH_CONCURRENCY)
+        val semaphore = Semaphore(config.maxSearchConcurrency)
 
         val jobs = analyzed.searchTerms.flatMap { term ->
             listOf(SearchMode.Files to HitMode.Files, SearchMode.Content to HitMode.Content).map { (mode, hitMode) ->
@@ -201,7 +203,7 @@ class VaultAskEngine @Inject constructor(
         candidates: List<RetrievalCandidate>,
         isActive: () -> Boolean,
     ): List<FetchedNote> = coroutineScope {
-        val semaphore = Semaphore(MAX_NOTE_FETCH_CONCURRENCY)
+        val semaphore = Semaphore(config.maxNoteFetchConcurrency)
         candidates.map { candidate ->
             async {
                 if (!isActive()) return@async null
@@ -256,13 +258,13 @@ class VaultAskEngine @Inject constructor(
         tokenLimit: Int,
     ): List<AskPassage> {
         val inputBudget = minOf(
-            INPUT_BUDGET_CAP,
-            tokenLimit - MAX_OUTPUT_TOKENS,
-        ) - SAFETY_MARGIN
+            config.inputBudgetCap,
+            tokenLimit - config.maxOutputTokens,
+        ) - config.safetyMarginTokens
         if (inputBudget <= 0) return emptyList()
 
         var packed = mutableListOf<AskPassage>()
-        var charBudget = inputBudget * CHARS_PER_TOKEN_ESTIMATE
+        var charBudget = inputBudget * config.charsPerTokenEstimate
 
         for (passage in passages) {
             val trimmed = passage.copy(text = passage.text.take(charBudget.coerceAtLeast(0)))
@@ -282,12 +284,13 @@ class VaultAskEngine @Inject constructor(
         inputBudget: Int,
     ): List<AskPassage> {
         var current = passages.toMutableList()
-        repeat(MAX_TOKEN_TRIM_ITERATIONS) {
+        repeat(config.maxTokenTrimIterations) {
             val userText = AskPromptComposer.buildUserText(question, current)
             val tokens = promptClient.countTokens(
                 PromptRequest(
                     systemInstruction = AskPromptComposer.SYSTEM_INSTRUCTION,
                     userText = userText,
+                    maxOutputTokens = config.maxOutputTokens,
                 ),
             ) ?: return current
             if (tokens <= inputBudget) return current
@@ -317,18 +320,5 @@ class VaultAskEngine @Inject constructor(
             path = path,
             error = null,
         )
-    }
-
-    companion object {
-        private const val TOP_CANDIDATES = 8
-        private const val MAX_NOTE_FETCH_CONCURRENCY = 3
-        private const val MAX_SEARCH_CONCURRENCY = 4
-        private const val SAFETY_MARGIN = 96
-        private const val MAX_OUTPUT_TOKENS = 256
-        private const val INPUT_BUDGET_CAP = 4000
-        private const val DEFAULT_TOKEN_LIMIT = 4096
-        private const val CHARS_PER_TOKEN_ESTIMATE = 4
-        private const val MAX_TOKEN_TRIM_ITERATIONS = 6
-        private const val ASK_TIMEOUT_MS = 45_000L
     }
 }

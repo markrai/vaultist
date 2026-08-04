@@ -31,14 +31,15 @@ server/              Go server, index, parser, HTTP handlers, and Dockerfile
 api/openapi.yaml     Authoritative API contract
 deploy/              Linux host Docker Compose configuration and example environment
 docs/architecture.md Design boundaries and editing-readiness notes
+docs/CONTRIBUTING.md Package ownership and change expectations
 .github/workflows/   Path-filtered Android and server checks
 ```
 
 ## Current behavior
 
-The app provides server setup/validation, folder browsing, filename/title/alias search, note viewing, wiki-link navigation, explicit missing/ambiguous-link presentation, backlinks, index refresh, inline images, and a zoomable image viewer. It preserves screen state in ViewModels and uses cancellable OkHttp calls.
+The app provides server setup/validation, folder browsing, filename/title/alias search, note body (content) search, on-device Ask over retrieved notes, note viewing, wiki-link navigation, explicit missing/ambiguous-link presentation, backlinks, index refresh, inline images, and a zoomable image viewer. It preserves screen state in ViewModels and uses cancellable OkHttp calls.
 
-The server performs a full initial scan outside the request path and publishes an immutable index snapshot. Refreshes build a replacement snapshot and keep the last good snapshot if a temporary filesystem failure occurs. Note content is read lazily, assets are streamed with HTTP range support, and neither full bodies nor Markdown ASTs are retained in the index.
+The server performs a full initial scan outside the request path and publishes an immutable index snapshot. Refreshes build a replacement snapshot and keep the last good snapshot if a temporary filesystem failure occurs. Note content is read lazily, assets are streamed with HTTP range support, and neither full bodies nor Markdown ASTs are retained in the index. Content search currently scans note bodies on the request path against the published snapshot; files search uses indexed filenames, titles, and aliases.
 
 Supported syntax includes headings, paragraphs, ordered/unordered lists, blockquotes, emphasis, strong emphasis, inline/fenced code, standard links/images, and these Markdown Vault wiki-link forms:
 
@@ -59,7 +60,7 @@ Wiki-looking content inside inline or fenced code is inactive. Frontmatter reads
 
 ## Server development
 
-Requirements: Go 1.23 or newer. The server requires `VAULT_ROOT`; the listen address defaults to `127.0.0.1:8080`.
+Requirements: Go 1.23 or newer. The server requires `VAULT_ROOT`; the listen address defaults to `127.0.0.1:8080`. The Go module path is `github.com/markrai/vaultist/server`.
 
 Windows PowerShell against the mapped Markdown Vault:
 
@@ -75,12 +76,12 @@ Verification:
 go test ./...
 go test -race ./...
 go vet ./...
-go build -trimpath -ldflags='-s -w' ./cmd/vaultist-server
+go build -trimpath -ldflags='-s -w' ./cmd\vaultist-server
 ```
 
 ## Android development
 
-Vaultist follows the compatible Voxidian toolchain: AGP 8.9.1, Kotlin 1.9.24, Gradle 8.11.1, Java 17, compile/target SDK 36, and minimum SDK 26. Open `android` as the Android Studio project or use its wrapper directly.
+Toolchain pins live in [`android/gradle/libs.versions.toml`](android/gradle/libs.versions.toml): AGP 8.9.1, Kotlin 2.0.21, Gradle 8.11.1, Java 17, compile/target SDK 36, minimum SDK 26, Material 2, Compose BOM `2024.03.00`. Open `android` as the Android Studio project or use its wrapper directly.
 
 The emulator development URL is `http://10.0.2.2:8080`; Android emulator `localhost` addresses the emulator itself. Cleartext is restricted to emulator/loopback development hosts. Tailnet and other remote server URLs must use HTTPS.
 
@@ -100,7 +101,7 @@ Instrumentation execution additionally requires a running emulator or physical d
 
 1. Copy or check out the project on the Linux host.
 2. Review `deploy/example.env` and create `deploy/.env` if desired.
-3. Confirm `/srv/Vault` is the intended Markdown Vault.
+3. Confirm `VAULT_HOST_PATH` (default `/srv/Vault`) is the intended Markdown Vault on the host.
 4. From `deploy`, run `docker compose up -d --build`.
 5. Confirm `curl http://127.0.0.1:8080/api/v1/status` returns JSON.
 6. Expose that loopback service to the tailnet with Tailscale Serve.
@@ -114,7 +115,7 @@ tailscale serve status
 
 Tailscale changed Serve CLI syntax in client 1.52, so verify the command against the current [official Serve command reference](https://tailscale.com/docs/reference/tailscale-cli/serve) before applying it on the Linux host. Do not use Tailscale Funnel: Funnel is public exposure, while Vaultist is designed for tailnet-only Serve access.
 
-The container binds only to host loopback, runs as the distroless non-root user, drops Linux capabilities, uses a read-only root filesystem, and mounts `/srv/Vault:/vault:ro`.
+The container binds only to host loopback, runs as the distroless non-root user, drops Linux capabilities, uses a read-only root filesystem, and mounts `${VAULT_HOST_PATH}:/vault:ro` (default `/srv/Vault`).
 
 ## Security model
 
@@ -124,11 +125,11 @@ Read and refresh authorization are isolated behind a server interface so future 
 
 ## Read-only scope and roadmap
 
-There are no note edits, uploads, moves, offline write queues, synchronization, graph/canvas views, Dataview evaluation, plugin execution, collaboration, analytics, or telemetry. Full-text body search is also deferred; current search covers filenames, titles, and aliases.
+There are no note edits, uploads, moves, offline write queues, synchronization, graph/canvas views, Dataview evaluation, plugin execution, collaboration, analytics, or telemetry. Search covers filenames/titles/aliases (`mode=files`) and note body text (`mode=content`). Ask answers on-device after retrieving notes through those search modes; it is not a separate HTTP search mode.
 
 Editing can be added without replacing the transport: stable path-derived note IDs, content-hash revisions, original Markdown responses, a repository boundary on Android, separate authorization hooks, and vault-concept endpoints leave room for conditional `If-Match` writes, atomic replacements, attachments, and rename/backlink updates. No future write path should use last-writer-wins or unrestricted filesystem endpoints.
 
-See [docs/architecture.md](docs/architecture.md) and [api/openapi.yaml](api/openapi.yaml) for the detailed design and contract.
+See [docs/architecture.md](docs/architecture.md), [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md), and [api/openapi.yaml](api/openapi.yaml) for the detailed design and contract.
 
 ## License
 

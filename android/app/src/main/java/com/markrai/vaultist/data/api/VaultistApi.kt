@@ -25,13 +25,17 @@ class VaultistApi @Inject constructor(private val client: OkHttpClient) {
     suspend fun browse(baseUrl: String, folder: String, cursor: String? = null): ApiPayload =
         get(baseUrl, listOf("notes"), mapOf("folder" to folder, "limit" to "100", "cursor" to cursor))
 
+    /**
+     * Host search. [SearchMode.Ask] is UI-only and maps to `files` here for legacy browse
+     * paths; Ask retrieval must call with [SearchMode.Files] and [SearchMode.Content] explicitly.
+     */
     suspend fun search(baseUrl: String, query: String, mode: SearchMode = SearchMode.Files, cursor: String? = null): ApiPayload =
         get(baseUrl, listOf("search"), mapOf(
             "q" to query,
+            // Ask is UI-only; host retrieval uses files/content explicitly inside VaultAskEngine.
             "mode" to when (mode) {
-                SearchMode.Files -> "files"
+                SearchMode.Files, SearchMode.Ask -> "files"
                 SearchMode.Content -> "content"
-                SearchMode.Ask -> "files"
             },
             "limit" to "100",
             "cursor" to cursor,

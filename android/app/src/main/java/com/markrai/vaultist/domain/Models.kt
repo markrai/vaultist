@@ -18,7 +18,14 @@ data class VaultMetadata(
 
 enum class BrowseKind { Folder, Note }
 
-enum class SearchMode { Files, Content, Ask }
+enum class SearchMode {
+    /** Host metadata search (`mode=files`). */
+    Files,
+    /** Host body search (`mode=content`). */
+    Content,
+    /** UI-only; not an HTTP search mode. Ask retrieval uses files + content via [VaultAskEngine]. */
+    Ask,
+}
 
 data class BrowseItem(
     val kind: BrowseKind,
@@ -77,6 +84,8 @@ data class Note(
     val headings: List<Heading>,
     val links: List<NoteLink>,
     val attachments: List<String>,
+    val modifiedAt: String,
+    val size: Long,
     val revision: String,
     val content: String,
     val error: String?,
@@ -91,6 +100,7 @@ data class Backlink(
     val context: String,
     val fragment: String?,
     val display: String?,
+    val occurrenceKind: String,
 )
 
 sealed interface VaultError {
