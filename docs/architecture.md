@@ -9,7 +9,8 @@ The server is split into restrained packages:
 - `internal/vault` validates normalized vault-relative paths and confines file opens to the configured root.
 - `internal/markdown` uses Goldmark's syntax tree for standard Markdown structure and a stateful scanner for Markdown Vault wiki links. The scanner explicitly excludes fenced and inline code.
 - `internal/index` owns refresh lifecycle, immutable snapshots, deterministic resolution, backlinks, revisions, and lazy file opens.
-- `internal/api` maps domain results to the versioned HTTP contract and structured safe errors. Content-mode search currently performs request-path body matching here against the published snapshot; moving that matching into `index` (or a dedicated search package) is planned maintainability work.
+- `internal/search` matches notes by filename/title/alias (`files`) or note body text (`content`) against the published snapshot.
+- `internal/api` maps domain results to the versioned HTTP contract and structured safe errors.
 - `internal/config` reads process configuration without hard-coding Linux host paths.
 
 ## Index and resolution

@@ -15,6 +15,7 @@ import (
 
 	"github.com/markrai/vaultist/server/internal/index"
 	"github.com/markrai/vaultist/server/internal/model"
+	"github.com/markrai/vaultist/server/internal/search"
 	"github.com/markrai/vaultist/server/internal/vault"
 )
 
@@ -232,46 +233,19 @@ func (h *Handler) search(writer http.ResponseWriter, request *http.Request) {
 		writeError(writer, http.StatusBadRequest, "invalid_pagination", "Pagination parameters are invalid", nil)
 		return
 	}
-	folded := strings.ToLower(query)
-	var matches []browseItem
-	for _, id := range snapshot.OrderedNoteIDs {
-		note := snapshot.Notes[id]
-		matched := false
-		switch mode {
-		case "files":
-			matched = strings.Contains(strings.ToLower(note.Filename), folded) || strings.Contains(strings.ToLower(note.Title), folded)
-			if !matched {
-				for _, alias := range note.Aliases {
-					if strings.Contains(strings.ToLower(alias), folded) {
-						matched = true
-						break
-					}
-				}
-			}
-		case "content":
-			matched = noteContentContains(snapshot, note, folded)
-		}
-		if matched {
-			matches = append(matches, browseItem{Kind: "note", ID: note.ID, Name: note.Filename, Title: note.Title, Path: note.Path, Error: note.Error})
-		}
+	hits, err := search.Search(snapshot, query, search.Mode(mode))
+	if err != nil {
+		writeError(writer, http.StatusBadRequest, "invalid_query", "Search mode must be files or content", nil)
+		return
+	}
+	matches := make([]browseItem, 0, len(hits))
+	for _, hit := range hits {
+		matches = append(matches, browseItem{
+			Kind: "note", ID: hit.ID, Name: hit.Name, Title: hit.Title, Path: hit.Path, Error: hit.Error,
+		})
 	}
 	pageItems, next := paginate(matches, cursor, limit)
 	writeJSON(writer, http.StatusOK, map[string]any{"items": pageItems, "nextCursor": next, "query": query})
-}
-
-const maxSearchNoteBytes = 32 << 20
-
-func noteContentContains(snapshot *index.Snapshot, note *model.Note, foldedQuery string) bool {
-	_, file, err := snapshot.OpenNote(note.ID)
-	if err != nil {
-		return false
-	}
-	defer file.Close()
-	content, err := io.ReadAll(io.LimitReader(file, maxSearchNoteBytes+1))
-	if err != nil || len(content) > maxSearchNoteBytes {
-		return false
-	}
-	return strings.Contains(strings.ToLower(string(content)), foldedQuery)
 }
 
 func (h *Handler) asset(writer http.ResponseWriter, request *http.Request) {

@@ -11,6 +11,7 @@ Short expectations for keeping the tree maintainable. See [architecture.md](arch
 | Markdown dialect (index) | `server/internal/markdown` | Wiki/link rules duplicated ad hoc in handlers |
 | Index / resolution | `server/internal/index` | Snapshot mutation from request handlers |
 | HTTP mapping | `server/internal/api` | Vault filesystem walks outside refresh/search seams |
+| Vault search | `server/internal/search` | Search matching in HTTP handlers |
 | Android domain models | `android/.../domain` | Network/JSON types leaking into screens |
 | Vault I/O on Android | `VaultRepository` / `data/api` | OkHttp or JSON parsing in Composables |
 | Ask orchestration | `data/ask`, `data/genai`, `ui/ask` | New Ask product logic in `BrowserViewModel` / `BrowserScreen` |
