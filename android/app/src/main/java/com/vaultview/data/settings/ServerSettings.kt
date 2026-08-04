@@ -1,6 +1,7 @@
 package com.vaultview.data.settings
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -13,11 +14,23 @@ import kotlinx.coroutines.flow.map
 private val Context.vaultViewDataStore by preferencesDataStore(name = "vaultview_settings")
 
 @Singleton
-class ServerSettings @Inject constructor(@ApplicationContext private val context: Context) {
+class ServerSettings @Inject constructor(
+    @ApplicationContext private val context: Context,
+) : AskPreferences {
     private val serverUrlKey = stringPreferencesKey("server_url")
+    private val enableAskThinkingKey = booleanPreferencesKey("enable_ask_thinking")
+
     val serverUrl: Flow<String?> = context.vaultViewDataStore.data.map { it[serverUrlKey] }
+
+    override val enableAskThinking: Flow<Boolean> = context.vaultViewDataStore.data.map {
+        it[enableAskThinkingKey] ?: false
+    }
 
     suspend fun saveServerUrl(url: String) {
         context.vaultViewDataStore.edit { it[serverUrlKey] = url }
+    }
+
+    override suspend fun setEnableAskThinking(enabled: Boolean) {
+        context.vaultViewDataStore.edit { it[enableAskThinkingKey] = enabled }
     }
 }

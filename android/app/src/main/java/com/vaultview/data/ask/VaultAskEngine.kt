@@ -5,6 +5,8 @@ import com.vaultview.data.genai.PromptGenerationClient
 import com.vaultview.data.genai.PromptGenerationResult
 import com.vaultview.data.genai.PromptRequest
 import com.vaultview.data.repository.VaultRepository
+import com.vaultview.data.settings.AskPreferences
+import com.vaultview.data.settings.ServerSettings
 import com.vaultview.domain.BrowseItem
 import com.vaultview.domain.BrowseKind
 import com.vaultview.domain.SearchMode
@@ -14,6 +16,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
@@ -22,6 +25,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 class VaultAskEngine @Inject constructor(
     private val repository: VaultRepository,
     private val promptClient: PromptGenerationClient,
+    private val askPreferences: AskPreferences,
 ) {
     suspend fun ask(
         question: String,
@@ -96,10 +100,12 @@ class VaultAskEngine @Inject constructor(
 
         onStage(AskStage.AnsweringOnDevice)
 
+        val enableThinking = askPreferences.enableAskThinking.first()
         val userText = AskPromptComposer.buildUserText(trimmed, packed)
         val request = PromptRequest(
             systemInstruction = AskPromptComposer.SYSTEM_INSTRUCTION,
             userText = userText,
+            enableThinking = enableThinking,
         )
 
         if (!isActive()) return AskOutcome.Cancelled

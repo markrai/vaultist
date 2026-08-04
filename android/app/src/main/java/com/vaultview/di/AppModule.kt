@@ -2,6 +2,8 @@ package com.vaultview.di
 
 import com.vaultview.data.repository.DefaultVaultRepository
 import com.vaultview.data.repository.VaultRepository
+import com.vaultview.data.settings.AskPreferences
+import com.vaultview.data.settings.ServerSettings
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -17,6 +19,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindVaultRepository(repository: DefaultVaultRepository): VaultRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAskPreferences(settings: ServerSettings): AskPreferences
 }
 
 @Module

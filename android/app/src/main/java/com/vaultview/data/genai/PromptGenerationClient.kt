@@ -14,4 +14,5 @@ data class PromptRequest(
     val userText: String,
     val maxOutputTokens: Int = 256,
     val temperature: Float = 0.2f,
+    val enableThinking: Boolean = false,
 )

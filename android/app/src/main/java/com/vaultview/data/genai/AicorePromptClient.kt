@@ -212,7 +212,7 @@ class AicorePromptClient @Inject constructor() : PromptGenerationClient {
         maxOutputTokens = request.maxOutputTokens
         temperature = request.temperature
         candidateCount = 1
-        enableThinking = false
+        enableThinking = request.enableThinking
     }
 
     private fun mapFailureKind(error: Throwable): PromptFailureKind {

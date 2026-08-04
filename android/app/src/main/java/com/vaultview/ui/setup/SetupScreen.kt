@@ -13,12 +13,14 @@ import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
+import androidx.compose.material.Switch
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
@@ -31,7 +33,14 @@ import com.vaultview.ui.theme.Spacing
 fun SetupScreen(onSaved: () -> Unit, onBack: () -> Unit, viewModel: SetupViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.saved) { if (state.saved) onSaved() }
-    SetupContent(state, viewModel::updateUrl, viewModel::testConnection, viewModel::save, onBack)
+    SetupContent(
+        state = state,
+        onUrlChange = viewModel::updateUrl,
+        onTest = viewModel::testConnection,
+        onSave = viewModel::save,
+        onEnableAskThinkingChange = viewModel::setEnableAskThinking,
+        onBack = onBack,
+    )
 }
 
 @Composable
@@ -40,6 +49,7 @@ fun SetupContent(
     onUrlChange: (String) -> Unit,
     onTest: () -> Unit,
     onSave: () -> Unit,
+    onEnableAskThinkingChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     Scaffold(topBar = { TopAppBar(title = { Text("Vault Peep server") }, navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }) }) { padding ->
@@ -66,6 +76,26 @@ fun SetupContent(
                 Button(onClick = onSave, enabled = state.valid && !state.testing, modifier = Modifier.testTag("save_server")) { Text("Save") }
             }
             Text("Vault Peep stores only this URL. It does not store SMB credentials or request storage access.", style = MaterialTheme.typography.caption)
+
+            Text("Ask", style = MaterialTheme.typography.subtitle1)
+            Row(
+                Modifier.fillMaxWidth().testTag("ask_thinking_row"),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = Spacing.sm)) {
+                    Text("Extended thinking")
+                    Text(
+                        "Lets on-device Ask reason longer before answering. Slower; off by default.",
+                        style = MaterialTheme.typography.caption,
+                    )
+                }
+                Switch(
+                    checked = state.enableAskThinking,
+                    onCheckedChange = onEnableAskThinkingChange,
+                    modifier = Modifier.testTag("ask_thinking_toggle"),
+                )
+            }
         }
     }
 }

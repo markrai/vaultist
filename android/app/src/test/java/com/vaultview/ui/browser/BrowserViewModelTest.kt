@@ -9,6 +9,7 @@ import com.vaultview.domain.Note
 import com.vaultview.domain.SearchMode
 import com.vaultview.domain.SearchPage
 import com.vaultview.domain.VaultResult
+import com.vaultview.testutil.FakeAskPreferences
 import com.vaultview.testutil.FakePromptGenerationClient
 import com.vaultview.testutil.FakeVaultRepository
 import com.vaultview.testutil.MainDispatcherRule
@@ -34,7 +35,7 @@ class BrowserViewModelTest {
     private fun viewModel(
         repository: FakeVaultRepository = FakeVaultRepository(),
         prompt: FakePromptGenerationClient = FakePromptGenerationClient(),
-    ) = BrowserViewModel(repository, VaultAskEngine(repository, prompt), prompt)
+    ) = BrowserViewModel(repository, VaultAskEngine(repository, prompt, FakeAskPreferences()), prompt)
 
     @Test
     fun filesSearchDebouncesAndPopulatesResults() = runTest(dispatcherRule.dispatcher) {

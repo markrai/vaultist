@@ -25,6 +25,7 @@ class SetupScreenTest {
                     onUrlChange = { typed = it },
                     onTest = { testClicks++ },
                     onSave = {},
+                    onEnableAskThinkingChange = {},
                     onBack = {},
                 )
             }

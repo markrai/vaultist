@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaultview.BuildConfig
 import com.vaultview.data.api.normalizeServerUrl
 import com.vaultview.data.repository.VaultRepository
+import com.vaultview.data.settings.AskPreferences
 import com.vaultview.domain.VaultResult
 import com.vaultview.ui.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,10 +23,14 @@ data class SetupUiState(
     val message: String? = null,
     val valid: Boolean = false,
     val saved: Boolean = false,
+    val enableAskThinking: Boolean = false,
 )
 
 @HiltViewModel
-class SetupViewModel @Inject constructor(private val repository: VaultRepository) : ViewModel() {
+class SetupViewModel @Inject constructor(
+    private val repository: VaultRepository,
+    private val askPreferences: AskPreferences,
+) : ViewModel() {
     private val _state = MutableStateFlow(SetupUiState())
     val state: StateFlow<SetupUiState> = _state
 
@@ -33,10 +38,21 @@ class SetupViewModel @Inject constructor(private val repository: VaultRepository
         viewModelScope.launch {
             repository.serverUrl.first()?.let { configured -> _state.update { it.copy(url = configured) } }
         }
+        viewModelScope.launch {
+            askPreferences.enableAskThinking.collect { enabled ->
+                _state.update { it.copy(enableAskThinking = enabled) }
+            }
+        }
     }
 
     fun updateUrl(value: String) {
         _state.update { it.copy(url = value, valid = it.testedUrl == value && it.valid, message = null, saved = false) }
+    }
+
+    fun setEnableAskThinking(enabled: Boolean) {
+        viewModelScope.launch {
+            askPreferences.setEnableAskThinking(enabled)
+        }
     }
 
     fun testConnection() {

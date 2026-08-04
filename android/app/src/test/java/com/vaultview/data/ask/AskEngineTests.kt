@@ -5,6 +5,7 @@ import com.vaultview.domain.BrowseItem
 import com.vaultview.domain.BrowseKind
 import com.vaultview.domain.Note
 import com.vaultview.domain.SearchMode
+import com.vaultview.testutil.FakeAskPreferences
 import com.vaultview.testutil.FakePromptGenerationClient
 import com.vaultview.testutil.FakeVaultRepository
 import kotlinx.coroutines.test.runTest
@@ -127,7 +128,7 @@ class VaultAskEngineRetrievalTest {
         val prompt = FakePromptGenerationClient().apply {
             generationResult = PromptGenerationResult.Success("Use Docker Compose on Vega. [1]")
         }
-        val engine = VaultAskEngine(repository, prompt)
+        val engine = VaultAskEngine(repository, prompt, FakeAskPreferences())
 
         val outcome = engine.ask(
             question = "What did I decide about deployment?",
@@ -163,7 +164,7 @@ class VaultAskEngineRetrievalTest {
             termIndex = mapOf("plan" to listOf(weakItem), "plans" to listOf(weakItem))
             notesById = mapOf(weak.id to weak)
         }
-        val engine = VaultAskEngine(repository, FakePromptGenerationClient())
+        val engine = VaultAskEngine(repository, FakePromptGenerationClient(), FakeAskPreferences())
 
         val outcome = engine.ask(
             question = "What was the plan for VaultPeep on Vega?",
@@ -201,7 +202,7 @@ class VaultAskEngineRetrievalTest {
         val prompt = FakePromptGenerationClient().apply {
             generationResult = PromptGenerationResult.Success("Use tailscale serve. [1]")
         }
-        val outcome = VaultAskEngine(repository, prompt).ask(
+        val outcome = VaultAskEngine(repository, prompt, FakeAskPreferences()).ask(
             question = "How did I expose Paperless through Tailscale?",
             requestId = 1L,
             isActive = { true },
