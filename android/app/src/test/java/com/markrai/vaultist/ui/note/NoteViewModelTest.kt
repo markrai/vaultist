@@ -19,7 +19,7 @@ class NoteViewModelTest {
 
     @Test fun exposesNoteAndHeadingFragmentState() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository().apply {
-            noteResult = VaultResult.Success(Note("Folder/Note", "Folder/Note.md", "Note.md", "Note", emptyList(), emptyList(), emptyList(), emptyList(), "sha256:x", "# Note", null))
+            noteResult = VaultResult.Success(Note("Folder/Note", "Folder/Note.md", "Note.md", "Note", emptyList(), emptyList(), emptyList(), emptyList(), "2026-01-01T00:00:00Z", 0L, "sha256:x", "# Note", null))
         }
         val viewModel = NoteViewModel(SavedStateHandle(mapOf("id" to "Folder/Note", "fragment" to "Part")), repository)
         advanceUntilIdle()

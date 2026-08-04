@@ -29,7 +29,9 @@ All routes live below `/api/v1`. Lists/searches have bounded limits and stable n
 
 Stable note IDs are normalized relative Markdown paths without `.md`; asset IDs are normalized relative paths. IDs may contain slash segments, Unicode, and spaces. They are URL encoded by Android and validated again by the server.
 
-Search accepts `mode=files` (indexed filenames, titles, aliases) and `mode=content` (note body text against the current snapshot). The HTTP contract does not define an Ask mode.
+Search accepts `mode=files` (indexed filenames, titles, aliases) and `mode=content` (note body text against the current snapshot). The HTTP contract does not define an Ask mode. On Android, `SearchMode.Ask` is UI-only: Ask retrieval calls `/search` with `files` and `content` explicitly inside `VaultAskEngine`; `VaultistApi` must never send `mode=ask`.
+
+Contract enforcement: OpenAPI is authoritative; server responses are validated against schemas in `internal/api/schema_test.go`; Android maps JSON in `ApiDtos.kt` with coverage in `ApiDtosTest.kt`. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Android
 

@@ -22,11 +22,14 @@ class ApiDtosTest {
                 {"kind":"wiki","raw":"Missing","target":"Missing","line":2,"column":1,"isEmbed":false,"isAsset":false,"resolution":{"status":"missing"}},
                 {"kind":"wiki","raw":"Note","target":"Note","line":3,"column":1,"isEmbed":false,"isAsset":false,"resolution":{"status":"ambiguous","candidates":[{"id":"A/Note","title":"Note","path":"A/Note.md"}]}}
               ],
-              "attachments":[],"revision":"sha256:abc","content":"# Vega","error":""
+              "attachments":[],"modifiedAt":"2026-01-01T00:00:00Z","size":128,
+              "revision":"sha256:abc","content":"# Vega","error":""
             }"""
         ).toNote()
         assertEquals("Projects/Vega", note.id)
         assertEquals(listOf("Server"), note.aliases)
+        assertEquals("2026-01-01T00:00:00Z", note.modifiedAt)
+        assertEquals(128L, note.size)
         assertEquals(LinkStatus.Missing, note.links[0].resolution.status)
         assertEquals(LinkStatus.Ambiguous, note.links[1].resolution.status)
         assertEquals("A/Note", note.links[1].resolution.candidates.single().id)
@@ -39,6 +42,7 @@ class ApiDtosTest {
             """{
               "id":"Plain","path":"Plain.md","filename":"Plain.md","title":"Plain",
               "aliases":null,"headings":null,"links":null,"attachments":null,
+              "modifiedAt":"2026-01-01T00:00:00Z","size":0,
               "revision":"sha256:abc","content":"# Plain","error":""
             }"""
         ).toNote()
@@ -47,6 +51,20 @@ class ApiDtosTest {
         assertEquals(emptyList<com.markrai.vaultist.domain.Heading>(), note.headings)
         assertEquals(emptyList<com.markrai.vaultist.domain.NoteLink>(), note.links)
         assertEquals(emptyList<String>(), note.attachments)
+    }
+
+    @Test
+    fun mapsBacklinkOccurrenceKind() {
+        val backlinks = JSONObject(
+            """{
+              "noteId":"Home",
+              "items":[{
+                "sourceId":"Folder/Note","sourceTitle":"Note","sourcePath":"Folder/Note.md",
+                "line":2,"column":1,"context":"[[Home]]","occurrenceKind":"wiki"
+              }]
+            }"""
+        ).toBacklinks()
+        assertEquals("wiki", backlinks.single().occurrenceKind)
     }
 
     @Test

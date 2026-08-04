@@ -44,7 +44,7 @@ class AskViewModelTest {
             )
             contentSearchResult = VaultResult.Success(SearchPage(emptyList(), null, "alpha"))
             noteResult = VaultResult.Success(
-                Note("Notes/A", "Notes/A.md", "A.md", "Alpha", emptyList(), emptyList(), emptyList(), emptyList(), "1", "Alpha note about deployment.", null),
+                Note("Notes/A", "Notes/A.md", "A.md", "Alpha", emptyList(), emptyList(), emptyList(), emptyList(), "2026-01-01T00:00:00Z", 0L, "1", "Alpha note about deployment.", null),
             )
         }
         val prompt = FakePromptGenerationClient()
@@ -69,7 +69,7 @@ class AskViewModelTest {
             )
             contentSearchResult = VaultResult.Success(SearchPage(emptyList(), null, "alpha"))
             noteResult = VaultResult.Success(
-                Note("Notes/A", "Notes/A.md", "A.md", "Alpha", emptyList(), emptyList(), emptyList(), emptyList(), "1", "Alpha note.", null),
+                Note("Notes/A", "Notes/A.md", "A.md", "Alpha", emptyList(), emptyList(), emptyList(), emptyList(), "2026-01-01T00:00:00Z", 0L, "1", "Alpha note.", null),
             )
         }
         val prompt = FakePromptGenerationClient()

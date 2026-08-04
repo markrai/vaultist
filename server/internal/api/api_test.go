@@ -1,12 +1,10 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,17 +13,7 @@ import (
 )
 
 func TestHTTPContract(t *testing.T) {
-	root := t.TempDir()
-	writeFile(t, root, "Home.md", "# Home\n[[Folder/Note]]\n![[pixel.png]]")
-	writeFile(t, root, "Folder/Note.md", "# Note\n[[Home]]")
-	writeFile(t, root, "Folder/Other.md", "# Other")
-	writeFile(t, root, "Percent%20.md", "# Literal percent")
-	writeFile(t, root, "pixel.png", "0123456789")
-	manager, _ := index.NewManager(root, "Contract Vault")
-	if err := manager.Refresh(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	server := httptest.NewServer(NewHandler(manager, nil))
+	server := contractFixture(t)
 	defer server.Close()
 
 	assertStatus(t, http.MethodGet, server.URL+"/api/v1/status", nil, http.StatusOK)
@@ -179,16 +167,5 @@ func assertAPIError(t *testing.T, endpoint string, status int, code string) {
 	data, _ := io.ReadAll(response.Body)
 	if response.StatusCode != status || !strings.Contains(string(data), code) {
 		t.Fatalf("error = %d %s", response.StatusCode, data)
-	}
-}
-
-func writeFile(t *testing.T, root, relative, content string) {
-	t.Helper()
-	filePath := filepath.Join(root, filepath.FromSlash(relative))
-	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
 	}
 }
