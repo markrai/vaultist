@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO_DIR="/srv/vaultpeep"
-REMOTE_URL="https://github.com/markrai/vaultpeep"
+REPO_DIR="/srv/vaultist"
+REMOTE_URL="https://github.com/markrai/vaultist"
 COMPOSE_DIR="$REPO_DIR/deploy"
 SERVICE="vaultview"
 HEALTH_URL="http://127.0.0.1:8080/api/v1/status"
