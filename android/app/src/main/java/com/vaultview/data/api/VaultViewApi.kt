@@ -31,6 +31,7 @@ class VaultViewApi @Inject constructor(private val client: OkHttpClient) {
             "mode" to when (mode) {
                 SearchMode.Files -> "files"
                 SearchMode.Content -> "content"
+                SearchMode.Ask -> "files"
             },
             "limit" to "100",
             "cursor" to cursor,

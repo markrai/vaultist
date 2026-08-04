@@ -1,5 +1,7 @@
 plugins {
     id("com.android.application") version "8.9.1" apply false
-    kotlin("android") version "1.9.24" apply false
-    id("com.google.dagger.hilt.android") version "2.51.1" apply false
+    kotlin("android") version "2.0.21" apply false
+    kotlin("plugin.compose") version "2.0.21" apply false
+    id("com.google.devtools.ksp") version "2.0.21-1.0.28" apply false
+    id("com.google.dagger.hilt.android") version "2.57.1" apply false
 }
