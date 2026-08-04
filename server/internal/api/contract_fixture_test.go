@@ -13,6 +13,11 @@ import (
 )
 
 func contractFixture(t *testing.T) *httptest.Server {
+	_, server := contractFixtureWithManager(t)
+	return server
+}
+
+func contractFixtureWithManager(t *testing.T) (*index.Manager, *httptest.Server) {
 	t.Helper()
 	root := t.TempDir()
 	writeFile(t, root, "Home.md", "# Home\n[[Folder/Note]]\n![[pixel.png]]")
@@ -27,7 +32,7 @@ func contractFixture(t *testing.T) *httptest.Server {
 	if err := manager.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	return httptest.NewServer(NewHandler(manager, nil))
+	return manager, httptest.NewServer(NewHandler(manager, nil))
 }
 
 func fetchResponse(t *testing.T, method, endpoint string, body io.Reader) ([]byte, int) {

@@ -1,10 +1,13 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -60,10 +63,34 @@ func TestResponsesMatchOpenAPISchemas(t *testing.T) {
 	validateSchema(t, document, "SearchResponse", mustGETBody(t, base+"/api/v1/search?q=Folder%2FNote&mode=content&limit=10"))
 	validateSchema(t, document, "NoteResponse", mustGETBody(t, base+"/api/v1/notes/Folder/Note"))
 	validateSchema(t, document, "BacklinksResponse", mustGETBody(t, base+"/api/v1/notes/Home/backlinks"))
+	validateSchema(t, document, "IndexState", mustGETBody(t, base+"/api/v1/index/status"))
 
 	errorBody, status := fetchResponse(t, http.MethodGet, base+"/api/v1/search?q=test&mode=invalid", nil)
 	if status != http.StatusBadRequest {
 		t.Fatalf("invalid search mode status = %d body=%s", status, errorBody)
 	}
 	validateSchema(t, document, "ErrorResponse", errorBody)
+
+	notFoundBody, notFoundStatus := fetchResponse(t, http.MethodGet, base+"/api/v1/notes/Nope", nil)
+	if notFoundStatus != http.StatusNotFound {
+		t.Fatalf("note not found status = %d body=%s", notFoundStatus, notFoundBody)
+	}
+	validateSchema(t, document, "ErrorResponse", notFoundBody)
+
+	manager, serverWithManager := contractFixtureWithManager(t)
+	defer serverWithManager.Close()
+	_ = manager.StartRefresh(context.Background())
+	conflictBody, conflictStatus := fetchResponse(t, http.MethodPost, serverWithManager.URL+"/api/v1/index/refresh", strings.NewReader(""))
+	if conflictStatus != http.StatusConflict {
+		t.Fatalf("refresh conflict status = %d body=%s", conflictStatus, conflictBody)
+	}
+	validateSchema(t, document, "ErrorResponse", conflictBody)
+
+	denied := httptest.NewServer(NewHandler(manager, denyAuthorizer{}))
+	defer denied.Close()
+	forbiddenBody, forbiddenStatus := fetchResponse(t, http.MethodGet, denied.URL+"/api/v1/vault", nil)
+	if forbiddenStatus != http.StatusForbidden {
+		t.Fatalf("forbidden status = %d body=%s", forbiddenStatus, forbiddenBody)
+	}
+	validateSchema(t, document, "ErrorResponse", forbiddenBody)
 }

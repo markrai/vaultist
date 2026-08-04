@@ -10,7 +10,7 @@ import com.markrai.vaultist.data.api.toIndexState
 import com.markrai.vaultist.data.api.toNote
 import com.markrai.vaultist.data.api.toSearchPage
 import com.markrai.vaultist.data.api.toVaultMetadata
-import com.markrai.vaultist.data.settings.ServerSettings
+import com.markrai.vaultist.data.settings.ServerUrlSettings
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.VaultError
 import com.markrai.vaultist.domain.VaultResult
@@ -26,7 +26,7 @@ import org.json.JSONObject
 @Singleton
 class DefaultVaultRepository @Inject constructor(
     private val api: VaultistApi,
-    private val settings: ServerSettings,
+    private val settings: ServerUrlSettings,
 ) : VaultRepository {
     private val currentServerUrl = AtomicReference<String?>(null)
     override val serverUrl = settings.serverUrl.onEach(currentServerUrl::set)

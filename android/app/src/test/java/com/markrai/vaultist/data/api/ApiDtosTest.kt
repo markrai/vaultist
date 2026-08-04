@@ -1,9 +1,11 @@
 package com.markrai.vaultist.data.api
 
 import com.markrai.vaultist.domain.LinkStatus
+import com.markrai.vaultist.testutil.ApiFixtures
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -72,5 +74,20 @@ class ApiDtosTest {
         val page = JSONObject("""{"items":[{"kind":"folder","name":"Projects","path":"Projects"}],"nextCursor":"50","folder":""}""").toBrowsePage()
         assertEquals(com.markrai.vaultist.domain.BrowseKind.Folder, page.items.single().kind)
         assertEquals("50", page.nextCursor)
+    }
+
+    @Test
+    fun mapsIndexStateVaultMetadataAndSearchPage() {
+        val index = JSONObject(ApiFixtures.INDEX_STATE).toIndexState()
+        assertEquals("ready", index.state)
+        assertEquals(4, index.noteCount)
+
+        val vault = JSONObject(ApiFixtures.VAULT).toVaultMetadata()
+        assertEquals("Contract Vault", vault.name)
+        assertTrue(vault.readOnly)
+
+        val search = JSONObject(ApiFixtures.SEARCH).toSearchPage()
+        assertEquals("other", search.query)
+        assertEquals(1, search.items.size)
     }
 }

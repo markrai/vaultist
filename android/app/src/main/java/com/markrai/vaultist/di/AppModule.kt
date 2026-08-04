@@ -4,6 +4,8 @@ import com.markrai.vaultist.data.repository.DefaultVaultRepository
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.AskPreferences
 import com.markrai.vaultist.data.settings.DataStoreAskPreferences
+import com.markrai.vaultist.data.settings.ServerSettings
+import com.markrai.vaultist.data.settings.ServerUrlSettings
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -23,6 +25,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAskPreferences(preferences: DataStoreAskPreferences): AskPreferences
+
+    @Binds
+    @Singleton
+    abstract fun bindServerUrlSettings(settings: ServerSettings): ServerUrlSettings
 }
 
 @Module

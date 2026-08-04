@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
@@ -34,6 +35,7 @@ func (TailnetAuthorizer) AuthorizeRefresh(*http.Request) bool { return true }
 type Handler struct {
 	manager    *index.Manager
 	authorizer Authorizer
+	log        *slog.Logger
 }
 
 func NewHandler(manager *index.Manager, authorizer Authorizer) http.Handler {
@@ -43,7 +45,7 @@ func NewHandler(manager *index.Manager, authorizer Authorizer) http.Handler {
 	return &Handler{manager: manager, authorizer: authorizer}
 }
 
-func (h *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) serve(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("X-Content-Type-Options", "nosniff")
 	writer.Header().Set("Cache-Control", "private, max-age=0, must-revalidate")
 	if !strings.HasPrefix(request.URL.Path, apiPrefix) {
@@ -354,6 +356,9 @@ type apiError struct {
 }
 
 func writeError(writer http.ResponseWriter, status int, code, message string, details any) {
+	if capture, ok := writer.(*responseCapture); ok {
+		capture.setErrorCode(code)
+	}
 	writeJSON(writer, status, errorEnvelope{Error: apiError{Code: code, Message: message, Details: details}})
 }
 

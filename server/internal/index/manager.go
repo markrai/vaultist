@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -28,6 +29,7 @@ type Manager struct {
 	mu        sync.Mutex
 	state     model.IndexState
 	cancel    context.CancelFunc
+	log       *slog.Logger
 }
 
 func NewManager(root, vaultName string) (*Manager, error) {
@@ -45,6 +47,7 @@ func NewManager(root, vaultName string) (*Manager, error) {
 	return &Manager{
 		root: abs, vaultName: vaultName, parser: mdparser.NewParser(),
 		state: model.IndexState{State: "not_ready"},
+		log:   slog.Default(),
 	}, nil
 }
 
@@ -74,10 +77,12 @@ func (m *Manager) StartRefresh(parent context.Context) error {
 	m.cancel = cancel
 	m.state.State = "indexing"
 	m.state.StartedAt = time.Now().UTC()
+	startedAt := m.state.StartedAt
 	m.mu.Unlock()
+	m.logger().Info("index_refresh_start")
 	go func() {
 		defer cancel()
-		_ = m.refresh(ctx)
+		_ = m.refresh(ctx, startedAt)
 	}()
 	return nil
 }
@@ -90,8 +95,17 @@ func (m *Manager) Refresh(ctx context.Context) error {
 	}
 	m.state.State = "indexing"
 	m.state.StartedAt = time.Now().UTC()
+	startedAt := m.state.StartedAt
 	m.mu.Unlock()
-	return m.refresh(ctx)
+	m.logger().Info("index_refresh_start")
+	return m.refresh(ctx, startedAt)
+}
+
+func (m *Manager) logger() *slog.Logger {
+	if m.log != nil {
+		return m.log
+	}
+	return slog.Default()
 }
 
 func (m *Manager) Close() {
@@ -102,7 +116,7 @@ func (m *Manager) Close() {
 	}
 }
 
-func (m *Manager) refresh(ctx context.Context) error {
+func (m *Manager) refresh(ctx context.Context, startedAt time.Time) error {
 	previous := m.snapshot.Load()
 	generation := uint64(1)
 	if previous != nil {
@@ -110,6 +124,7 @@ func (m *Manager) refresh(ctx context.Context) error {
 	}
 	next, err := build(ctx, m.root, m.vaultName, generation, m.parser)
 	now := time.Now().UTC()
+	duration := now.Sub(startedAt).Milliseconds()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.cancel = nil
@@ -120,17 +135,27 @@ func (m *Manager) refresh(ctx context.Context) error {
 			m.state.State = "ready"
 		}
 		m.state.FinishedAt = now
+		m.logger().Info("index_refresh_fail", "duration_ms", duration, "error", err.Error())
 		return err
 	}
 	m.snapshot.Store(next)
-	m.state = model.IndexState{
-		State: "ready", Generation: generation, StartedAt: m.state.StartedAt,
-		FinishedAt: now, NoteCount: len(next.Notes), AssetCount: len(next.Assets),
-	}
+	errorCount := 0
 	for _, note := range next.Notes {
 		if note.Error != "" {
-			m.state.ErrorCount++
+			errorCount++
 		}
 	}
+	m.state = model.IndexState{
+		State: "ready", Generation: generation, StartedAt: startedAt,
+		FinishedAt: now, NoteCount: len(next.Notes), AssetCount: len(next.Assets),
+		ErrorCount: errorCount,
+	}
+	m.logger().Info("index_refresh_complete",
+		"generation", generation,
+		"note_count", len(next.Notes),
+		"asset_count", len(next.Assets),
+		"error_count", errorCount,
+		"duration_ms", duration,
+	)
 	return nil
 }
