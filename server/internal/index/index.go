@@ -20,9 +20,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	mdparser "github.com/okayt/vaultist/server/internal/markdown"
-	"github.com/okayt/vaultist/server/internal/model"
-	"github.com/okayt/vaultist/server/internal/vault"
+	mdparser "github.com/markrai/vaultist/server/internal/markdown"
+	"github.com/markrai/vaultist/server/internal/model"
+	"github.com/markrai/vaultist/server/internal/vault"
 )
 
 var (

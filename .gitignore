@@ -4,8 +4,8 @@ android/**/build/
 android/local.properties
 server/bin/
 server/coverage.out
+*.exe
 server/vaultist-server
-server/vaultist-server.exe
 
 # IDE and OS state
 .idea/

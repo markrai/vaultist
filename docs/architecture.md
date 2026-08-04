@@ -9,7 +9,7 @@ The server is split into restrained packages:
 - `internal/vault` validates normalized vault-relative paths and confines file opens to the configured root.
 - `internal/markdown` uses Goldmark's syntax tree for standard Markdown structure and a stateful scanner for Markdown Vault wiki links. The scanner explicitly excludes fenced and inline code.
 - `internal/index` owns refresh lifecycle, immutable snapshots, deterministic resolution, backlinks, revisions, and lazy file opens.
-- `internal/api` maps domain results to the versioned HTTP contract and structured safe errors.
+- `internal/api` maps domain results to the versioned HTTP contract and structured safe errors. Content-mode search currently performs request-path body matching here against the published snapshot; moving that matching into `index` (or a dedicated search package) is planned maintainability work.
 - `internal/config` reads process configuration without hard-coding Linux host paths.
 
 ## Index and resolution
@@ -28,11 +28,21 @@ All routes live below `/api/v1`. Lists/searches have bounded limits and stable n
 
 Stable note IDs are normalized relative Markdown paths without `.md`; asset IDs are normalized relative paths. IDs may contain slash segments, Unicode, and spaces. They are URL encoded by Android and validated again by the server.
 
+Search accepts `mode=files` (indexed filenames, titles, aliases) and `mode=content` (note body text against the current snapshot). The HTTP contract does not define an Ask mode.
+
 ## Android
 
-The single-activity Compose client uses Hilt, immutable `StateFlow` states, lifecycle-aware collection, OkHttp cancellation, DataStore settings, Navigation Compose, and Coil. These are adapted from Voxidian's toolchain and organization conventions. Material 2 is retained to match Voxidian's current Compose BOM and theme approach. Edge-to-edge setup and system-bar padding follow Voxidian's shared activity-content pattern.
+The single-activity Compose client uses Hilt, immutable `StateFlow` states, lifecycle-aware collection, OkHttp cancellation, DataStore settings, Navigation Compose, Coil, and Material 2. Edge-to-edge setup and system-bar padding follow the shared activity-content pattern in `MainActivity`.
 
 The Markdown presentation is native Compose. A bounded block parser creates headings, paragraphs, list items, quotes, and fenced-code blocks; inline presentation supports emphasis, strong text, code, standard links, wiki links, standard images, and wiki embeds. Server resolutions drive navigation and ambiguity/missing dialogs. Heading fragments and backlink source lines drive list positioning.
+
+### Ask (on-device)
+
+Ask is a client-side feature. The UI currently lives beside browse/search in the browser screen; extraction into its own package is planned.
+
+Retrieval uses the existing host API only: the Ask engine analyzes the question, searches with both `files` and `content` modes, fuses and filters hits, loads candidate notes, packs passages, and prompts an on-device model through `PromptGenerationClient` (ML Kit GenAI). Citation validation keeps answers grounded in retrieved passages. `SearchMode.Ask` is a UI mode only; it is not sent as an HTTP search mode.
+
+Ask never mounts the vault filesystem. Host reachability, index readiness, and Tailscale HTTPS remain prerequisites for retrieval even though generation runs on the device.
 
 ## Editing readiness
 

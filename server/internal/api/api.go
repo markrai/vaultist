@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/okayt/vaultist/server/internal/index"
-	"github.com/okayt/vaultist/server/internal/model"
-	"github.com/okayt/vaultist/server/internal/vault"
+	"github.com/markrai/vaultist/server/internal/index"
+	"github.com/markrai/vaultist/server/internal/model"
+	"github.com/markrai/vaultist/server/internal/vault"
 )
 
 const apiPrefix = "/api/v1"

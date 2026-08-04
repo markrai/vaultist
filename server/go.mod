@@ -1,4 +1,4 @@
-module github.com/okayt/vaultist/server
+module github.com/markrai/vaultist/server
 
 go 1.23.0
 

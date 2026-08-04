@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/okayt/vaultist/server/internal/model"
+	"github.com/markrai/vaultist/server/internal/model"
 )
 
 func TestOpenAPIAndGoModelsShareRepresentativeFields(t *testing.T) {

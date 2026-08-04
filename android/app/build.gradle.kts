@@ -61,11 +61,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-svg:2.6.0")
-    // Ask mode dependency record (plan gate):
+    // Ask mode dependency (ML Kit on-device prompt):
     // artifact: com.google.mlkit:genai-prompt:1.0.0-beta4
-    // resolves from configured repos: yes (google maven)
-    // compiles with Kotlin 1.9.24: verify via ./gradlew :app:compileDebugKotlin
-    // -Xskip-metadata-version-check: enabled for ML Kit metadata mismatch
+    // -Xskip-metadata-version-check: enabled for ML Kit metadata mismatch; revisit in Phase 7.
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
 
     testImplementation("junit:junit:4.13.2")
