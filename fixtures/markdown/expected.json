@@ -1,0 +1,120 @@
+{
+  "heading-slugs": {
+    "title": "heading-slugs",
+    "aliases": null,
+    "headings": [
+      {
+        "level": 1,
+        "text": "First Heading",
+        "slug": "first-heading"
+      },
+      {
+        "level": 2,
+        "text": "A: Better Title",
+        "slug": "a-better-title"
+      },
+      {
+        "level": 3,
+        "text": "Multiple   Spaces",
+        "slug": "multiple---spaces"
+      },
+      {
+        "level": 4,
+        "text": "Unicode Δ",
+        "slug": "unicode-δ"
+      },
+      {
+        "level": 5,
+        "text": "Café",
+        "slug": "café"
+      }
+    ],
+    "links": null
+  },
+  "obsidian-syntax": {
+    "title": "A Better Title",
+    "aliases": [
+      "Alternate",
+      "Unicode Δ"
+    ],
+    "headings": [
+      {
+        "level": 1,
+        "text": "First Heading",
+        "slug": "first-heading"
+      }
+    ],
+    "links": [
+      {
+        "kind": "wiki",
+        "target": "Note",
+        "isEmbed": false,
+        "isAsset": false
+      },
+      {
+        "kind": "wiki",
+        "target": "Folder/Note",
+        "display": "Display",
+        "isEmbed": false,
+        "isAsset": false
+      },
+      {
+        "kind": "wiki",
+        "target": "Note",
+        "fragment": "Part",
+        "display": "Jump",
+        "isEmbed": false,
+        "isAsset": false
+      },
+      {
+        "kind": "wiki_embed",
+        "target": "image.png",
+        "isEmbed": true,
+        "isAsset": true
+      },
+      {
+        "kind": "wiki_embed",
+        "target": "Note",
+        "fragment": "Preview",
+        "isEmbed": true,
+        "isAsset": false
+      },
+      {
+        "kind": "image",
+        "target": "attachments/photo one.webp",
+        "display": "Alt",
+        "isEmbed": true,
+        "isAsset": true
+      }
+    ]
+  },
+  "standard-links": {
+    "title": "standard-links",
+    "aliases": null,
+    "headings": null,
+    "links": [
+      {
+        "kind": "markdown",
+        "target": "../Folder/Related Note.md",
+        "fragment": "Details",
+        "display": "Related",
+        "isEmbed": false,
+        "isAsset": false
+      }
+    ]
+  },
+  "unicode-wiki": {
+    "title": "unicode-wiki",
+    "aliases": null,
+    "headings": null,
+    "links": [
+      {
+        "kind": "wiki",
+        "target": "Unicode/Über Note",
+        "display": "Open",
+        "isEmbed": false,
+        "isAsset": false
+      }
+    ]
+  }
+}

@@ -85,6 +85,7 @@ object MarkdownDocumentParser {
 }
 
 fun headingSlug(value: String): String = value.lowercase().trim()
-    .filter { it.isLetterOrDigit() || it.isWhitespace() || it == '-' }
-    .replace(Regex("\\s+"), "-")
+    .replace(Regex("[^\\p{L}\\p{N}\\p{M} -]+"), "")
+    .map { if (it.isWhitespace()) '-' else it }
+    .joinToString("")
     .trim('-')

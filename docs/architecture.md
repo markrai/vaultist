@@ -7,7 +7,7 @@ The Markdown Vault filesystem is authoritative. Only the Go server accesses it. 
 The server is split into restrained packages:
 
 - `internal/vault` validates normalized vault-relative paths and confines file opens to the configured root.
-- `internal/markdown` uses Goldmark's syntax tree for standard Markdown structure and a stateful scanner for Markdown Vault wiki links. The scanner explicitly excludes fenced and inline code.
+- `internal/markdown` uses Goldmark's syntax tree for standard Markdown structure and a stateful scanner for Markdown Vault wiki links. The scanner explicitly excludes fenced and inline code. See [markdown-dialect.md](markdown-dialect.md) for the full dialect.
 - `internal/index` owns refresh lifecycle, immutable snapshots, deterministic resolution, backlinks, revisions, and lazy file opens.
 - `internal/search` matches notes by filename/title/alias (`files`) or note body text (`content`) against precomputed search blobs on the published snapshot.
 - `internal/api` maps domain results to the versioned HTTP contract and structured safe errors.

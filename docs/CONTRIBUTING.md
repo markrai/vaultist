@@ -8,7 +8,7 @@ Short expectations for keeping the tree maintainable. See [architecture.md](arch
 |---|---|---|
 | HTTP contract | `api/openapi.yaml` | Hand-written clients/handlers without updating OpenAPI |
 | Server path confinement | `server/internal/vault` | Path logic in `api` or `index` |
-| Markdown dialect (index) | `server/internal/markdown` | Wiki/link rules duplicated ad hoc in handlers |
+| Markdown dialect (index) | `server/internal/markdown` | Wiki/link rules duplicated ad hoc in handlers; see [markdown-dialect.md](markdown-dialect.md) |
 | Index / resolution | `server/internal/index` | Snapshot mutation from request handlers |
 | HTTP mapping | `server/internal/api` | Vault filesystem walks outside refresh/search seams |
 | Vault search | `server/internal/search` | Search matching in HTTP handlers |
@@ -42,6 +42,16 @@ When changing request or response JSON:
 6. Run `.\gradlew.bat :app:testDebugUnitTest` from `android/`.
 
 PRs that change handlers or DTOs without updating OpenAPI should not merge.
+
+## Markdown dialect
+
+**Authoritative spec:** [markdown-dialect.md](markdown-dialect.md)
+
+- **Server index parser:** `server/internal/markdown` — links, slugs, attachments.
+- **Android display:** `android/.../ui/markdown` — block layout and rendering; uses server `Note.links` for resolution.
+- **Shared fixtures:** `fixtures/markdown/` — update when dialect rules change; run Go and Android dialect tests.
+
+The Android display parser must not grow index responsibilities (no wiki scanner in Kotlin).
 
 ## Change habits
 
