@@ -1,6 +1,7 @@
 package com.markrai.vaultist.data.ask
 
 import com.markrai.vaultist.data.genai.PromptGenerationResult
+import com.markrai.vaultist.di.config.AskRuntimeConfig
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.Note
@@ -8,6 +9,7 @@ import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.testutil.FakeAskPreferences
 import com.markrai.vaultist.testutil.FakePromptGenerationClient
 import com.markrai.vaultist.testutil.FakeVaultRepository
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -130,7 +132,7 @@ class VaultAskEngineRetrievalTest {
         val prompt = FakePromptGenerationClient().apply {
             generationResult = PromptGenerationResult.Success("Use Docker Compose on Vega. [1]")
         }
-        val engine = VaultAskEngine(repository, prompt, FakeAskPreferences())
+        val engine = VaultAskEngine(repository, prompt, FakeAskPreferences(), AskRuntimeConfig())
 
         val outcome = engine.ask(
             question = "What did I decide about deployment?",
@@ -168,7 +170,7 @@ class VaultAskEngineRetrievalTest {
             termIndex = mapOf("plan" to listOf(weakItem), "plans" to listOf(weakItem))
             notesById = mapOf(weak.id to weak)
         }
-        val engine = VaultAskEngine(repository, FakePromptGenerationClient(), FakeAskPreferences())
+        val engine = VaultAskEngine(repository, FakePromptGenerationClient(), FakeAskPreferences(), AskRuntimeConfig())
 
         val outcome = engine.ask(
             question = "What was the plan for Vaultist on Vega?",
@@ -208,12 +210,49 @@ class VaultAskEngineRetrievalTest {
         val prompt = FakePromptGenerationClient().apply {
             generationResult = PromptGenerationResult.Success("Use tailscale serve. [1]")
         }
-        val outcome = VaultAskEngine(repository, prompt, FakeAskPreferences()).ask(
+        val outcome = VaultAskEngine(repository, prompt, FakeAskPreferences(), AskRuntimeConfig()).ask(
             question = "How did I expose Paperless through Tailscale?",
             requestId = 1L,
             isActive = { true },
         )
         assertTrue(outcome is AskOutcome.Success)
         assertEquals("Notes/Paperless", (outcome as AskOutcome.Success).sources.single().id)
+    }
+
+    @Test
+    fun shortAskTimeoutIsConfigurable() = runTest {
+        val note = Note(
+            id = "Notes/Test",
+            path = "Notes/Test.md",
+            filename = "Test.md",
+            title = "Test",
+            aliases = emptyList(),
+            headings = emptyList(),
+            links = emptyList(),
+            attachments = emptyList(),
+            modifiedAt = "2026-01-01T00:00:00Z",
+            size = 0L,
+            revision = "1",
+            content = "Some content about deployment.",
+            error = null,
+        )
+        val item = BrowseItem(BrowseKind.Note, note.id, note.filename, note.title, note.path, null)
+        val repository = FakeVaultRepository().apply {
+            termIndex = mapOf("deploy" to listOf(item))
+            notesById = mapOf(note.id to note)
+        }
+        val prompt = FakePromptGenerationClient().apply {
+            generateHandler = { awaitCancellation() }
+        }
+        val config = AskRuntimeConfig(askTimeout = java.time.Duration.ofMillis(1))
+        val engine = VaultAskEngine(repository, prompt, FakeAskPreferences(), config)
+
+        val outcome = engine.ask(
+            question = "What about deployment?",
+            requestId = 1L,
+            isActive = { true },
+        )
+
+        assertTrue(outcome is AskOutcome.Partial)
     }
 }

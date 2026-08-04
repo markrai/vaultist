@@ -1,5 +1,6 @@
 package com.markrai.vaultist.ui.browser
 
+import com.markrai.vaultist.di.config.BrowseUiConfig
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.BrowsePage
@@ -24,7 +25,7 @@ class BrowserViewModelTest {
     @get:Rule val dispatcherRule = MainDispatcherRule()
 
     private fun viewModel(repository: FakeVaultRepository = FakeVaultRepository()) =
-        BrowserViewModel(repository)
+        BrowserViewModel(repository, BrowseUiConfig())
 
     @Test
     fun filesSearchDebouncesAndPopulatesResults() = runTest(dispatcherRule.dispatcher) {

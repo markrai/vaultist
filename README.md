@@ -81,7 +81,7 @@ go build -trimpath -ldflags='-s -w' ./cmd\vaultist-server
 
 ## Android development
 
-Toolchain: AGP 8.9.1, Kotlin 2.0.21, Gradle 8.11.1, Java 17, compile/target SDK 36, and minimum SDK 26. Material 2 and Compose BOM `2024.03.00` are the current UI stack. Open `android` as the Android Studio project or use its wrapper directly.
+Toolchain pins live in [`android/gradle/libs.versions.toml`](android/gradle/libs.versions.toml): AGP 8.9.1, Kotlin 2.0.21, Gradle 8.11.1, Java 17, compile/target SDK 36, minimum SDK 26, Material 2, Compose BOM `2024.03.00`. Open `android` as the Android Studio project or use its wrapper directly.
 
 The emulator development URL is `http://10.0.2.2:8080`; Android emulator `localhost` addresses the emulator itself. Cleartext is restricted to emulator/loopback development hosts. Tailnet and other remote server URLs must use HTTPS.
 

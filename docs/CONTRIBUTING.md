@@ -53,6 +53,14 @@ PRs that change handlers or DTOs without updating OpenAPI should not merge.
 
 The Android display parser must not grow index responsibilities (no wiki scanner in Kotlin).
 
+## Android config and build
+
+**Version catalog:** [`android/gradle/libs.versions.toml`](../android/gradle/libs.versions.toml) — bump AGP, Kotlin, Compose BOM, and library versions here.
+
+**Runtime config (Hilt):** [`di/config/`](../android/app/src/main/java/com/markrai/vaultist/di/config/) — `NetworkConfig`, `AskRuntimeConfig`, `BrowseUiConfig`. Inject these instead of hardcoding timeouts and Ask budgets in engines or ViewModels.
+
+**Gradle modules:** stay single-module (`:app`) until boundaries are stable, the catalog is in place, and config is injectable at module seams. Only then consider `:feature-ask`, `:core-model`, etc.
+
 ## Change habits
 
 - Behavior that crosses a process or package boundary updates `docs/architecture.md`.

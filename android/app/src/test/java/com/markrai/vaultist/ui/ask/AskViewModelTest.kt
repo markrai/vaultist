@@ -1,6 +1,7 @@
 package com.markrai.vaultist.ui.ask
 
 import com.markrai.vaultist.data.ask.VaultAskEngine
+import com.markrai.vaultist.di.config.AskRuntimeConfig
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.Note
@@ -28,7 +29,7 @@ class AskViewModelTest {
         repository: FakeVaultRepository = FakeVaultRepository(),
         prompt: FakePromptGenerationClient = FakePromptGenerationClient(),
     ): AskViewModel {
-        val engine = VaultAskEngine(repository, prompt, FakeAskPreferences())
+        val engine = VaultAskEngine(repository, prompt, FakeAskPreferences(), AskRuntimeConfig())
         return AskViewModel(engine, prompt, dispatcherRule.dispatcher)
     }
 

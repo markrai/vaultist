@@ -7,6 +7,7 @@ import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.SystemInstruction
 import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
+import com.markrai.vaultist.di.config.AskRuntimeConfig
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
@@ -25,6 +26,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Singleton
 class AicorePromptClient @Inject constructor(
     private val onDeviceAskEnabled: OnDeviceAskEnabled,
+    private val config: AskRuntimeConfig,
 ) : PromptGenerationClient {
     private val mutex = Mutex()
     private var model = lazy { Generation.getClient() }
@@ -78,7 +80,7 @@ class AicorePromptClient @Inject constructor(
 
     override suspend fun getTokenLimit(): Int? {
         cachedTokenLimit?.let { return it }
-        return withTimeoutOrNull(STATUS_TIMEOUT_MS) {
+        return withTimeoutOrNull(config.modelStatusTimeout.toMillis()) {
             withContext(Dispatchers.Main) {
                 runCatching {
                     client().getTokenLimit().also { cachedTokenLimit = it }
@@ -87,7 +89,7 @@ class AicorePromptClient @Inject constructor(
         }
     }
 
-    override suspend fun countTokens(request: PromptRequest): Int? = withTimeoutOrNull(STATUS_TIMEOUT_MS) {
+    override suspend fun countTokens(request: PromptRequest): Int? = withTimeoutOrNull(config.modelStatusTimeout.toMillis()) {
         withContext(Dispatchers.Main) {
             runCatching {
                 client().countTokens(buildRequest(request)).totalTokens
@@ -139,20 +141,18 @@ class AicorePromptClient @Inject constructor(
     }
 
     private suspend fun awaitReadyAfterDownload(downloadReportedComplete: Boolean): LocalAiCapability {
-        repeat(READY_POLL_ATTEMPTS) { attempt ->
+        repeat(config.readyPollAttempts) { attempt ->
             when (val status = readStatus()) {
                 is LocalAiCapability.Ready -> return status
-                is LocalAiCapability.Downloading -> delay(READY_POLL_DELAY_MS)
+                is LocalAiCapability.Downloading -> delay(config.readyPollDelay.toMillis())
                 LocalAiCapability.Downloadable -> {
-                    // Still settling, or download didn't actually start.
-                    if (attempt < READY_POLL_ATTEMPTS - 1) delay(READY_POLL_DELAY_MS)
+                    if (attempt < config.readyPollAttempts - 1) delay(config.readyPollDelay.toMillis())
                 }
                 LocalAiCapability.Unavailable,
                 is LocalAiCapability.Failed,
                 -> {
-                    // Transient UNAVAILABLE right after install is common; keep waiting.
-                    if (attempt < READY_POLL_ATTEMPTS - 1) {
-                        delay(READY_POLL_DELAY_MS)
+                    if (attempt < config.readyPollAttempts - 1) {
+                        delay(config.readyPollDelay.toMillis())
                     } else {
                         return status
                     }
@@ -160,13 +160,12 @@ class AicorePromptClient @Inject constructor(
                 LocalAiCapability.Checking,
                 LocalAiCapability.Unchecked,
                 null,
-                -> delay(READY_POLL_DELAY_MS)
+                -> delay(config.readyPollDelay.toMillis())
             }
         }
-        // Download finished from AICore's point of view; allow Ask to proceed.
         if (downloadReportedComplete) {
             Log.i(TAG, "Download completed; treating as Ready while status settles")
-            return LocalAiCapability.Ready(cachedTokenLimit ?: DEFAULT_TOKEN_LIMIT)
+            return LocalAiCapability.Ready(cachedTokenLimit ?: config.defaultTokenLimit)
         }
         // Last observed status may still be settling; prefer a soft retryable failure.
         return when (val last = readStatus()) {
@@ -178,12 +177,12 @@ class AicorePromptClient @Inject constructor(
         }
     }
 
-    private suspend fun readStatus(): LocalAiCapability? = withTimeoutOrNull(STATUS_TIMEOUT_MS) {
+    private suspend fun readStatus(): LocalAiCapability? = withTimeoutOrNull(config.modelStatusTimeout.toMillis()) {
         withContext(Dispatchers.Main) {
             try {
                 when (client().checkStatus()) {
                     FeatureStatus.AVAILABLE ->
-                        LocalAiCapability.Ready(cachedTokenLimit ?: DEFAULT_TOKEN_LIMIT)
+                        LocalAiCapability.Ready(cachedTokenLimit ?: config.defaultTokenLimit)
                     FeatureStatus.DOWNLOADABLE -> LocalAiCapability.Downloadable
                     FeatureStatus.DOWNLOADING -> LocalAiCapability.Downloading()
                     FeatureStatus.UNAVAILABLE -> LocalAiCapability.Unavailable
@@ -241,9 +240,5 @@ class AicorePromptClient @Inject constructor(
 
     companion object {
         private const val TAG = "AicorePromptClient"
-        const val DEFAULT_TOKEN_LIMIT = 4096
-        private const val STATUS_TIMEOUT_MS = 12_000L
-        private const val READY_POLL_ATTEMPTS = 12
-        private const val READY_POLL_DELAY_MS = 500L
     }
 }

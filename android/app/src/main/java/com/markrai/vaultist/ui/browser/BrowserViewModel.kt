@@ -3,6 +3,7 @@ package com.markrai.vaultist.ui.browser
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markrai.vaultist.data.repository.VaultRepository
+import com.markrai.vaultist.di.config.BrowseUiConfig
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.VaultMetadata
@@ -36,6 +37,7 @@ data class BrowserUiState(
 @HiltViewModel
 class BrowserViewModel @Inject constructor(
     private val repository: VaultRepository,
+    private val browseUiConfig: BrowseUiConfig,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BrowserUiState())
     val state: StateFlow<BrowserUiState> = _state
@@ -132,8 +134,8 @@ class BrowserViewModel @Inject constructor(
             when (val result = repository.refreshIndex()) {
                 is VaultResult.Failure -> _state.update { it.copy(refreshing = false, error = result.error.userMessage()) }
                 is VaultResult.Success -> {
-                    repeat(30) {
-                        delay(500)
+                    repeat(browseUiConfig.indexPollAttempts) {
+                        delay(browseUiConfig.indexPollDelayMs)
                         val status = repository.getIndexStatus()
                         if (status is VaultResult.Success && status.value.state != "indexing") {
                             if (_state.value.isSearchResults) {
@@ -157,7 +159,7 @@ class BrowserViewModel @Inject constructor(
             return
         }
         filesSearchJob = viewModelScope.launch {
-            delay(300)
+            delay(browseUiConfig.debounceMs)
             runSearch(reset = true)
         }
     }

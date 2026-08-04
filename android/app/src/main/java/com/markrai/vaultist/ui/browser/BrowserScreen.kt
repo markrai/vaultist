@@ -35,7 +35,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -54,8 +53,8 @@ import com.markrai.vaultist.ui.ask.AskViewModel
 import com.markrai.vaultist.ui.components.ErrorPanel
 import com.markrai.vaultist.ui.components.NoteResultCard
 import com.markrai.vaultist.ui.theme.Spacing
+import com.markrai.vaultist.ui.theme.VaultistThemeColors
 
-private val ForestGreen = Color(0xFF2E5A3C)
 private val ModeButtonWidth = 104.dp
 private val SearchControlHeight = 56.dp
 
@@ -234,8 +233,8 @@ private fun SearchBar(
             elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
             contentPadding = PaddingValues(horizontal = Spacing.xs),
             colors = ButtonDefaults.buttonColors(
-                backgroundColor = ForestGreen,
-                contentColor = Color.White,
+                backgroundColor = VaultistThemeColors.browseModeToggle,
+                contentColor = VaultistThemeColors.onBrowseModeToggle,
             ),
         ) {
             Text(
