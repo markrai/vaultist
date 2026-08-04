@@ -7,7 +7,6 @@ import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.SystemInstruction
 import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
-import com.markrai.vaultist.BuildConfig
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
@@ -24,14 +23,16 @@ import kotlinx.coroutines.withTimeoutOrNull
  * because AICore binder calls can hang indefinitely off the main thread.
  */
 @Singleton
-class AicorePromptClient @Inject constructor() : PromptGenerationClient {
+class AicorePromptClient @Inject constructor(
+    private val onDeviceAskEnabled: OnDeviceAskEnabled,
+) : PromptGenerationClient {
     private val mutex = Mutex()
     private var model = lazy { Generation.getClient() }
     private var closed = false
     private var cachedTokenLimit: Int? = null
 
     override suspend fun checkCapability(): LocalAiCapability {
-        if (!BuildConfig.ENABLE_ON_DEVICE_ASK) {
+        if (!onDeviceAskEnabled.enabled) {
             return LocalAiCapability.Unavailable
         }
         return readStatus() ?: LocalAiCapability.Failed(
@@ -41,7 +42,7 @@ class AicorePromptClient @Inject constructor() : PromptGenerationClient {
     }
 
     override suspend fun downloadModel(): LocalAiCapability {
-        if (!BuildConfig.ENABLE_ON_DEVICE_ASK) {
+        if (!onDeviceAskEnabled.enabled) {
             return LocalAiCapability.Unavailable
         }
         return try {
@@ -95,7 +96,7 @@ class AicorePromptClient @Inject constructor() : PromptGenerationClient {
     }
 
     override suspend fun generate(request: PromptRequest): PromptGenerationResult {
-        if (!BuildConfig.ENABLE_ON_DEVICE_ASK) {
+        if (!onDeviceAskEnabled.enabled) {
             return PromptGenerationResult.Failure(
                 PromptFailureKind.NotReady,
                 "On-device AI is currently unavailable.",

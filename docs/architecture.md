@@ -38,9 +38,11 @@ The Markdown presentation is native Compose. A bounded block parser creates head
 
 ### Ask (on-device)
 
-Ask is a client-side feature. The UI currently lives beside browse/search in the browser screen; extraction into its own package is planned.
+Ask lives under `ui/ask` (`AskViewModel`, `AskHint`, `AskResultsPane`). The browser screen still hosts the Files/Content/Ask mode toggle and shared search bar; `BrowserScreen` coordinates both ViewModels on mode changes, submit, and lifecycle resume.
 
 Retrieval uses the existing host API only: the Ask engine analyzes the question, searches with both `files` and `content` modes, fuses and filters hits, loads candidate notes, packs passages, and prompts an on-device model through `PromptGenerationClient` (ML Kit GenAI). Citation validation keeps answers grounded in retrieved passages. `SearchMode.Ask` is a UI mode only; it is not sent as an HTTP search mode.
+
+Ask preferences (`enable_ask_thinking`) are stored separately from server URL settings, both in the same DataStore file. On-device Ask availability is gated through an injectable `OnDeviceAskEnabled` seam (currently backed by `BuildConfig.ENABLE_ON_DEVICE_ASK`).
 
 Ask never mounts the vault filesystem. Host reachability, index readiness, and Tailscale HTTPS remain prerequisites for retrieval even though generation runs on the device.
 

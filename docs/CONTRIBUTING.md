@@ -13,7 +13,7 @@ Short expectations for keeping the tree maintainable. See [architecture.md](arch
 | HTTP mapping | `server/internal/api` | Vault filesystem walks outside refresh/search seams |
 | Android domain models | `android/.../domain` | Network/JSON types leaking into screens |
 | Vault I/O on Android | `VaultRepository` / `data/api` | OkHttp or JSON parsing in Composables |
-| Ask orchestration | `data/ask`, `data/genai` | New Ask product logic in `BrowserViewModel` / `BrowserScreen` |
+| Ask orchestration | `data/ask`, `data/genai`, `ui/ask` | New Ask product logic in `BrowserViewModel` / `BrowserScreen` |
 
 Prefer a new package or ViewModel over extending `BrowserViewModel`, `BrowserScreen`, `internal/api/api.go`, or `internal/index/index.go` when a second concern appears.
 

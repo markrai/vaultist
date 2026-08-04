@@ -3,7 +3,7 @@ package com.markrai.vaultist.di
 import com.markrai.vaultist.data.repository.DefaultVaultRepository
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.AskPreferences
-import com.markrai.vaultist.data.settings.ServerSettings
+import com.markrai.vaultist.data.settings.DataStoreAskPreferences
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -22,7 +22,7 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindAskPreferences(settings: ServerSettings): AskPreferences
+    abstract fun bindAskPreferences(preferences: DataStoreAskPreferences): AskPreferences
 }
 
 @Module

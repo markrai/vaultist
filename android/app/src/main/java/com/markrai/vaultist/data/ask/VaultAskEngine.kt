@@ -6,7 +6,6 @@ import com.markrai.vaultist.data.genai.PromptGenerationResult
 import com.markrai.vaultist.data.genai.PromptRequest
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.AskPreferences
-import com.markrai.vaultist.data.settings.ServerSettings
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.SearchMode

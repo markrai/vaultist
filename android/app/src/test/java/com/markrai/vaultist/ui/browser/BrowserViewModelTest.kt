@@ -1,16 +1,11 @@
 package com.markrai.vaultist.ui.browser
 
-import com.markrai.vaultist.data.ask.VaultAskEngine
-import com.markrai.vaultist.data.genai.LocalAiCapability
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.BrowsePage
-import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.SearchPage
 import com.markrai.vaultist.domain.VaultResult
-import com.markrai.vaultist.testutil.FakeAskPreferences
-import com.markrai.vaultist.testutil.FakePromptGenerationClient
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,14 +23,8 @@ import org.junit.Test
 class BrowserViewModelTest {
     @get:Rule val dispatcherRule = MainDispatcherRule()
 
-    init {
-        BrowserViewModel.askWorkDispatcher = dispatcherRule.dispatcher
-    }
-
-    private fun viewModel(
-        repository: FakeVaultRepository = FakeVaultRepository(),
-        prompt: FakePromptGenerationClient = FakePromptGenerationClient(),
-    ) = BrowserViewModel(repository, VaultAskEngine(repository, prompt, FakeAskPreferences()), prompt)
+    private fun viewModel(repository: FakeVaultRepository = FakeVaultRepository()) =
+        BrowserViewModel(repository)
 
     @Test
     fun filesSearchDebouncesAndPopulatesResults() = runTest(dispatcherRule.dispatcher) {
@@ -101,63 +90,5 @@ class BrowserViewModelTest {
         assertEquals("secret", repository.lastSearchQuery)
         assertTrue(viewModel.state.value.isSearchResults)
         assertEquals("Notes/Idea", viewModel.state.value.items.single().id)
-    }
-
-    @Test
-    fun askSubmitGeneratesAnswerWithSources() = runTest(dispatcherRule.dispatcher) {
-        val repository = FakeVaultRepository().apply {
-            filesSearchResult = VaultResult.Success(
-                SearchPage(
-                    listOf(BrowseItem(BrowseKind.Note, "Notes/A", "A.md", "Alpha", "Notes/A.md", null)),
-                    null,
-                    "alpha",
-                ),
-            )
-            contentSearchResult = VaultResult.Success(SearchPage(emptyList(), null, "alpha"))
-            noteResult = VaultResult.Success(
-                Note("Notes/A", "Notes/A.md", "A.md", "Alpha", emptyList(), emptyList(), emptyList(), emptyList(), "1", "Alpha note about deployment.", null),
-            )
-        }
-        val prompt = FakePromptGenerationClient()
-        val viewModel = viewModel(repository, prompt)
-        advanceUntilIdle()
-
-        repeat(2) { viewModel.toggleSearchMode() }
-        advanceUntilIdle()
-        assertEquals(SearchMode.Ask, viewModel.state.value.searchMode)
-
-        viewModel.updateQuery("deployment")
-        viewModel.submitSearch()
-        advanceUntilIdle()
-
-        assertEquals("deployment", viewModel.state.value.submittedQuestion)
-        assertEquals("Answer [1].", viewModel.state.value.askAnswer)
-        assertEquals(1, viewModel.state.value.askSources.size)
-        assertEquals(1, prompt.generateCalls)
-    }
-
-    @Test
-    fun staleAskRequestDoesNotPublishLateAnswer() = runTest(dispatcherRule.dispatcher) {
-        val repository = FakeVaultRepository().apply {
-            filesSearchResult = VaultResult.Success(
-                SearchPage(listOf(BrowseItem(BrowseKind.Note, "Notes/A", "A.md", "Alpha", "Notes/A.md", null)), null, "alpha"),
-            )
-            contentSearchResult = VaultResult.Success(SearchPage(emptyList(), null, "alpha"))
-            noteResult = VaultResult.Success(
-                Note("Notes/A", "Notes/A.md", "A.md", "Alpha", emptyList(), emptyList(), emptyList(), emptyList(), "1", "Alpha note.", null),
-            )
-        }
-        val prompt = FakePromptGenerationClient()
-        val viewModel = viewModel(repository, prompt)
-        advanceUntilIdle()
-
-        repeat(2) { viewModel.toggleSearchMode() }
-        viewModel.updateQuery("alpha")
-        viewModel.submitSearch()
-        viewModel.toggleSearchMode()
-        advanceUntilIdle()
-
-        assertNull(viewModel.state.value.askAnswer)
-        assertFalse(viewModel.state.value.askSubmitting)
     }
 }
