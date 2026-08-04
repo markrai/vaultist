@@ -11,3 +11,6 @@ server/coverage.out
 *.iml
 .DS_Store
 Thumbs.db
+
+# Config
+deploy.env

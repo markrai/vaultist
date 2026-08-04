@@ -4,6 +4,7 @@ import com.vaultview.domain.Backlink
 import com.vaultview.domain.BrowsePage
 import com.vaultview.domain.IndexState
 import com.vaultview.domain.Note
+import com.vaultview.domain.SearchMode
 import com.vaultview.domain.SearchPage
 import com.vaultview.domain.VaultMetadata
 import com.vaultview.domain.VaultResult

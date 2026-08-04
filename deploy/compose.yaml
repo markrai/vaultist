@@ -10,7 +10,7 @@ services:
       VAULT_NAME: ${VAULT_NAME:-Vault}
       LISTEN_ADDR: 0.0.0.0:8080
     volumes:
-      - /srv/Vault:/vault:ro
+      - /srv/obsidian/Vault:/vault:ro
     ports:
       - 127.0.0.1:${VAULTVIEW_PORT:-8080}:8080
     read_only: true

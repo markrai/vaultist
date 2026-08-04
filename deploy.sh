@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+REPO_DIR="/srv/vaultpeep"
+REMOTE_URL="https://github.com/markrai/vaultpeep"
+COMPOSE_DIR="$REPO_DIR/deploy"
+SERVICE="vaultview"
+HEALTH_URL="http://127.0.0.1:8080/api/v1/status"
+
+cd "$REPO_DIR"
+
+if [[ ! -d .git ]]; then
+  echo "Error: $REPO_DIR is not a Git repository." >&2
+  exit 1
+fi
+
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "Error: the repository has uncommitted changes." >&2
+  git status --short
+  exit 1
+fi
+
+git remote set-url origin "$REMOTE_URL"
+git fetch --prune origin
+
+BRANCH="$(git branch --show-current)"
+if [[ -z "$BRANCH" ]]; then
+  echo "Error: the repository is in detached HEAD state." >&2
+  exit 1
+fi
+
+git pull --ff-only origin "$BRANCH"
+
+cd "$COMPOSE_DIR"
+docker compose config --quiet
+docker compose up -d --build --remove-orphans
+
+CONTAINER_ID="$(docker compose ps -q "$SERVICE")"
+if [[ -z "$CONTAINER_ID" ]]; then
+  echo "Error: the $SERVICE container was not created." >&2
+  exit 1
+fi
+
+for _ in {1..30}; do
+  HEALTH="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$CONTAINER_ID")"
+
+  if [[ "$HEALTH" == "healthy" ]]; then
+    curl -fsS "$HEALTH_URL" >/dev/null
+    echo
+    echo "VaultPeep deployed successfully."
+    git log -1 --oneline
+    docker compose ps
+    exit 0
+  fi
+
+  if [[ "$HEALTH" == "unhealthy" || "$HEALTH" == "exited" || "$HEALTH" == "dead" ]]; then
+    echo "Error: deployment failed with container state: $HEALTH" >&2
+    docker compose logs --tail=200 "$SERVICE"
+    exit 1
+  fi
+
+  sleep 2
+done
+
+echo "Error: timed out waiting for VaultPeep to become healthy." >&2
+docker compose ps
+docker compose logs --tail=200 "$SERVICE"
+exit 1
