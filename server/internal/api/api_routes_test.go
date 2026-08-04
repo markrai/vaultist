@@ -13,6 +13,7 @@ type denyAuthorizer struct{}
 
 func (denyAuthorizer) AuthorizeRead(*http.Request) bool    { return false }
 func (denyAuthorizer) AuthorizeRefresh(*http.Request) bool { return false }
+func (denyAuthorizer) AuthorizeWrite(*http.Request) bool   { return false }
 
 func TestBrowseFolderAndPagination(t *testing.T) {
 	server := contractFixture(t)

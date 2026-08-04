@@ -21,16 +21,19 @@ import (
 )
 
 const apiPrefix = "/api/v1"
+const maxNoteWriteBytes = 32 << 20
 
 type Authorizer interface {
 	AuthorizeRead(*http.Request) bool
 	AuthorizeRefresh(*http.Request) bool
+	AuthorizeWrite(*http.Request) bool
 }
 
 type TailnetAuthorizer struct{}
 
 func (TailnetAuthorizer) AuthorizeRead(*http.Request) bool    { return true }
 func (TailnetAuthorizer) AuthorizeRefresh(*http.Request) bool { return true }
+func (TailnetAuthorizer) AuthorizeWrite(*http.Request) bool   { return true }
 
 type Handler struct {
 	manager    *index.Manager
@@ -58,6 +61,14 @@ func (h *Handler) serve(writer http.ResponseWriter, request *http.Request) {
 			return
 		}
 		h.refresh(writer, request)
+		return
+	}
+	if request.Method == http.MethodPut && strings.HasPrefix(request.URL.Path, apiPrefix+"/notes/") {
+		if !h.authorizer.AuthorizeWrite(request) {
+			writeError(writer, http.StatusForbidden, "forbidden", "Write access is not authorized", nil)
+			return
+		}
+		h.updateNoteRoute(writer, request)
 		return
 	}
 	if !h.authorizer.AuthorizeRead(request) {
@@ -99,7 +110,7 @@ func (h *Handler) vault(writer http.ResponseWriter) {
 	writeJSON(writer, http.StatusOK, map[string]any{
 		"name": snapshot.VaultName, "noteCount": len(snapshot.Notes),
 		"assetCount": len(snapshot.Assets), "generation": snapshot.Generation,
-		"indexedAt": snapshot.BuiltAt, "readOnly": true,
+		"indexedAt": snapshot.BuiltAt, "readOnly": false,
 	})
 }
 
@@ -209,6 +220,74 @@ func (h *Handler) noteRoute(writer http.ResponseWriter, request *http.Request) {
 		"aliases": orEmpty(note.Aliases), "headings": orEmpty(note.Headings), "links": orEmpty(note.Links),
 		"attachments": orEmpty(note.Attachments), "modifiedAt": note.ModifiedAt, "size": note.Size,
 		"revision": note.Revision, "content": string(content), "error": note.Error,
+	})
+}
+
+func (h *Handler) updateNoteRoute(writer http.ResponseWriter, request *http.Request) {
+	raw := strings.TrimPrefix(request.URL.Path, apiPrefix+"/notes/")
+	if strings.HasSuffix(raw, "/backlinks") {
+		writeError(writer, http.StatusNotFound, "route_not_found", "API route not found", nil)
+		return
+	}
+	id, err := decodeID(raw)
+	if err != nil || strings.EqualFold(path.Ext(id), ".md") {
+		writeError(writer, http.StatusBadRequest, "invalid_note_id", "Note ID is invalid", nil)
+		return
+	}
+	ifMatch := request.Header.Get("If-Match")
+	if strings.TrimSpace(ifMatch) == "" {
+		writeError(writer, http.StatusBadRequest, "invalid_revision", "If-Match header is required", nil)
+		return
+	}
+	var body struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(io.LimitReader(request.Body, maxNoteWriteBytes+1024)).Decode(&body); err != nil {
+		writeError(writer, http.StatusBadRequest, "invalid_note_body", "Note body must be valid JSON", nil)
+		return
+	}
+	content := []byte(body.Content)
+	if len(content) > maxNoteWriteBytes {
+		writeError(writer, http.StatusBadRequest, "invalid_note_body", "Note body exceeds the maximum size", nil)
+		return
+	}
+
+	note, err := h.manager.WriteNoteContent(request.Context(), id, ifMatch, content)
+	if errors.Is(err, index.ErrNotFound) {
+		writeError(writer, http.StatusNotFound, "note_not_found", "Note was not found", nil)
+		return
+	}
+	if errors.Is(err, index.ErrInvalidRevision) {
+		writeError(writer, http.StatusBadRequest, "invalid_revision", "If-Match revision is invalid", nil)
+		return
+	}
+	var conflict *index.RevisionConflictError
+	if errors.As(err, &conflict) {
+		writeError(writer, http.StatusConflict, "revision_conflict", "The note changed since it was loaded", map[string]string{
+			"expected": conflict.Expected,
+			"actual":   conflict.Actual,
+		})
+		return
+	}
+	if err != nil {
+		if errors.Is(err, index.ErrNotReady) {
+			h.requireIndex(writer)
+			return
+		}
+		if strings.Contains(err.Error(), "exceeds write limit") || strings.Contains(err.Error(), "too large") {
+			writeError(writer, http.StatusBadRequest, "invalid_note_body", "Note body exceeds the maximum size", nil)
+			return
+		}
+		writeError(writer, http.StatusInternalServerError, "note_write_failed", "Note could not be saved", nil)
+		return
+	}
+
+	writer.Header().Set("ETag", quoteETag(note.Revision))
+	writeJSON(writer, http.StatusOK, map[string]any{
+		"id": note.ID, "path": note.Path, "filename": note.Filename, "title": note.Title,
+		"aliases": orEmpty(note.Aliases), "headings": orEmpty(note.Headings), "links": orEmpty(note.Links),
+		"attachments": orEmpty(note.Attachments), "modifiedAt": note.ModifiedAt, "size": note.Size,
+		"revision": note.Revision, "content": body.Content, "error": note.Error,
 	})
 }
 

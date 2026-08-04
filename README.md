@@ -1,6 +1,6 @@
 # Vaultist
 
-Vaultist is a read-only Markdown Vault viewer made of two independently buildable applications:
+Vaultist is a Markdown Vault viewer made of two independently buildable applications:
 
 - a Kotlin/Jetpack Compose Android client; and
 - a small Go HTTP server that indexes a locally mounted Markdown Vault on the Linux host.
@@ -123,11 +123,11 @@ The initial authorization boundary trusts a correctly configured tailnet and its
 
 Read and refresh authorization are isolated behind a server interface so future write authorization can be stricter. The server validates all public IDs, rejects traversal, ignores symlinks and hidden implementation directories, and never returns its absolute vault root or raw internal errors.
 
-## Read-only scope and roadmap
+## Scope and roadmap
 
-There are no note edits, uploads, moves, offline write queues, synchronization, graph/canvas views, Dataview evaluation, plugin execution, collaboration, analytics, or telemetry. Search covers filenames/titles/aliases (`mode=files`) and note body text (`mode=content`). Ask answers on-device after retrieving notes through those search modes; it is not a separate HTTP search mode.
+Note body editing is supported via conditional `PUT /api/v1/notes/{id}` with `If-Match` revision checks. There are no uploads, moves, offline write queues, synchronization, graph/canvas views, Dataview evaluation, plugin execution, collaboration, analytics, or telemetry. Search covers filenames/titles/aliases (`mode=files`) and note body text (`mode=content`). Ask answers on-device after retrieving notes through those search modes; it is not a separate HTTP search mode.
 
-Editing can be added without replacing the transport: stable path-derived note IDs, content-hash revisions, original Markdown responses, a repository boundary on Android, separate authorization hooks, and vault-concept endpoints leave room for conditional `If-Match` writes, atomic replacements, attachments, and rename/backlink updates. No future write path should use last-writer-wins or unrestricted filesystem endpoints.
+Future work: attachment CRUD, renames with backlink updates, create/delete notes. Writes use vault-concept endpoints with atomic replacement — not last-writer-wins or unrestricted filesystem access.
 
 See [docs/architecture.md](docs/architecture.md), [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md), and [api/openapi.yaml](api/openapi.yaml) for the detailed design and contract.
 

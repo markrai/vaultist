@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Vaultist API
   version: 1.0.0
-  description: Read-only, tailnet-scoped API for an indexed Markdown Vault.
+  description: Tailnet-scoped API for an indexed Markdown Vault. Note bodies can be read and replaced with revision checks.
   license:
     name: AGPL-3.0-only
     url: https://www.gnu.org/licenses/agpl-3.0.html
@@ -72,6 +72,34 @@ paths:
         "304": { description: The note revision has not changed. }
         "400": { $ref: "#/components/responses/BadRequest" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    put:
+      summary: Replace note body content
+      operationId: updateNote
+      parameters:
+        - $ref: "#/components/parameters/NoteId"
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string }
+          description: Required revision ETag from GET /notes/{id}; same format as the response ETag header.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateNoteRequest" }
+      responses:
+        "200":
+          description: Updated note metadata, body, and resolved links.
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NoteResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/RevisionConflict" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /notes/{id}/backlinks:
     get:
@@ -196,6 +224,9 @@ components:
     Conflict:
       description: An index refresh is already running.
       content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    RevisionConflict:
+      description: The note revision does not match If-Match.
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
     Forbidden:
       description: The current authorization policy does not allow this operation.
       content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
@@ -231,7 +262,14 @@ components:
         assetCount: { type: integer }
         generation: { type: integer, format: uint64 }
         indexedAt: { type: string, format: date-time }
-        readOnly: { type: boolean, const: true }
+        readOnly: { type: boolean }
+    UpdateNoteRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          description: Full Markdown body to replace on disk. Maximum 32 MiB.
     BrowseItem:
       type: object
       required: [kind, name, path]
@@ -339,6 +377,6 @@ components:
           properties:
             code:
               type: string
-              enum: [vault_unavailable, note_not_found, link_target_missing, link_target_ambiguous, asset_not_found, invalid_note_id, invalid_asset_id, invalid_folder, invalid_query, invalid_pagination, index_not_ready, index_refresh_running, note_read_failed, asset_read_failed, route_not_found, forbidden, index_refresh_failed]
+              enum: [vault_unavailable, note_not_found, link_target_missing, link_target_ambiguous, asset_not_found, invalid_note_id, invalid_asset_id, invalid_folder, invalid_query, invalid_pagination, index_not_ready, index_refresh_running, note_read_failed, asset_read_failed, route_not_found, forbidden, index_refresh_failed, revision_conflict, invalid_revision, invalid_note_body, note_write_failed]
             message: { type: string }
             details: { type: object, additionalProperties: true }

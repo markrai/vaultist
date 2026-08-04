@@ -9,6 +9,7 @@ import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -43,6 +44,18 @@ class VaultistApi @Inject constructor(private val client: OkHttpClient) {
 
     suspend fun note(baseUrl: String, id: String): ApiPayload = get(baseUrl, listOf("notes", id))
 
+    suspend fun updateNote(baseUrl: String, id: String, revision: String, content: String): ApiPayload {
+        val body = JSONObject().put("content", content).toString()
+            .toRequestBody("application/json".toMediaType())
+        return request(
+            Request.Builder()
+                .url(endpoint(baseUrl, listOf("notes", id)))
+                .put(body)
+                .header("If-Match", quoteRevision(revision))
+                .build(),
+        )
+    }
+
     suspend fun backlinks(baseUrl: String, id: String): ApiPayload =
         get(baseUrl, listOf("notes", id, "backlinks"))
 
@@ -66,6 +79,9 @@ class VaultistApi @Inject constructor(private val client: OkHttpClient) {
         segments.forEach { builder.addPathSegment(it) }
         return builder.build()
     }
+
+    private fun quoteRevision(revision: String): String =
+        if (revision.startsWith("\"")) revision else "\"$revision\""
 
     private suspend fun request(request: Request): ApiPayload = suspendCancellableCoroutine { continuation ->
         val call = client.newCall(request)

@@ -32,10 +32,22 @@ class FakeVaultRepository : VaultRepository {
 
     override suspend fun testServer(url: String) = testResult
     override suspend fun saveServer(url: String) { savedUrl = url }
-    override suspend fun getVault() = VaultResult.Success(VaultMetadata("Test", 1, 0, 1, true))
+    override suspend fun getVault() = VaultResult.Success(VaultMetadata("Test", 1, 0, 1, false))
     override suspend fun listNotes(folder: String, cursor: String?) = VaultResult.Success(BrowsePage(emptyList(), null, folder))
+    var updateNoteResult: VaultResult<Note>? = null
+    var lastUpdateRevision: String? = null
+    var lastUpdateContent: String? = null
+
     override suspend fun getNote(id: String): VaultResult<Note> =
         notesById[id]?.let { VaultResult.Success(it) } ?: noteResult
+
+    override suspend fun updateNote(id: String, revision: String, content: String): VaultResult<Note> {
+        lastUpdateRevision = revision
+        lastUpdateContent = content
+        return updateNoteResult ?: notesById[id]?.let {
+            VaultResult.Success(it.copy(content = content, revision = "sha256:updated"))
+        } ?: VaultResult.Failure(com.markrai.vaultist.domain.VaultError.Api("revision_conflict", "conflict"))
+    }
 
     override suspend fun searchNotes(query: String, mode: SearchMode, cursor: String?): VaultResult<SearchPage> {
         lastSearchMode = mode

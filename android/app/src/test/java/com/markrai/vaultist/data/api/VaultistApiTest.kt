@@ -10,7 +10,12 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class VaultistApiTest {
     private lateinit var server: MockWebServer
     private lateinit var api: VaultistApi
@@ -58,6 +63,17 @@ class VaultistApiTest {
         assertEquals("/api/v1/notes/Folder%2FNote", request.path)
         assertEquals(200, payload.status)
         assertEquals("\"sha256:abc\"", payload.etag)
+    }
+
+    @Test
+    fun updateNoteUsesPutIfMatchAndJsonBody() = runTest {
+        server.enqueue(MockResponse().setBody(ApiFixtures.NOTE).setHeader("ETag", "\"sha256:updated\""))
+        api.updateNote(baseUrl(), "Folder/Note", "sha256:abc", "# Updated")
+        val request = server.takeRequest()
+        assertEquals("PUT", request.method)
+        assertEquals("/api/v1/notes/Folder%2FNote", request.path)
+        assertEquals("\"sha256:abc\"", request.getHeader("If-Match"))
+        assertEquals("""{"content":"# Updated"}""", request.body.readUtf8())
     }
 
     @Test

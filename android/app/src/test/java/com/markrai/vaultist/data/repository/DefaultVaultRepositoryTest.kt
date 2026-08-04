@@ -130,6 +130,19 @@ class DefaultVaultRepositoryTest {
     }
 
     @Test
+    fun updateNoteMapsSuccessAndConflict() = runTest {
+        server.enqueue(MockResponse().setBody(ApiFixtures.NOTE))
+        val saved = repository.updateNote("Folder/Note", "sha256:abc", "# Updated")
+        assertTrue(saved is VaultResult.Success)
+        assertEquals("Folder/Note", (saved as VaultResult.Success).value.id)
+
+        server.enqueue(MockResponse().setResponseCode(409).setBody(ApiFixtures.revisionConflictError()))
+        val conflict = repository.updateNote("Folder/Note", "sha256:abc", "# Updated")
+        assertTrue(conflict is VaultResult.Failure)
+        assertEquals("revision_conflict", ((conflict as VaultResult.Failure).error as VaultError.Api).code)
+    }
+
+    @Test
     fun searchNotesParsesSearchPage() = runTest {
         server.enqueue(MockResponse().setBody(ApiFixtures.SEARCH))
         val result = repository.searchNotes("other", SearchMode.Files, null)

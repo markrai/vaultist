@@ -61,16 +61,18 @@ Ask preferences (`enable_ask_thinking`) are stored separately from server URL se
 
 Ask never mounts the vault filesystem. Host reachability, index readiness, and Tailscale HTTPS remain prerequisites for retrieval even though generation runs on the device.
 
-## Editing readiness
+## Editing
 
-The current implementation has no write endpoint. The seams already required for safe future editing are:
+Note bodies can be replaced with `PUT /api/v1/notes/{id}` using a required `If-Match` header set to the note's content revision (`sha256:…` ETag from GET). The request body is `{ "content": "..." }` (full Markdown replace, max 32 MiB). A stale revision returns `409` with `revision_conflict` and `{ expected, actual }` details.
 
-- a content hash revision on every note;
-- original Markdown content rather than server-generated HTML;
-- path-derived IDs rather than absolute paths;
-- an Android repository boundary;
-- separate read/refresh authorization methods ready to grow into write authorization;
-- a replaceable snapshot and narrow vault file boundary; and
-- an API error envelope able to add conflict details.
+Write path:
 
-A later write service should perform conditional revision checks, write to a sibling temporary file, sync it, atomically replace the note, and refresh the index. Moves, attachments, and backlink-aware renames should be explicit vault operations rather than generic path writes.
+1. Resolve the note from the current snapshot and read on-disk bytes.
+2. Compare on-disk revision hash to `If-Match` (not snapshot alone).
+3. Write via temp file in the note directory, sync, atomic rename (`internal/vault`).
+4. Return updated `NoteResponse` with new revision computed from written bytes; link resolutions use the current snapshot tables.
+5. Start a full index refresh asynchronously (`StartRefresh`).
+
+`AuthorizeWrite` gates PUT separately from read and refresh. `VaultResponse.readOnly` is `false` when writes are enabled. Android edits through `VaultRepository.updateNote` and a minimal edit UI on `NoteScreen`.
+
+Deferred: renames/moves, attachment CRUD, frontmatter/title editing, backlink-aware rewrites, create/delete notes.
