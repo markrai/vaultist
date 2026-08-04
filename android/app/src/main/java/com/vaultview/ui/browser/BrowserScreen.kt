@@ -2,26 +2,31 @@ package com.vaultview.ui.browser
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -29,7 +34,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vaultview.domain.BrowseKind
@@ -37,6 +45,10 @@ import com.vaultview.domain.SearchMode
 import com.vaultview.ui.components.ErrorPanel
 import com.vaultview.ui.components.NoteResultCard
 import com.vaultview.ui.theme.Spacing
+
+private val ForestGreen = Color(0xFF2E5A3C)
+private val ModeButtonWidth = 96.dp
+private val SearchControlHeight = 56.dp
 
 @Composable
 fun BrowserScreen(
@@ -64,102 +76,174 @@ fun BrowserScreen(
             },
         )
     }) { padding ->
-        when {
-            state.loading && state.items.isEmpty() -> Column(
-                Modifier.fillMaxSize().padding(padding),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) { CircularProgressIndicator() }
-            state.error != null && state.items.isEmpty() -> ErrorPanel(state.error.orEmpty(), Modifier.padding(padding), viewModel::retry)
-            else -> Column(Modifier.fillMaxSize().padding(padding)) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedTextField(
-                        value = state.query,
-                        onValueChange = viewModel::updateQuery,
-                        label = {
-                            Text(
-                                when (state.searchMode) {
-                                    SearchMode.Files -> "Filename, title, or alias"
-                                    SearchMode.Content -> "Note body text"
-                                }
-                            )
-                        },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = if (state.searchMode == SearchMode.Content) ImeAction.Search else ImeAction.Default,
-                        ),
-                        keyboardActions = KeyboardActions(onSearch = { viewModel.submitSearch() }),
-                    )
-                    OutlinedButton(onClick = viewModel::toggleSearchMode) {
-                        Text(
-                            when (state.searchMode) {
-                                SearchMode.Files -> "Files"
-                                SearchMode.Content -> "Content"
-                            }
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            SearchBar(
+                query = state.query,
+                searchMode = state.searchMode,
+                onQueryChange = viewModel::updateQuery,
+                onClear = { viewModel.updateQuery("") },
+                onToggleMode = viewModel::toggleSearchMode,
+                onSubmit = viewModel::submitSearch,
+            )
+            if (state.searchMode == SearchMode.Content && !state.isSearchResults) {
+                Text(
+                    "Press Enter to search note content.",
+                    style = MaterialTheme.typography.caption,
+                    modifier = Modifier.padding(horizontal = Spacing.md).padding(bottom = Spacing.xs),
+                )
+            }
+            ResultsPane(
+                state = state,
+                onOpenFolder = { path ->
+                    viewModel.openFolder(path)
+                    onOpenFolder(path)
+                },
+                onOpenNote = onOpenNote,
+                onUp = viewModel::up,
+                onRetry = viewModel::retry,
+                onLoadMore = viewModel::loadMore,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SearchBar(
+    query: String,
+    searchMode: SearchMode,
+    onQueryChange: (String) -> Unit,
+    onClear: () -> Unit,
+    onToggleMode: () -> Unit,
+    onSubmit: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            placeholder = {
+                Text(
+                    text = when (searchMode) {
+                        SearchMode.Files -> "Filename, title, or alias"
+                        SearchMode.Content -> "Note body text"
+                    },
+                    style = MaterialTheme.typography.caption,
+                )
+            },
+            singleLine = true,
+            modifier = Modifier.weight(1f).height(SearchControlHeight),
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = onClear) {
+                        Icon(
+                            Icons.Default.Clear,
+                            contentDescription = "Clear search",
+                            tint = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
                         )
                     }
                 }
-                if (state.searchMode == SearchMode.Content && !state.isSearchResults) {
+            },
+            keyboardOptions = KeyboardOptions(
+                imeAction = if (searchMode == SearchMode.Content) ImeAction.Search else ImeAction.Default,
+            ),
+            keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
+        )
+        Button(
+            onClick = onToggleMode,
+            modifier = Modifier.width(ModeButtonWidth).height(SearchControlHeight),
+            elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+            contentPadding = PaddingValues(horizontal = Spacing.xs),
+            colors = ButtonDefaults.buttonColors(
+                backgroundColor = ForestGreen,
+                contentColor = Color.White,
+            ),
+        ) {
+            Text(
+                text = when (searchMode) {
+                    SearchMode.Files -> "Files"
+                    SearchMode.Content -> "Content"
+                },
+                style = MaterialTheme.typography.caption,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ResultsPane(
+    state: BrowserUiState,
+    onOpenFolder: (String) -> Unit,
+    onOpenNote: (String) -> Unit,
+    onUp: () -> Unit,
+    onRetry: () -> Unit,
+    onLoadMore: () -> Unit,
+) {
+    when {
+        state.loading && state.items.isEmpty() -> Box(
+            Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) { CircularProgressIndicator() }
+        state.error != null && state.items.isEmpty() && !state.searching -> ErrorPanel(
+            state.error.orEmpty(),
+            Modifier.padding(Spacing.md),
+            onRetry,
+        )
+        else -> LazyColumn(
+            Modifier.fillMaxSize().padding(horizontal = Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            if (state.searching) {
+                item {
+                    Box(Modifier.fillMaxWidth().padding(Spacing.sm), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+            if (!state.isSearchResults && state.folder.isNotEmpty()) item {
+                Text(
+                    "..",
+                    Modifier.fillMaxWidth().clickable(onClick = onUp).padding(vertical = Spacing.md),
+                    color = MaterialTheme.colors.primary,
+                )
+            }
+            items(state.items, key = { "${it.kind}:${it.path}" }) { item ->
+                if (item.kind == BrowseKind.Folder) {
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onOpenFolder(item.path) }.padding(vertical = Spacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        Icon(Icons.Default.Folder, null, tint = MaterialTheme.colors.primary)
+                        Text(item.name)
+                    }
+                } else {
+                    NoteResultCard(item, onClick = { item.id?.let(onOpenNote) })
+                }
+            }
+            if (state.items.isEmpty() && !state.searching && !state.loading) {
+                item {
                     Text(
-                        "Press Enter to search note content.",
-                        style = MaterialTheme.typography.caption,
-                        modifier = Modifier.padding(horizontal = Spacing.md).padding(bottom = Spacing.xs),
+                        when {
+                            state.isSearchResults && state.searched -> "No matching notes."
+                            else -> "This folder has no Markdown notes."
+                        },
+                        Modifier.padding(vertical = Spacing.lg),
                     )
                 }
-                if (state.searching) {
-                    CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally).padding(Spacing.sm))
-                }
-                LazyColumn(
-                    Modifier.fillMaxSize().padding(horizontal = Spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-                ) {
-                    if (!state.isSearchResults && state.folder.isNotEmpty()) item {
-                        Text(
-                            "..",
-                            Modifier.fillMaxWidth().clickable { viewModel.up() }.padding(vertical = Spacing.md),
-                            color = MaterialTheme.colors.primary,
-                        )
-                    }
-                    items(state.items, key = { "${it.kind}:${it.path}" }) { item ->
-                        if (item.kind == BrowseKind.Folder) {
-                            Row(
-                                Modifier.fillMaxWidth().clickable {
-                                    viewModel.openFolder(item.path)
-                                    onOpenFolder(item.path)
-                                }.padding(vertical = Spacing.md),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                            ) {
-                                Icon(Icons.Default.Folder, null, tint = MaterialTheme.colors.primary)
-                                Text(item.name)
-                            }
-                        } else {
-                            NoteResultCard(item, onClick = { item.id?.let(onOpenNote) })
-                        }
-                    }
-                    if (state.items.isEmpty() && !state.searching) {
-                        item {
-                            Text(
-                                when {
-                                state.isSearchResults && state.searched -> "No matching notes."
-                                else -> "This folder has no Markdown notes."
-                            },
-                                Modifier.padding(vertical = Spacing.lg),
-                            )
-                        }
-                    }
-                    state.error?.let { item { ErrorPanel(it) } }
-                    if (state.nextCursor != null) {
-                        item {
-                            Button(onClick = viewModel::loadMore, enabled = !state.loadingMore) {
-                                Text(if (state.loadingMore) "Loading…" else "Load more")
-                            }
-                        }
+            }
+            state.error?.let { item { ErrorPanel(it) } }
+            if (state.nextCursor != null) {
+                item {
+                    Button(onClick = onLoadMore, enabled = !state.loadingMore) {
+                        Text(if (state.loadingMore) "Loading…" else "Load more")
                     }
                 }
             }

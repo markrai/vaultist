@@ -176,20 +176,17 @@ class BrowserViewModel @Inject constructor(private val repository: VaultReposito
         viewModelScope.launch {
             _state.update {
                 it.copy(
-                    searching = !refreshing,
-                    loading = reset && !refreshing,
+                    searching = true,
                     refreshing = refreshing,
                     error = null,
                     searched = true,
                     isSearchResults = true,
-                    items = if (reset) emptyList() else it.items,
                     nextCursor = if (reset) null else it.nextCursor,
                 )
             }
             when (val result = repository.searchNotes(query, current.searchMode)) {
                 is VaultResult.Success -> _state.update {
                     it.copy(
-                        loading = false,
                         searching = false,
                         refreshing = false,
                         items = result.value.items,
@@ -197,7 +194,7 @@ class BrowserViewModel @Inject constructor(private val repository: VaultReposito
                     )
                 }
                 is VaultResult.Failure -> _state.update {
-                    it.copy(loading = false, searching = false, refreshing = false, error = result.error.userMessage())
+                    it.copy(searching = false, refreshing = false, error = result.error.userMessage())
                 }
             }
         }
