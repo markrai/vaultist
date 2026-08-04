@@ -9,7 +9,7 @@ The server is split into restrained packages:
 - `internal/vault` validates normalized vault-relative paths and confines file opens to the configured root.
 - `internal/markdown` uses Goldmark's syntax tree for standard Markdown structure and a stateful scanner for Markdown Vault wiki links. The scanner explicitly excludes fenced and inline code.
 - `internal/index` owns refresh lifecycle, immutable snapshots, deterministic resolution, backlinks, revisions, and lazy file opens.
-- `internal/search` matches notes by filename/title/alias (`files`) or note body text (`content`) against the published snapshot.
+- `internal/search` matches notes by filename/title/alias (`files`) or note body text (`content`) against precomputed search blobs on the published snapshot.
 - `internal/api` maps domain results to the versioned HTTP contract and structured safe errors.
 - `internal/config` reads process configuration without hard-coding Linux host paths.
 
@@ -22,6 +22,14 @@ A replacement snapshot is assembled completely before an atomic publication. Req
 Note resolution tries exact case-sensitive paths, unique case-insensitive paths, relative standard-Markdown paths, bare filenames, and frontmatter aliases. Candidate sets are sorted and deduplicated. More than one candidate is an explicit ambiguous result. Incoming backlinks are derived from every resolved outgoing note-link occurrence, retaining repeated references and source positions.
 
 Asset resolution tries the current note directory, Markdown Vault root, configured attachment folder, and bare filename lookup. It never rescans during a request. Only PNG, JPEG, WebP, GIF, and SVG are indexed for serving in this release.
+
+## Search
+
+Search runs against the current immutable snapshot only; results reflect the last completed index generation until the next refresh.
+
+At index build time each successfully indexed note gets precomputed lowercase search blobs: **files** (filename, title, aliases) and **content** (full note body). Queries are case-insensitive substring matches over those blobs in vault path order (`OrderedNoteIDs`). Search does not re-read note files from disk. Notes with index errors or oversized bodies are omitted from search blobs. Memory use scales with indexed note body size (bounded by the index read limit per note).
+
+The stable Go interface is `internal/search.Search(ctx, snapshot, Request{Query, Mode})`. HTTP pagination (`limit`/`cursor`) and JSON mapping stay in `internal/api`. Server-side ranking and snippets are not exposed in HTTP v1.
 
 ## HTTP and caching
 
@@ -46,6 +54,8 @@ The Markdown presentation is native Compose. A bounded block parser creates head
 Ask lives under `ui/ask` (`AskViewModel`, `AskHint`, `AskResultsPane`). The browser screen still hosts the Files/Content/Ask mode toggle and shared search bar; `BrowserScreen` coordinates both ViewModels on mode changes, submit, and lifecycle resume.
 
 Retrieval uses the existing host API only: the Ask engine analyzes the question, searches with both `files` and `content` modes, fuses and filters hits, loads candidate notes, packs passages, and prompts an on-device model through `PromptGenerationClient` (ML Kit GenAI). Citation validation keeps answers grounded in retrieved passages. `SearchMode.Ask` is a UI mode only; it is not sent as an HTTP search mode.
+
+**Host retrieval contract (v1):** For each extracted subject term, Ask calls `GET /search?q={term}&mode=files` and `GET /search?q={term}&mode=content` (default `limit=100` from the Android client). It expects `SearchResponse.items` as note browse items with `kind=note`, `id`, `path`, `title`, and `name`. Hit **rank** is the zero-based index in `items`; fusion scoring is client-side, not server-side. Candidate note bodies come from `GET /notes/{id}`. Search result order must remain stable path order from the server; Ask does not depend on snippets or server ranking metadata.
 
 Ask preferences (`enable_ask_thinking`) are stored separately from server URL settings, both in the same DataStore file. On-device Ask availability is gated through an injectable `OnDeviceAskEnabled` seam (currently backed by `BuildConfig.ENABLE_ON_DEVICE_ASK`).
 

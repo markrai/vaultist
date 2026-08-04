@@ -27,6 +27,14 @@ type Snapshot struct {
 	assetPathExact   map[string][]string
 	assetPathFolded  map[string][]string
 	assetNameFolded  map[string][]string
+	// SearchBlobs maps note ID to precomputed lowercase searchable text built at index time.
+	SearchBlobs map[string]NoteSearchBlobs
+}
+
+// NoteSearchBlobs holds index-time search text for files and content modes.
+type NoteSearchBlobs struct {
+	Content string
+	Files   string
 }
 
 func (s *Snapshot) buildLookupTables() {

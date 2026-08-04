@@ -1,12 +1,11 @@
 package search
 
 import (
+	"context"
 	"errors"
-	"io"
 	"strings"
 
 	"github.com/markrai/vaultist/server/internal/index"
-	"github.com/markrai/vaultist/server/internal/model"
 )
 
 type Mode string
@@ -16,7 +15,14 @@ const (
 	ModeContent Mode = "content"
 )
 
+const cancelCheckInterval = 32
+
 var ErrInvalidMode = errors.New("invalid search mode")
+
+type Request struct {
+	Query string
+	Mode  Mode
+}
 
 type Hit struct {
 	ID    string
@@ -24,56 +30,44 @@ type Hit struct {
 	Title string
 	Path  string
 	Error string
+	Rank  int
 }
 
-const maxSearchNoteBytes = 32 << 20
+type Response struct {
+	Hits  []Hit
+	Query string
+}
 
-func Search(snapshot *index.Snapshot, query string, mode Mode) ([]Hit, error) {
-	folded := strings.ToLower(query)
+func Search(ctx context.Context, snapshot *index.Snapshot, req Request) (Response, error) {
+	folded := strings.ToLower(req.Query)
 	var matches []Hit
-	for _, id := range snapshot.OrderedNoteIDs {
+	for rank, id := range snapshot.OrderedNoteIDs {
+		if rank%cancelCheckInterval == 0 {
+			if err := ctx.Err(); err != nil {
+				return Response{}, err
+			}
+		}
 		note := snapshot.Notes[id]
 		matched := false
-		switch mode {
+		blobs, indexed := snapshot.SearchBlobs[id]
+		switch req.Mode {
 		case ModeFiles:
-			matched = matchFiles(note, folded)
+			if indexed {
+				matched = strings.Contains(blobs.Files, folded)
+			}
 		case ModeContent:
-			matched = matchContent(snapshot, note, folded)
+			if indexed {
+				matched = strings.Contains(blobs.Content, folded)
+			}
 		default:
-			return nil, ErrInvalidMode
+			return Response{}, ErrInvalidMode
 		}
 		if matched {
 			matches = append(matches, Hit{
 				ID: note.ID, Name: note.Filename, Title: note.Title,
-				Path: note.Path, Error: note.Error,
+				Path: note.Path, Error: note.Error, Rank: rank,
 			})
 		}
 	}
-	return matches, nil
-}
-
-func matchFiles(note *model.Note, foldedQuery string) bool {
-	if strings.Contains(strings.ToLower(note.Filename), foldedQuery) ||
-		strings.Contains(strings.ToLower(note.Title), foldedQuery) {
-		return true
-	}
-	for _, alias := range note.Aliases {
-		if strings.Contains(strings.ToLower(alias), foldedQuery) {
-			return true
-		}
-	}
-	return false
-}
-
-func matchContent(snapshot *index.Snapshot, note *model.Note, foldedQuery string) bool {
-	_, file, err := snapshot.OpenNote(note.ID)
-	if err != nil {
-		return false
-	}
-	defer file.Close()
-	content, err := io.ReadAll(io.LimitReader(file, maxSearchNoteBytes+1))
-	if err != nil || len(content) > maxSearchNoteBytes {
-		return false
-	}
-	return strings.Contains(strings.ToLower(string(content)), foldedQuery)
+	return Response{Hits: matches, Query: req.Query}, nil
 }

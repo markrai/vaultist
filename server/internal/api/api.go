@@ -235,13 +235,16 @@ func (h *Handler) search(writer http.ResponseWriter, request *http.Request) {
 		writeError(writer, http.StatusBadRequest, "invalid_pagination", "Pagination parameters are invalid", nil)
 		return
 	}
-	hits, err := search.Search(snapshot, query, search.Mode(mode))
+	hits, err := search.Search(request.Context(), snapshot, search.Request{Query: query, Mode: search.Mode(mode)})
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return
+		}
 		writeError(writer, http.StatusBadRequest, "invalid_query", "Search mode must be files or content", nil)
 		return
 	}
-	matches := make([]browseItem, 0, len(hits))
-	for _, hit := range hits {
+	matches := make([]browseItem, 0, len(hits.Hits))
+	for _, hit := range hits.Hits {
 		matches = append(matches, browseItem{
 			Kind: "note", ID: hit.ID, Name: hit.Name, Title: hit.Title, Path: hit.Path, Error: hit.Error,
 		})

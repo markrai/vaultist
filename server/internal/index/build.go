@@ -41,7 +41,7 @@ func build(ctx context.Context, root, vaultName string, generation uint64, parse
 		notePathExact: make(map[string][]string), notePathFolded: make(map[string][]string),
 		noteNameFolded: make(map[string][]string), noteAliasFolded: make(map[string][]string),
 		assetPathExact: make(map[string][]string), assetPathFolded: make(map[string][]string),
-		assetNameFolded: make(map[string][]string),
+		assetNameFolded: make(map[string][]string), SearchBlobs: make(map[string]NoteSearchBlobs),
 	}
 	var notes []pendingNote
 	err = vault.Walk(root, func(filePath string, entry fs.DirEntry, walkErr error) error {
@@ -90,9 +90,12 @@ func build(ctx context.Context, root, vaultName string, generation uint64, parse
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		note := readAndParseNote(root, pending, parser)
+		note, blobs := readAndParseNote(root, pending, parser)
 		snapshot.Notes[note.ID] = note
 		snapshot.OrderedNoteIDs = append(snapshot.OrderedNoteIDs, note.ID)
+		if note.Error == "" {
+			snapshot.SearchBlobs[note.ID] = blobs
+		}
 	}
 	sort.Strings(snapshot.OrderedAssetIDs)
 	snapshot.buildLookupTables()
@@ -100,7 +103,7 @@ func build(ctx context.Context, root, vaultName string, generation uint64, parse
 	return snapshot, nil
 }
 
-func readAndParseNote(root string, pending pendingNote, parser *mdparser.Parser) *model.Note {
+func readAndParseNote(root string, pending pendingNote, parser *mdparser.Parser) (*model.Note, NoteSearchBlobs) {
 	id, _ := vault.NoteID(pending.relative)
 	note := &model.Note{
 		ID: id, Path: pending.relative, Filename: path.Base(pending.relative),
@@ -110,22 +113,22 @@ func readAndParseNote(root string, pending pendingNote, parser *mdparser.Parser)
 	filePath, err := vault.JoinInside(root, pending.relative)
 	if err != nil {
 		note.Error = "invalid note path"
-		return note
+		return note, NoteSearchBlobs{}
 	}
 	file, err := os.Open(filePath)
 	if err != nil {
 		note.Error = "note could not be read"
-		return note
+		return note, NoteSearchBlobs{}
 	}
 	defer file.Close()
 	content, err := io.ReadAll(io.LimitReader(file, maxIndexNoteBytes+1))
 	if err != nil {
 		note.Error = "note could not be read"
-		return note
+		return note, NoteSearchBlobs{}
 	}
 	if len(content) > maxIndexNoteBytes {
 		note.Error = "note is too large to index"
-		return note
+		return note, NoteSearchBlobs{}
 	}
 	hash := sha256.Sum256(content)
 	note.Revision = "sha256:" + hex.EncodeToString(hash[:])
@@ -135,7 +138,21 @@ func readAndParseNote(root string, pending pendingNote, parser *mdparser.Parser)
 	note.Headings = parsed.Headings
 	note.Links = parsed.Links
 	note.Attachments = parsed.Attachments
-	return note
+	return note, NoteSearchBlobs{
+		Content: strings.ToLower(string(content)),
+		Files:   buildFilesSearchBlob(note),
+	}
+}
+
+func buildFilesSearchBlob(note *model.Note) string {
+	parts := []string{
+		strings.ToLower(note.Filename),
+		strings.ToLower(note.Title),
+	}
+	for _, alias := range note.Aliases {
+		parts = append(parts, strings.ToLower(alias))
+	}
+	return strings.Join(parts, "\n")
 }
 
 func makeAsset(relative string, info fs.FileInfo) *model.Asset {
