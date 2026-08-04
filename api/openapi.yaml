@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: VaultView API
+  title: Vaultist API
   version: 1.0.0
   description: Read-only, tailnet-scoped API for an indexed Markdown Vault.
   license:
@@ -218,7 +218,7 @@ components:
       type: object
       required: [service, version, status, index]
       properties:
-        service: { type: string, const: vaultview }
+        service: { type: string, const: vaultist }
         version: { type: string }
         status: { type: string, const: ok }
         index: { $ref: "#/components/schemas/IndexState" }

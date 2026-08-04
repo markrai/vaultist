@@ -7,16 +7,16 @@ plugins {
 }
 
 android {
-    namespace = "com.vaultview"
+    namespace = "com.markrai.vaultist"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.vaultview"
+        applicationId = "com.markrai.vaultist"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
-        testInstrumentationRunner = "com.vaultview.VaultViewTestRunner"
+        testInstrumentationRunner = "com.markrai.vaultist.VaultistTestRunner"
         buildConfigField("String", "DEVELOPMENT_SERVER_URL", "\"http://10.0.2.2:8080\"")
         buildConfigField("boolean", "ENABLE_ON_DEVICE_ASK", "true")
     }

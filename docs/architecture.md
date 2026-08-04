@@ -1,4 +1,4 @@
-# VaultView architecture
+# Vaultist architecture
 
 ## Boundaries
 

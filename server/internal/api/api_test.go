@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/okayt/vaultview/server/internal/index"
+	"github.com/okayt/vaultist/server/internal/index"
 )
 
 func TestHTTPContract(t *testing.T) {

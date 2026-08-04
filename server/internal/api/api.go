@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/okayt/vaultview/server/internal/index"
-	"github.com/okayt/vaultview/server/internal/model"
-	"github.com/okayt/vaultview/server/internal/vault"
+	"github.com/okayt/vaultist/server/internal/index"
+	"github.com/okayt/vaultist/server/internal/model"
+	"github.com/okayt/vaultist/server/internal/vault"
 )
 
 const apiPrefix = "/api/v1"
@@ -84,7 +84,7 @@ func (h *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 func (h *Handler) status(writer http.ResponseWriter) {
 	state := h.manager.State()
 	writeJSON(writer, http.StatusOK, map[string]any{
-		"service": "vaultview", "version": "v1", "status": "ok", "index": state,
+		"service": "vaultist", "version": "v1", "status": "ok", "index": state,
 	})
 }
 

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/okayt/vaultview/server/internal/model"
+	"github.com/okayt/vaultist/server/internal/model"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"

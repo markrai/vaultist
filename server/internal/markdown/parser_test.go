@@ -3,7 +3,7 @@ package markdown
 import (
 	"testing"
 
-	"github.com/okayt/vaultview/server/internal/model"
+	"github.com/okayt/vaultist/server/internal/model"
 )
 
 func TestParseObsidianAndMarkdownSyntax(t *testing.T) {

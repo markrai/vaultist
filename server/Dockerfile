@@ -4,10 +4,10 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/vaultview-server ./cmd/vaultview-server
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/vaultist-server ./cmd/vaultist-server
 
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=build /out/vaultview-server /vaultview-server
+COPY --from=build /out/vaultist-server /vaultist-server
 EXPOSE 8080
 USER nonroot:nonroot
-ENTRYPOINT ["/vaultview-server"]
+ENTRYPOINT ["/vaultist-server"]

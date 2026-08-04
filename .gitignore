@@ -4,6 +4,8 @@ android/**/build/
 android/local.properties
 server/bin/
 server/coverage.out
+server/vaultist-server
+server/vaultist-server.exe
 
 # IDE and OS state
 .idea/
@@ -14,3 +16,6 @@ Thumbs.db
 
 # Config
 deploy.env
+
+# Local drafting
+docs/draft/

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Vault Peep"
+rootProject.name = "Vaultist"
 include(":app")

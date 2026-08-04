@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO_DIR="/srv/vaultpeep"
-REMOTE_URL="https://github.com/markrai/vaultpeep"
+REPO_DIR="/srv/vaultist"
+REMOTE_URL="https://github.com/markrai/vaultist"
 COMPOSE_DIR="$REPO_DIR/deploy"
-SERVICE="vaultview"
+SERVICE="vaultist"
 HEALTH_URL="http://127.0.0.1:8080/api/v1/status"
 
 cd "$REPO_DIR"
@@ -47,7 +47,7 @@ for _ in {1..30}; do
   if [[ "$HEALTH" == "healthy" ]]; then
     curl -fsS "$HEALTH_URL" >/dev/null
     echo
-    echo "VaultPeep deployed successfully."
+    echo "Vaultist deployed successfully."
     git log -1 --oneline
     docker compose ps
     exit 0
@@ -62,7 +62,7 @@ for _ in {1..30}; do
   sleep 2
 done
 
-echo "Error: timed out waiting for VaultPeep to become healthy." >&2
+echo "Error: timed out waiting for Vaultist to become healthy." >&2
 docker compose ps
 docker compose logs --tail=200 "$SERVICE"
 exit 1

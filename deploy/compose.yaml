@@ -1,9 +1,9 @@
 services:
-  vaultview:
+  vaultist:
     build:
       context: ../server
       dockerfile: Dockerfile
-    image: vaultview-server:local
+    image: vaultist-server:local
     restart: unless-stopped
     environment:
       VAULT_ROOT: /vault
@@ -12,7 +12,7 @@ services:
     volumes:
       - /srv/obsidian/Vault:/vault:ro
     ports:
-      - 127.0.0.1:${VAULTVIEW_PORT:-8080}:8080
+      - 127.0.0.1:${VAULTIST_PORT:-8080}:8080
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777
@@ -21,7 +21,7 @@ services:
     cap_drop:
       - ALL
     healthcheck:
-      test: ["CMD", "/vaultview-server", "--healthcheck"]
+      test: ["CMD", "/vaultist-server", "--healthcheck"]
       interval: 30s
       timeout: 3s
       retries: 3

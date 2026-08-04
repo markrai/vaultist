@@ -1,6 +1,6 @@
-# VaultPeep
+# Vaultist
 
-VaultView is a read-only Markdown Vault viewer made of two independently buildable applications:
+Vaultist is a read-only Markdown Vault viewer made of two independently buildable applications:
 
 - a Kotlin/Jetpack Compose Android client; and
 - a small Go HTTP server that indexes a locally mounted Markdown Vault on the Linux host.
@@ -8,7 +8,7 @@ VaultView is a read-only Markdown Vault viewer made of two independently buildab
 The Android app talks only to the versioned JSON API. It never mounts SMB, scans the remote filesystem, or requests broad storage access. Tailscale Serve supplies private HTTPS transport between the device and the Linux host.
 
 ```text
-Android VaultView
+Android Vaultist
         |
         | HTTPS over Tailscale
         v
@@ -16,7 +16,7 @@ Tailscale Serve on the Linux host
         |
         | loopback HTTP
         v
-VaultView Go server
+Vaultist Go server
         |
         | read-only local filesystem
         v
@@ -64,7 +64,7 @@ Requirements: Go 1.23 or newer. The server requires `VAULT_ROOT`; the listen add
 Windows PowerShell against the mapped Markdown Vault:
 
 ```powershell
-$env:VAULT_ROOT='O:\'; $env:VAULT_NAME='Vault'; go run .\cmd\vaultview-server
+$env:VAULT_ROOT='O:\'; $env:VAULT_NAME='Vault'; go run .\cmd\vaultist-server
 ```
 
 Run that command from `server`. The status endpoint is `http://127.0.0.1:8080/api/v1/status`.
@@ -75,12 +75,12 @@ Verification:
 go test ./...
 go test -race ./...
 go vet ./...
-go build -trimpath -ldflags='-s -w' ./cmd/vaultview-server
+go build -trimpath -ldflags='-s -w' ./cmd/vaultist-server
 ```
 
 ## Android development
 
-VaultView follows the compatible Voxidian toolchain: AGP 8.9.1, Kotlin 1.9.24, Gradle 8.11.1, Java 17, compile/target SDK 36, and minimum SDK 26. Open `android` as the Android Studio project or use its wrapper directly.
+Vaultist follows the compatible Voxidian toolchain: AGP 8.9.1, Kotlin 1.9.24, Gradle 8.11.1, Java 17, compile/target SDK 36, and minimum SDK 26. Open `android` as the Android Studio project or use its wrapper directly.
 
 The emulator development URL is `http://10.0.2.2:8080`; Android emulator `localhost` addresses the emulator itself. Cleartext is restricted to emulator/loopback development hosts. Tailnet and other remote server URLs must use HTTPS.
 
@@ -112,7 +112,7 @@ sudo tailscale serve --bg http://127.0.0.1:8080
 tailscale serve status
 ```
 
-Tailscale changed Serve CLI syntax in client 1.52, so verify the command against the current [official Serve command reference](https://tailscale.com/docs/reference/tailscale-cli/serve) before applying it on the Linux host. Do not use Tailscale Funnel: Funnel is public exposure, while VaultView is designed for tailnet-only Serve access.
+Tailscale changed Serve CLI syntax in client 1.52, so verify the command against the current [official Serve command reference](https://tailscale.com/docs/reference/tailscale-cli/serve) before applying it on the Linux host. Do not use Tailscale Funnel: Funnel is public exposure, while Vaultist is designed for tailnet-only Serve access.
 
 The container binds only to host loopback, runs as the distroless non-root user, drops Linux capabilities, uses a read-only root filesystem, and mounts `/srv/Vault:/vault:ro`.
 
@@ -132,4 +132,4 @@ See [docs/architecture.md](docs/architecture.md) and [api/openapi.yaml](api/open
 
 ## License
 
-VaultView is licensed under the GNU Affero General Public License version 3; see [LICENSE](LICENSE).
+Vaultist is licensed under the GNU Affero General Public License version 3; see [LICENSE](LICENSE).
