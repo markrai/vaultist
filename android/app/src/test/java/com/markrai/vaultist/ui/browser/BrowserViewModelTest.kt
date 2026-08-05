@@ -227,6 +227,34 @@ class BrowserViewModelTest {
     }
 
     @Test
+    fun secondDeleteDoesNotResurrectFirstDeletedNote() = runTest(dispatcherRule.dispatcher) {
+        val first = BrowseItem(BrowseKind.Note, "First", "First.md", "First", "First.md", null)
+        val second = BrowseItem(BrowseKind.Note, "Second", "Second.md", "Second", "Second.md", null)
+        val third = BrowseItem(BrowseKind.Note, "Third", "Third.md", "Third", "Third.md", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(
+                BrowsePage(listOf(first, second, third), null, ""),
+            )
+        }
+        val viewModel = viewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.afterNoteDeleted("First")
+        repository.listNotesResult = VaultResult.Success(
+            BrowsePage(listOf(second, third), null, ""),
+        )
+        advanceUntilIdle()
+        assertEquals(listOf("Second", "Third"), viewModel.state.value.items.map { it.id })
+
+        viewModel.afterNoteDeleted("Second")
+        repository.listNotesResult = VaultResult.Success(
+            BrowsePage(listOf(first, second, third), null, ""),
+        )
+        advanceUntilIdle()
+        assertEquals(listOf("Third"), viewModel.state.value.items.map { it.id })
+    }
+
+    @Test
     fun toggleSortModeSwitchesToModifiedDescAndReorders() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository().apply {
             listNotesResult = VaultResult.Success(

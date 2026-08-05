@@ -26,6 +26,8 @@ class SetupScreenTest {
                     onTest = { testClicks++ },
                     onSave = {},
                     onEnableAskThinkingChange = {},
+                    onColorThemeChange = {},
+                    onAppearanceChange = {},
                     onBack = {},
                 )
             }

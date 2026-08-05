@@ -53,7 +53,7 @@ class BrowserViewModel @Inject constructor(
     val state: StateFlow<BrowserUiState> = _state
 
     private var filesSearchJob: Job? = null
-    private var pendingDeletedNoteId: String? = null
+    private val pendingDeletedNoteIds = mutableSetOf<String>()
 
     init {
         viewModelScope.launch {
@@ -203,7 +203,7 @@ class BrowserViewModel @Inject constructor(
                             if (_state.value.isSearchResults) {
                                 runSearch(reset = true, refreshing = true)
                             } else {
-                                loadBrowse(_state.value.folder, refreshing = true)
+                                loadBrowse(_state.value.folder, refreshing = true, clearPendingDeletes = true)
                             }
                             return@launch
                         }
@@ -262,7 +262,7 @@ class BrowserViewModel @Inject constructor(
     fun afterNoteDeleted(noteId: String) {
         if (_state.value.searchMode == SearchMode.Ask) return
         filesSearchJob?.cancel()
-        pendingDeletedNoteId = noteId
+        pendingDeletedNoteIds.add(noteId)
         _state.update {
             it.copy(
                 query = "",
@@ -270,7 +270,7 @@ class BrowserViewModel @Inject constructor(
                 searched = false,
                 isSearchResults = false,
                 error = null,
-                items = it.items.filter { item -> item.id != noteId },
+                items = it.items.filter { item -> item.id !in pendingDeletedNoteIds },
             )
         }
         loadBrowse(_state.value.folder)
@@ -343,8 +343,12 @@ class BrowserViewModel @Inject constructor(
         folder: String,
         refreshing: Boolean = false,
         keepQuery: Boolean = false,
+        clearPendingDeletes: Boolean = false,
     ) {
         viewModelScope.launch {
+            if (clearPendingDeletes) {
+                pendingDeletedNoteIds.clear()
+            }
             val sortMode = _state.value.sortMode
             _state.update {
                 it.copy(
@@ -365,14 +369,8 @@ class BrowserViewModel @Inject constructor(
                 is VaultResult.Success -> {
                     when (val allItems = fetchAllBrowseItems(folder, firstPage.value)) {
                         is VaultResult.Success -> {
-                            val excludeId = pendingDeletedNoteId
-                            val items = if (excludeId == null) {
-                                allItems.value
-                            } else {
-                                allItems.value.filter { item -> item.id != excludeId }
-                            }
-                            if (excludeId != null && allItems.value.none { it.id == excludeId }) {
-                                pendingDeletedNoteId = null
+                            val items = allItems.value.filter { item ->
+                                item.id !in pendingDeletedNoteIds
                             }
                             _state.update {
                                 it.copy(
