@@ -40,8 +40,7 @@ When changing request or response JSON:
 3. Update Android `ApiDtos.kt` and `domain/Models.kt`.
 4. Extend `ApiDtosTest.kt` for new or required fields.
 5. Run `go test ./internal/api/...` from `server/` (schema tests must pass).
-6. Run `go test ./internal/api/...` from `server/` (schema tests must pass).
-7. Run `.\gradlew.bat :app:testDebugUnitTest` from `android/`.
+6. Run `.\gradlew.bat :app:testDebugUnitTest` from `android/`.
 
 For write endpoints, also extend handler tests (`api_write_test.go`) and Android MockWebServer repository tests.
 
