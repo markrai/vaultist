@@ -75,4 +75,6 @@ Write path:
 
 `AuthorizeWrite` gates PUT separately from read and refresh. `VaultResponse.readOnly` is `false` when writes are enabled. Android edits through `VaultRepository.updateNote` and a minimal edit UI on `NoteScreen`.
 
+Note share on `NoteScreen` exports the loaded note body (or edit draft) to a cache `.md` file and opens the Android share chooser via `FileProvider`. The vault filesystem is never mounted on the device.
+
 Deferred: renames/moves, attachment CRUD, frontmatter/title editing, backlink-aware rewrites, create/delete notes.

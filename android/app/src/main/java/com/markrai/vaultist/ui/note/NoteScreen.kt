@@ -14,10 +14,13 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
+import androidx.compose.material.SnackbarHost
+import androidx.compose.material.SnackbarHostState
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowCircleRight
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.domain.LinkCandidate
 import com.markrai.vaultist.ui.components.ErrorPanel
 import com.markrai.vaultist.ui.markdown.MarkdownRenderer
+import com.markrai.vaultist.ui.share.ShareNoteEffect
 import com.markrai.vaultist.ui.theme.Spacing
 
 private data class AmbiguousDialog(val target: String, val candidates: List<LinkCandidate>)
@@ -44,28 +48,45 @@ fun NoteScreen(
     viewModel: NoteViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
     var missingTarget by remember { mutableStateOf<String?>(null) }
     var ambiguous by remember { mutableStateOf<AmbiguousDialog?>(null) }
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text(state.note?.title ?: "Note") },
-            navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
-            actions = {
-                when {
-                    state.editing -> {
-                        TextButton(onClick = viewModel::cancelEdit, enabled = !state.saving) { Text("Cancel") }
-                        TextButton(onClick = { viewModel.save() }, enabled = !state.saving) { Text("Save") }
+    ShareNoteEffect(
+        pendingShare = state.pendingShare,
+        shareError = state.shareError,
+        onConsumed = viewModel::consumeShareRequest,
+        onClearError = viewModel::clearShareError,
+        snackbarHostState = snackbarHostState,
+    )
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = { Text(state.note?.title ?: "Note") },
+                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
+                actions = {
+                    when {
+                        state.editing -> {
+                            TextButton(onClick = viewModel::cancelEdit, enabled = !state.saving) { Text("Cancel") }
+                            TextButton(onClick = { viewModel.save() }, enabled = !state.saving) { Text("Save") }
+                        }
+                        state.canEdit && state.note != null -> {
+                            TextButton(onClick = viewModel::enterEdit) { Text("Edit") }
+                        }
                     }
-                    state.canEdit && state.note != null -> {
-                        TextButton(onClick = viewModel::enterEdit) { Text("Edit") }
+                    IconButton(onClick = { onBacklinks(viewModel.noteId) }) {
+                        Icon(Icons.Default.Link, contentDescription = "Backlinks")
                     }
-                }
-                IconButton(onClick = { onBacklinks(viewModel.noteId) }) {
-                    Icon(Icons.Default.Link, contentDescription = "Backlinks")
-                }
-            },
-        )
-    }) { padding ->
+                    IconButton(
+                        onClick = viewModel::share,
+                        enabled = state.note != null && !state.loading && !state.sharing,
+                    ) {
+                        Icon(Icons.Default.ArrowCircleRight, contentDescription = "Share note")
+                    }
+                },
+            )
+        },
+    ) { padding ->
         when {
             state.editing -> Column(
                 Modifier

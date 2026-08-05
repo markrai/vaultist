@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markrai.vaultist.data.repository.VaultRepository
+import com.markrai.vaultist.data.share.NoteSharePreparer
+import com.markrai.vaultist.data.share.SharePayload
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.ui.userMessage
@@ -24,12 +26,16 @@ data class NoteUiState(
     val baseRevision: String? = null,
     val saving: Boolean = false,
     val conflict: Boolean = false,
+    val sharing: Boolean = false,
+    val pendingShare: SharePayload? = null,
+    val shareError: String? = null,
 )
 
 @HiltViewModel
 class NoteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: VaultRepository,
+    private val sharePreparer: NoteSharePreparer,
 ) : ViewModel() {
     val noteId: String = requireNotNull(savedStateHandle["id"])
     val fragment: String? = savedStateHandle["fragment"]
@@ -114,6 +120,38 @@ class NoteViewModel @Inject constructor(
     fun reloadAfterConflict() {
         cancelEdit()
         load()
+    }
+
+    fun share() {
+        val note = _state.value.note ?: return
+        if (_state.value.sharing) return
+        viewModelScope.launch {
+            _state.update { it.copy(sharing = true, shareError = null) }
+            try {
+                val content = if (_state.value.editing) _state.value.draftContent else note.content
+                val payload = sharePreparer.prepare(
+                    noteId = note.id,
+                    filename = note.filename,
+                    content = content,
+                )
+                _state.update { it.copy(sharing = false, pendingShare = payload) }
+            } catch (_: Exception) {
+                _state.update {
+                    it.copy(
+                        sharing = false,
+                        shareError = "Could not prepare this note for sharing.",
+                    )
+                }
+            }
+        }
+    }
+
+    fun consumeShareRequest() {
+        _state.update { it.copy(pendingShare = null) }
+    }
+
+    fun clearShareError() {
+        _state.update { it.copy(shareError = null) }
     }
 
     private fun load() {
