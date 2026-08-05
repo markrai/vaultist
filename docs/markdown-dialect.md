@@ -21,6 +21,12 @@ Goldmark parses the body for:
 - Standard Markdown links and images (`[text](url)`)
 
 Standard external links (`http://`, `https://`, `//`, `mailto:`) are not indexed as vault links.
+The Android display renderer still presents them as clickable web links for:
+
+- Markdown links (`[label](https://…)`)
+- Angle autolinks (`<https://…>`)
+- Bare `http://` / `https://` / `mailto:` URLs in note body text
+
 
 ## Wiki links and embeds
 
@@ -72,7 +78,7 @@ Android fragment scroll compares `headingSlug(heading.text)` to `headingSlug(fra
 |---|---|---|
 | Index parser | `server/internal/markdown` | Frontmatter, headings + slugs, all link occurrences, attachments, line/column/context |
 | Display parser | `android/.../ui/markdown/MarkdownParser.kt` | Block structure only (headings, paragraphs, lists, quotes, code) |
-| Display renderer | `android/.../ui/markdown/MarkdownRenderer.kt` | Inline styling; clickable links from server `Note.links` |
+| Display renderer | `android/.../ui/markdown/MarkdownRenderer.kt` | Inline styling; vault links from server `Note.links`; web URLs via markdown / autolink / bare URL presentation |
 
 Android does **not** re-parse wiki links for resolution. Future editing (Phase 8+) must treat the Go index parser as authoritative for note structure.
 

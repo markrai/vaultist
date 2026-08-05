@@ -47,7 +47,7 @@ Structured logs go to stdout as JSON (`log/slog`). Each request logs `method`, c
 
 The single-activity Compose client uses Hilt, immutable `StateFlow` states, lifecycle-aware collection, OkHttp cancellation, DataStore settings, Navigation Compose, Coil, and Material 2. Edge-to-edge setup and system-bar padding follow the shared activity-content pattern in `MainActivity`.
 
-The Markdown presentation is native Compose. A bounded block parser creates headings, paragraphs, list items, quotes, and fenced-code blocks; inline presentation supports emphasis, strong text, code, standard links, wiki links, standard images, and wiki embeds. Server resolutions drive navigation and ambiguity/missing dialogs. Heading fragments and backlink source lines drive list positioning.
+The Markdown presentation is native Compose. A bounded block parser creates headings, paragraphs, list items, quotes, and fenced-code blocks; inline presentation supports emphasis, strong text, code, standard links, wiki links, web URLs (markdown, angle autolinks, and bare `http(s)`/`mailto`), standard images, and wiki embeds. Server resolutions drive vault-note navigation and ambiguity/missing dialogs. Heading fragments and backlink source lines drive list positioning.
 
 ### Ask (on-device)
 

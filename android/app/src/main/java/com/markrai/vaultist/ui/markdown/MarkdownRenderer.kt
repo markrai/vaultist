@@ -1,6 +1,9 @@
 package com.markrai.vaultist.ui.markdown
 
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -26,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +64,10 @@ private const val NoteTag = "note"
 private const val UrlTag = "url"
 private const val MissingTag = "missing"
 private const val AmbiguousTag = "ambiguous"
+
+/** Trailing punctuation often adjacent to bare URLs in prose. */
+private val BareUrlTrailingTrim = charArrayOf('.', ',', ';', ':', '!', '?', ')', ']', '\'', '"', '…')
+
 
 @Composable
 fun MarkdownRenderer(
@@ -231,38 +239,75 @@ private fun InlineText(
     onClearSelection: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val linkColor = MaterialTheme.colors.primary
+    val isLight = MaterialTheme.colors.isLight
+    // Dedicated link blue — theme primary is too close to body text in dark mode.
+    val linkColor = if (isLight) Color(0xFF0B57D0) else Color(0xFFA8C7FA)
     val errorColor = MaterialTheme.colors.error
-    val annotated = remember(text, links, linkColor, errorColor) { annotatedInline(text, links, linkColor, errorColor) }
+    val annotated = remember(text, links, linkColor, errorColor) {
+        annotatedInline(text, links, linkColor, errorColor)
+    }
     val uriHandler = LocalUriHandler.current
+    val openNoteState = rememberUpdatedState(onOpenNote)
+    val missingState = rememberUpdatedState(onMissing)
+    val ambiguousState = rememberUpdatedState(onAmbiguous)
+    val clearSelectionState = rememberUpdatedState(onClearSelection)
     var layoutResult by remember(text, annotated) { mutableStateOf<TextLayoutResult?>(null) }
     Text(
         text = annotated,
         style = style.copy(color = MaterialTheme.colors.onSurface),
-        modifier = modifier.pointerInput(annotated, layoutResult, onClearSelection) {
-            detectTapGestures { position ->
-                val offset = layoutResult?.getOffsetForPosition(position) ?: run {
-                    onClearSelection()
-                    return@detectTapGestures
+        modifier = modifier.pointerInput(annotated, layoutResult) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                val offset = layoutResult?.getOffsetForPosition(down.position)
+                val annotation = offset?.let { annotated.linkAnnotationAt(it) }
+                if (annotation == null) return@awaitEachGesture
+                // Consume before SelectionContainer so web/wiki links stay tappable.
+                down.consume()
+                val up = waitForUpOrCancellation(pass = PointerEventPass.Initial) ?: return@awaitEachGesture
+                up.consume()
+                if ((up.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                    return@awaitEachGesture
                 }
-                val hasLink = annotated.getStringAnnotations(start = offset, end = offset).isNotEmpty()
-                if (hasLink) {
-                    handleInlineAnnotationClick(
-                        offset = offset,
-                        annotated = annotated,
-                        links = links,
-                        uriHandler = uriHandler,
-                        onOpenNote = onOpenNote,
-                        onMissing = onMissing,
-                        onAmbiguous = onAmbiguous,
-                    )
-                } else {
-                    onClearSelection()
-                }
+                clearSelectionState.value()
+                dispatchInlineLinkClick(
+                    annotation = annotation,
+                    links = links,
+                    uriHandler = uriHandler,
+                    onOpenNote = openNoteState.value,
+                    onMissing = missingState.value,
+                    onAmbiguous = ambiguousState.value,
+                )
             }
         },
         onTextLayout = { layoutResult = it },
     )
+}
+
+private fun AnnotatedString.linkAnnotationAt(offset: Int): AnnotatedString.Range<String>? =
+    getStringAnnotations(start = offset, end = offset).firstOrNull { range ->
+        range.tag == NoteTag || range.tag == UrlTag || range.tag == MissingTag || range.tag == AmbiguousTag
+    }
+
+private fun dispatchInlineLinkClick(
+    annotation: AnnotatedString.Range<String>,
+    links: List<NoteLink>,
+    uriHandler: UriHandler,
+    onOpenNote: (String, String?) -> Unit,
+    onMissing: (String) -> Unit,
+    onAmbiguous: (String, List<LinkCandidate>) -> Unit,
+) {
+    when (annotation.tag) {
+        NoteTag -> {
+            val pieces = annotation.item.split('\n', limit = 2)
+            onOpenNote(pieces[0], pieces.getOrNull(1)?.takeIf(String::isNotBlank))
+        }
+        UrlTag -> runCatching { uriHandler.openUri(annotation.item) }
+        MissingTag -> onMissing(annotation.item)
+        AmbiguousTag -> {
+            val match = links.firstOrNull { it.raw == annotation.item && it.resolution.status == LinkStatus.Ambiguous }
+            onAmbiguous(match?.target ?: annotation.item, match?.resolution?.candidates.orEmpty())
+        }
+    }
 }
 
 private fun Modifier.clearSelectionOnTap(onClearSelection: () -> Unit): Modifier = pointerInput(onClearSelection) {
@@ -280,37 +325,17 @@ private fun Modifier.clearSelectionOnUnhandledTap(onClearSelection: () -> Unit):
     }
 }
 
-private fun handleInlineAnnotationClick(
-    offset: Int,
-    annotated: AnnotatedString,
-    links: List<NoteLink>,
-    uriHandler: UriHandler,
-    onOpenNote: (String, String?) -> Unit,
-    onMissing: (String) -> Unit,
-    onAmbiguous: (String, List<LinkCandidate>) -> Unit,
-) {
-    annotated.getStringAnnotations(start = offset, end = offset).firstOrNull()?.let { annotation ->
-        when (annotation.tag) {
-            NoteTag -> {
-                val pieces = annotation.item.split('\n', limit = 2)
-                onOpenNote(pieces[0], pieces.getOrNull(1)?.takeIf(String::isNotBlank))
-            }
-            UrlTag -> runCatching { uriHandler.openUri(annotation.item) }
-            MissingTag -> onMissing(annotation.item)
-            AmbiguousTag -> {
-                val match = links.firstOrNull { it.raw == annotation.item && it.resolution.status == LinkStatus.Ambiguous }
-                onAmbiguous(match?.target ?: annotation.item, match?.resolution?.candidates.orEmpty())
-            }
-        }
-    }
-}
-
 private fun headingStyle(level: Int): TextStyle = TextStyle(
     fontSize = when (level) { 1 -> 30.sp; 2 -> 24.sp; 3 -> 21.sp; else -> 18.sp },
     fontWeight = FontWeight.Bold,
 )
 
-private fun annotatedInline(text: String, links: List<NoteLink>, linkColor: Color, errorColor: Color): AnnotatedString = buildAnnotatedString {
+internal fun annotatedInline(
+    text: String,
+    links: List<NoteLink>,
+    linkColor: Color,
+    errorColor: Color,
+): AnnotatedString = buildAnnotatedString {
     var cursor = 0
     while (cursor < text.length) {
         when {
@@ -347,45 +372,149 @@ private fun annotatedInline(text: String, links: List<NoteLink>, linkColor: Colo
             text[cursor] == '[' -> {
                 val labelEnd = text.indexOf(']', cursor + 1)
                 val targetStart = if (labelEnd >= 0 && text.getOrNull(labelEnd + 1) == '(') labelEnd + 2 else -1
-                val targetEnd = if (targetStart >= 0) text.indexOf(')', targetStart) else -1
+                val targetEnd = if (targetStart >= 0) matchingMarkdownDestinationEnd(text, targetStart) else -1
                 if (targetEnd > targetStart) {
                     val label = text.substring(cursor + 1, labelEnd)
-                    val target = text.substring(targetStart, targetEnd)
-                    val match = links.firstOrNull { it.target == target || it.raw == target }
-                    if (match != null) appendResolved(label, match, linkColor, errorColor)
-                    else { pushStringAnnotation(UrlTag, target); pushStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)); append(label); pop(); pop() }
+                    val target = text.substring(targetStart, targetEnd).trim().substringBefore(' ').trim()
+                    if (isWebUrl(target)) {
+                        appendStyledLink(label, UrlTag, normalizeWebUrl(target), linkColor)
+                    } else {
+                        val match = links.firstOrNull { it.target == target || it.raw == target }
+                        if (match != null) appendResolved(label, match, linkColor, errorColor)
+                        else appendStyledLink(label, UrlTag, target, linkColor)
+                    }
                     cursor = targetEnd + 1
                 } else append(text[cursor++])
+            }
+            text[cursor] == '<' && looksLikeAngleAutolink(text, cursor) -> {
+                val end = text.indexOf('>', cursor + 1)
+                if (end > cursor) {
+                    val inner = text.substring(cursor + 1, end).trim()
+                    if (isWebUrl(inner)) {
+                        val url = normalizeWebUrl(inner)
+                        appendStyledLink(url, UrlTag, url, linkColor)
+                        cursor = end + 1
+                    } else append(text[cursor++])
+                } else append(text[cursor++])
+            }
+            bareUrlPrefixLength(text, cursor) > 0 -> {
+                val prefix = bareUrlPrefixLength(text, cursor)
+                var end = cursor + prefix
+                while (end < text.length && !text[end].isWhitespace() && text[end] != '<' && text[end] != '>') {
+                    end++
+                }
+                while (end > cursor + prefix && text[end - 1] in BareUrlTrailingTrim) end--
+                val raw = text.substring(cursor, end)
+                val url = normalizeWebUrl(raw)
+                appendStyledLink(raw, UrlTag, url, linkColor)
+                cursor = end
             }
             else -> append(text[cursor++])
         }
     }
 }
 
-private fun AnnotatedString.Builder.appendAnnotatedLink(label: String, raw: String, links: List<NoteLink>, linkColor: Color, errorColor: Color) {
+/** Find the `)` that closes a markdown destination, allowing balanced parentheses in the URL path. */
+internal fun matchingMarkdownDestinationEnd(text: String, targetStart: Int): Int {
+    var depth = 1
+    var i = targetStart
+    while (i < text.length) {
+        when (text[i]) {
+            '(' -> depth++
+            ')' -> {
+                depth--
+                if (depth == 0) return i
+            }
+            ' ', '\n', '\r', '\t' -> if (depth == 1) {
+                // Optional title after destination: [text](url "title")
+                // Destination ends at whitespace when depth is still 1; find closing ).
+                val close = text.indexOf(')', i)
+                return if (close > i) close else -1
+            }
+        }
+        i++
+    }
+    return -1
+}
+
+internal fun isWebUrl(target: String): Boolean {
+    val value = target.trim()
+    return value.startsWith("https://", ignoreCase = true) ||
+        value.startsWith("http://", ignoreCase = true) ||
+        value.startsWith("mailto:", ignoreCase = true) ||
+        value.startsWith("//")
+}
+
+internal fun normalizeWebUrl(target: String): String {
+    val value = target.trim()
+    return if (value.startsWith("//")) "https:$value" else value
+}
+
+private fun looksLikeAngleAutolink(text: String, cursor: Int): Boolean {
+    if (cursor + 1 >= text.length) return false
+    val rest = text.substring(cursor + 1)
+    return rest.startsWith("http://", ignoreCase = true) ||
+        rest.startsWith("https://", ignoreCase = true) ||
+        rest.startsWith("mailto:", ignoreCase = true) ||
+        rest.startsWith("//")
+}
+
+private fun bareUrlPrefixLength(text: String, cursor: Int): Int {
+    if (cursor > 0) {
+        val prev = text[cursor - 1]
+        if (prev.isLetterOrDigit() || prev == '/' || prev == '-' || prev == '_' || prev == '.') return 0
+    }
+    return when {
+        text.startsWith("https://", cursor, ignoreCase = true) -> 8
+        text.startsWith("http://", cursor, ignoreCase = true) -> 7
+        text.startsWith("mailto:", cursor, ignoreCase = true) -> 7
+        else -> 0
+    }
+}
+
+private fun AnnotatedString.Builder.appendAnnotatedLink(
+    label: String,
+    raw: String,
+    links: List<NoteLink>,
+    linkColor: Color,
+    errorColor: Color,
+) {
     val match = links.firstOrNull { it.raw == raw }
-    if (match == null) { append(label); return }
+    if (match == null) {
+        if (isWebUrl(raw.substringBefore('|').substringBefore('#'))) {
+            val target = raw.substringBefore('|').substringBefore('#').trim()
+            appendStyledLink(label, UrlTag, normalizeWebUrl(target), linkColor)
+        } else {
+            append(label)
+        }
+        return
+    }
+    if (isWebUrl(match.target)) {
+        appendStyledLink(label, UrlTag, normalizeWebUrl(match.target), linkColor)
+        return
+    }
     appendResolved(label, match, linkColor, errorColor)
 }
 
 private fun AnnotatedString.Builder.appendResolved(label: String, link: NoteLink, linkColor: Color, errorColor: Color) {
-    val tag: String
-    val value: String
-    val color: Color
     when (link.resolution.status) {
         LinkStatus.Resolved -> {
             val id = link.resolution.noteId
             if (id == null) { append(label); return }
-            tag = NoteTag; value = "$id\n${link.fragment.orEmpty()}"; color = linkColor
+            appendStyledLink(label, NoteTag, "$id\n${link.fragment.orEmpty()}", linkColor)
         }
-        LinkStatus.Ambiguous -> { tag = AmbiguousTag; value = link.raw; color = errorColor }
-        LinkStatus.Missing -> { tag = MissingTag; value = link.target; color = errorColor }
-        LinkStatus.External -> { tag = UrlTag; value = link.target; color = linkColor }
+        LinkStatus.Ambiguous -> appendStyledLink(label, AmbiguousTag, link.raw, errorColor)
+        LinkStatus.Missing -> appendStyledLink(label, MissingTag, link.target, errorColor)
+        LinkStatus.External -> appendStyledLink(label, UrlTag, normalizeWebUrl(link.target), linkColor)
     }
+}
+
+private fun AnnotatedString.Builder.appendStyledLink(label: String, tag: String, value: String, color: Color) {
     pushStringAnnotation(tag, value)
     pushStyle(SpanStyle(color = color, textDecoration = TextDecoration.Underline))
     append(label)
-    pop(); pop()
+    pop()
+    pop()
 }
 
 private fun imageLinks(text: String, links: List<NoteLink>): List<NoteLink> = links.filter { link ->
@@ -410,7 +539,11 @@ private fun removeImageSyntax(text: String, links: List<NoteLink>): String {
         }
         if (text.startsWith("![", cursor)) {
             val labelEnd = text.indexOf(']', cursor + 2)
-            val targetEnd = if (labelEnd >= 0 && text.getOrNull(labelEnd + 1) == '(') text.indexOf(')', labelEnd + 2) else -1
+            val targetEnd = if (labelEnd >= 0 && text.getOrNull(labelEnd + 1) == '(') {
+                matchingMarkdownDestinationEnd(text, labelEnd + 2)
+            } else {
+                -1
+            }
             if (targetEnd >= 0) { cursor = targetEnd + 1; continue }
         }
         output.append(text[cursor++])
