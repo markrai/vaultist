@@ -1,5 +1,7 @@
 package com.markrai.vaultist.ui.note
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +14,7 @@ import androidx.compose.material.Button
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.SnackbarHost
@@ -29,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.domain.LinkCandidate
@@ -61,30 +66,57 @@ fun NoteScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(state.note?.title ?: "Note") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
-                actions = {
-                    when {
-                        state.editing -> {
-                            TextButton(onClick = viewModel::cancelEdit, enabled = !state.saving) { Text("Cancel") }
-                            TextButton(onClick = { viewModel.save() }, enabled = !state.saving) { Text("Save") }
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colors.background),
+            ) {
+                Text(
+                    text = state.note?.title ?: "Note",
+                    style = MaterialTheme.typography.h6,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = Spacing.md,
+                            end = Spacing.md,
+                            top = Spacing.sm,
+                            bottom = Spacing.xs,
+                        ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                TopAppBar(
+                    title = {},
+                    backgroundColor = MaterialTheme.colors.background,
+                    contentColor = MaterialTheme.colors.onBackground,
+                    elevation = 0.dp,
+                    navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
+                    actions = {
+                        when {
+                            state.editing -> {
+                                TextButton(onClick = viewModel::cancelEdit, enabled = !state.saving) {
+                                    Text("Cancel")
+                                }
+                                TextButton(onClick = { viewModel.save() }, enabled = !state.saving) {
+                                    Text("Save")
+                                }
+                            }
+                            state.canEdit && state.note != null -> {
+                                TextButton(onClick = viewModel::enterEdit) { Text("Edit") }
+                            }
                         }
-                        state.canEdit && state.note != null -> {
-                            TextButton(onClick = viewModel::enterEdit) { Text("Edit") }
+                        IconButton(onClick = { onBacklinks(viewModel.noteId) }) {
+                            Icon(Icons.Default.Link, contentDescription = "Backlinks")
                         }
-                    }
-                    IconButton(onClick = { onBacklinks(viewModel.noteId) }) {
-                        Icon(Icons.Default.Link, contentDescription = "Backlinks")
-                    }
-                    IconButton(
-                        onClick = viewModel::share,
-                        enabled = state.note != null && !state.loading && !state.sharing,
-                    ) {
-                        Icon(Icons.Default.ArrowCircleRight, contentDescription = "Share note")
-                    }
-                },
-            )
+                        IconButton(
+                            onClick = viewModel::share,
+                            enabled = state.note != null && !state.loading && !state.sharing,
+                        ) {
+                            Icon(Icons.Default.ArrowCircleRight, contentDescription = "Share note")
+                        }
+                    },
+                )
+            }
         },
     ) { padding ->
         when {
