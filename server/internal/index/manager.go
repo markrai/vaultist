@@ -150,7 +150,10 @@ func (m *Manager) refresh(ctx context.Context, startedAt time.Time) error {
 			m.state.State = "ready"
 		}
 		m.state.FinishedAt = now
-		m.logger().Info("index_refresh_fail", "duration_ms", duration, "error", err.Error())
+		m.logger().Info("index_refresh_fail",
+			"duration_ms", duration,
+			"error_code", classifyRefreshError(err),
+		)
 		return err
 	}
 	m.snapshot.Store(next)

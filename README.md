@@ -22,7 +22,7 @@ Tailscale Serve on the Linux host
         v
 Vaultist Go server
         |
-        | read-only local filesystem
+        | local vault filesystem
         v
 /srv/Vault
 ```
@@ -41,9 +41,9 @@ docs/CONTRIBUTING.md Package ownership and change expectations
 
 ## Current behavior
 
-The app provides server setup/validation, folder browsing, filename/title/alias search, note body (content) search, on-device Ask over retrieved notes, note viewing, wiki-link navigation, explicit missing/ambiguous-link presentation, backlinks, index refresh, inline images, and a zoomable image viewer. It preserves screen state in ViewModels and uses cancellable OkHttp calls.
+The app provides server setup/validation, folder browsing, filename/title/alias search, note body (content) search, on-device Ask over retrieved notes, note viewing and editing, note create/delete when the vault is writable, wiki-link navigation, explicit missing/ambiguous-link presentation, backlinks, index refresh, inline images, and a zoomable image viewer. It preserves screen state in ViewModels and uses cancellable OkHttp calls.
 
-The server performs a full initial scan outside the request path and publishes an immutable index snapshot. Refreshes build a replacement snapshot and keep the last good snapshot if a temporary filesystem failure occurs. Note content is read lazily, assets are streamed with HTTP range support, and neither full bodies nor Markdown ASTs are retained in the index. Content search currently scans note bodies on the request path against the published snapshot; files search uses indexed filenames, titles, and aliases.
+The server performs a full initial scan outside the request path and publishes an immutable index snapshot. Refreshes build a replacement snapshot and keep the last good snapshot if a temporary filesystem failure occurs. Note content is read lazily, assets are streamed with HTTP range support, and neither full bodies nor Markdown ASTs are retained in the index. At index time each successfully indexed note gets precomputed lowercase search blobs for **files** (filename, title, aliases) and **content** (note body); query matching is a case-insensitive substring search over those blobs and does not re-read note files from disk.
 
 Supported syntax includes headings, paragraphs, ordered/unordered lists, blockquotes, emphasis, strong emphasis, inline/fenced code, standard links/images, and these Markdown Vault wiki-link forms:
 

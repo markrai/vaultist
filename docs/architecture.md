@@ -41,7 +41,7 @@ Search accepts `mode=files` (indexed filenames, titles, aliases) and `mode=conte
 
 Contract enforcement: OpenAPI is authoritative; server responses are validated against schemas in `internal/api/schema_test.go`; Android maps JSON in `ApiDtos.kt` with coverage in `ApiDtosTest.kt`. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Structured logs go to stdout as JSON (`log/slog`). Each request logs `method`, classified `route` (e.g. `/api/v1/notes/{id}` — never raw vault-relative IDs), `status`, `duration_ms`, and `error_code` when applicable. Index refresh logs `index_refresh_start`, `index_refresh_complete`, and `index_refresh_fail` with generation and counts. Search terms, note bodies, asset bytes, and vault paths are never logged.
+Structured logs go to stdout as JSON (`log/slog`). Each request logs `method`, classified `route` (e.g. `/api/v1/notes/{id}` — never raw vault-relative IDs), `status`, `duration_ms`, and `error_code` when applicable. Index refresh logs `index_refresh_start`, `index_refresh_complete` (with generation and counts), and `index_refresh_fail` with `duration_ms` and a stable `error_code` (never a raw error string). Search terms, note bodies, asset bytes, and vault paths are never logged.
 
 ## Android
 

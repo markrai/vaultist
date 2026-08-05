@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"io/fs"
 	"mime"
@@ -32,7 +32,7 @@ type pendingNote struct {
 func build(ctx context.Context, root, vaultName string, generation uint64, parser *mdparser.Parser) (*Snapshot, error) {
 	info, err := os.Stat(root)
 	if err != nil || !info.IsDir() {
-		return nil, fmt.Errorf("vault unavailable")
+		return nil, ErrVaultUnavailable
 	}
 	snapshot := &Snapshot{
 		Root: root, VaultName: vaultName, Generation: generation, BuiltAt: time.Now().UTC(),
@@ -55,8 +55,11 @@ func build(ctx context.Context, root, vaultName string, generation uint64, parse
 			return err
 		}
 		relative, relErr := filepath.Rel(root, filePath)
-		if relErr != nil || relative == "." {
-			return relErr
+		if relErr != nil {
+			return ErrIndexBuild
+		}
+		if relative == "." {
+			return nil
 		}
 		relative = filepath.ToSlash(relative)
 		if entry.IsDir() {
@@ -83,7 +86,10 @@ func build(ctx context.Context, root, vaultName string, generation uint64, parse
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		}
+		return nil, ErrIndexBuild
 	}
 	sort.Slice(notes, func(i, j int) bool { return notes[i].relative < notes[j].relative })
 	for _, pending := range notes {
