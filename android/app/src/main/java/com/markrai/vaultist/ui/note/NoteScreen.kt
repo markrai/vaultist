@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ArrowCircleRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,36 +34,62 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.domain.LinkCandidate
 import com.markrai.vaultist.ui.components.ErrorPanel
+import com.markrai.vaultist.ui.create.CreateNoteViewModel
 import com.markrai.vaultist.ui.markdown.MarkdownRenderer
 import com.markrai.vaultist.ui.share.ShareNoteEffect
 import com.markrai.vaultist.ui.theme.Spacing
 
 private data class AmbiguousDialog(val target: String, val candidates: List<LinkCandidate>)
+private data class MissingLinkDialog(val target: String, val isAsset: Boolean)
 
 @Composable
 fun NoteScreen(
     onBack: () -> Unit,
     onOpenNote: (String, String?) -> Unit,
+    onOpenNoteForEdit: (String) -> Unit,
     onBacklinks: (String) -> Unit,
     onOpenImage: (String) -> Unit,
     onDeleted: () -> Unit = onBack,
     viewModel: NoteViewModel = hiltViewModel(),
+    createNoteViewModel: CreateNoteViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val createState by createNoteViewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var missingTarget by remember { mutableStateOf<String?>(null) }
+    var missingLink by remember { mutableStateOf<MissingLinkDialog?>(null) }
     var ambiguous by remember { mutableStateOf<AmbiguousDialog?>(null) }
     LaunchedEffect(state.noteDeleted) {
         if (state.noteDeleted) {
             viewModel.consumeNoteDeleted()
             onDeleted()
         }
+    }
+    LaunchedEffect(createState.pendingOpenNote) {
+        createState.pendingOpenNote?.let { note ->
+            createNoteViewModel.consumeOpenRequest()
+            missingLink = null
+            createNoteViewModel.clearError()
+            onOpenNoteForEdit(note.id)
+        }
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onReturnedToScreen()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     ShareNoteEffect(
         pendingShare = state.pendingShare,
@@ -173,7 +200,7 @@ fun NoteScreen(
                 fragment = viewModel.fragment,
                 assetUrl = viewModel::assetUrl,
                 onOpenNote = onOpenNote,
-                onMissing = { missingTarget = it },
+                onMissing = { target, isAsset -> missingLink = MissingLinkDialog(target, isAsset) },
                 onAmbiguous = { target, candidates -> ambiguous = AmbiguousDialog(target, candidates) },
                 onOpenImage = onOpenImage,
                 modifier = Modifier.padding(padding),
@@ -212,12 +239,55 @@ fun NoteScreen(
             confirmButton = { Button(onClick = viewModel::reloadAfterConflict) { Text("Reload") } },
         )
     }
-    missingTarget?.let { target ->
+    missingLink?.let { dialog ->
+        val canOfferCreate = !dialog.isAsset && state.canEdit
         AlertDialog(
-            onDismissRequest = { missingTarget = null },
+            onDismissRequest = {
+                if (!createState.creating) {
+                    missingLink = null
+                    createNoteViewModel.clearError()
+                }
+            },
             title = { Text("Link target not found") },
-            text = { Text(target) },
-            confirmButton = { Button(onClick = { missingTarget = null }) { Text("OK") } },
+            text = {
+                Column {
+                    Text(dialog.target)
+                    if (canOfferCreate) {
+                        Text("Create note: ${dialog.target}")
+                    }
+                    createState.error?.let {
+                        Text(
+                            it,
+                            color = MaterialTheme.colors.error,
+                            style = MaterialTheme.typography.caption,
+                            modifier = Modifier.padding(top = Spacing.xs),
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (canOfferCreate) {
+                    Button(
+                        onClick = { createNoteViewModel.createMissingLink(viewModel.noteId, dialog.target) },
+                        enabled = !createState.creating,
+                    ) {
+                        Text(if (createState.creating) "Creating…" else "Yes")
+                    }
+                } else {
+                    Button(onClick = { missingLink = null }) { Text("OK") }
+                }
+            },
+            dismissButton = {
+                if (canOfferCreate) {
+                    TextButton(
+                        onClick = {
+                            missingLink = null
+                            createNoteViewModel.clearError()
+                        },
+                        enabled = !createState.creating,
+                    ) { Text("No") }
+                }
+            },
         )
     }
     ambiguous?.let { dialog ->

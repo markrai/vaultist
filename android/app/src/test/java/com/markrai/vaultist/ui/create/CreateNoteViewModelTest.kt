@@ -1,6 +1,7 @@
 package com.markrai.vaultist.ui.create
 
 import com.markrai.vaultist.domain.VaultResult
+import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
 import com.markrai.vaultist.ui.note.NoteOpenSeed
@@ -73,5 +74,56 @@ class CreateNoteViewModelTest {
         assertEquals("A note with this ID already exists", viewModel.state.value.error)
         assertNull(viewModel.state.value.pendingOpenNote)
         assertNull(noteOpenSeed.consume("Folder/Existing"))
+    }
+
+    @Test
+    fun createMissingLinkCreatesNoteInSourceFolder() = runTest {
+        val viewModel = viewModel()
+        viewModel.createMissingLink("Projects/A", "Cake")
+        advanceUntilIdle()
+
+        assertEquals("Projects/Cake", repository.lastCreateId)
+        assertEquals("", repository.lastCreateContent)
+        assertEquals("Projects/Cake", viewModel.state.value.pendingOpenNote?.id)
+        assertEquals("Projects/Cake", noteOpenSeed.consume("Projects/Cake")?.id)
+    }
+
+    @Test
+    fun createMissingLinkSurfacesValidationError() = runTest {
+        val viewModel = viewModel()
+        viewModel.createMissingLink("Home", "")
+        advanceUntilIdle()
+
+        assertNull(repository.lastCreateId)
+        assertEquals("Enter a valid title.", viewModel.state.value.error)
+    }
+
+    @Test
+    fun createMissingLinkOpensExistingNoteOnConflict() = runTest {
+        val existing = Note(
+            id = "Projects/baba",
+            path = "Projects/baba.md",
+            filename = "baba.md",
+            title = "baba",
+            aliases = emptyList(),
+            headings = emptyList(),
+            links = emptyList(),
+            attachments = emptyList(),
+            modifiedAt = "2026-01-01T00:00:00Z",
+            size = 0L,
+            revision = "sha256:existing",
+            content = "",
+            error = null,
+        )
+        repository.createNoteResult = VaultResult.Failure(
+            com.markrai.vaultist.domain.VaultError.Api("note_exists", "A note with this ID already exists"),
+        )
+        repository.notesById = mapOf("Projects/baba" to existing)
+        val viewModel = viewModel()
+        viewModel.createMissingLink("Projects/gaga", "baba")
+        advanceUntilIdle()
+
+        assertEquals("Projects/baba", viewModel.state.value.pendingOpenNote?.id)
+        assertEquals("Projects/baba", noteOpenSeed.consume("Projects/baba")?.id)
     }
 }

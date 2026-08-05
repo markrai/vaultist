@@ -32,4 +32,35 @@ class NoteNamingTest {
         assertEquals("My-Note", sanitizeNoteLeaf("My/Note"))
         assertEquals("Title", sanitizeNoteLeaf("  Title  "))
     }
+
+    @Test
+    fun noteIdFromMissingLinkUsesSourceFolderForBareTarget() {
+        val result = noteIdFromMissingLink("Projects/A", "Cake")
+        assertEquals("Projects/Cake", result.id)
+        assertNull(result.error)
+    }
+
+    @Test
+    fun noteIdFromMissingLinkUsesPathTargetAsId() {
+        val result = noteIdFromMissingLink("Projects/A", "Folder/Cake")
+        assertEquals("Folder/Cake", result.id)
+    }
+
+    @Test
+    fun noteIdFromMissingLinkStripsMdSuffix() {
+        val result = noteIdFromMissingLink("Home", "Cake.md")
+        assertEquals("Cake", result.id)
+    }
+
+    @Test
+    fun noteIdFromMissingLinkUsesVaultRootWhenSourceAtRoot() {
+        val result = noteIdFromMissingLink("Home", "Cake")
+        assertEquals("Cake", result.id)
+    }
+
+    @Test
+    fun parentFolderOfNoteId() {
+        assertEquals("Projects", parentFolderOfNoteId("Projects/A"))
+        assertEquals("", parentFolderOfNoteId("Home"))
+    }
 }

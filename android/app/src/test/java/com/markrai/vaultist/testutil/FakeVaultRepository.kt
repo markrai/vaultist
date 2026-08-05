@@ -44,9 +44,15 @@ class FakeVaultRepository : VaultRepository {
     var lastCreateId: String? = null
     var lastCreateContent: String? = null
     var lastDeleteRevision: String? = null
+    var indexStatusResult: VaultResult<IndexState> = VaultResult.Success(IndexState("ready", 1, 1, 0, 0))
+    var indexStatusResults: List<VaultResult<IndexState>>? = null
+    private var indexStatusPollCount = 0
+    var getNoteCallCount = 0
 
-    override suspend fun getNote(id: String): VaultResult<Note> =
-        notesById[id]?.let { VaultResult.Success(it) } ?: noteResult
+    override suspend fun getNote(id: String): VaultResult<Note> {
+        getNoteCallCount++
+        return notesById[id]?.let { VaultResult.Success(it) } ?: noteResult
+    }
 
     override suspend fun createNote(id: String, content: String): VaultResult<Note> {
         lastCreateId = id
@@ -105,6 +111,13 @@ class FakeVaultRepository : VaultRepository {
 
     override suspend fun getBacklinks(id: String) = backlinksResult
     override suspend fun refreshIndex() = VaultResult.Success(Unit)
-    override suspend fun getIndexStatus() = VaultResult.Success(IndexState("ready", 1, 1, 0, 0))
+    override suspend fun getIndexStatus(): VaultResult<IndexState> {
+        indexStatusResults?.let { results ->
+            val result = results[indexStatusPollCount.coerceAtMost(results.lastIndex)]
+            indexStatusPollCount++
+            return result
+        }
+        return indexStatusResult
+    }
     override fun assetUrl(assetId: String) = "https://vega.example.ts.net/api/v1/assets/$assetId"
 }

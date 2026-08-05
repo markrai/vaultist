@@ -6,12 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.share.NoteSharePreparer
 import com.markrai.vaultist.data.share.SharePayload
+import com.markrai.vaultist.di.config.BrowseUiConfig
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.ui.browser.PendingBrowseSync
 import com.markrai.vaultist.ui.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -42,6 +44,7 @@ class NoteViewModel @Inject constructor(
     private val sharePreparer: NoteSharePreparer,
     noteOpenSeed: NoteOpenSeed,
     private val pendingBrowseSync: PendingBrowseSync,
+    private val browseUiConfig: BrowseUiConfig,
 ) : ViewModel() {
     val noteId: String = requireNotNull(savedStateHandle["id"])
     val fragment: String? = savedStateHandle["fragment"]
@@ -59,8 +62,13 @@ class NoteViewModel @Inject constructor(
         }
     }
 
-    fun retry() = load()
+    fun retry() = load(showLoading = true)
     fun assetUrl(id: String) = repository.assetUrl(id)
+
+    fun onReturnedToScreen() {
+        if (_state.value.editing) return
+        reconcileLinks()
+    }
 
     fun enterEdit() {
         val note = _state.value.note ?: return
@@ -114,6 +122,7 @@ class NoteViewModel @Inject constructor(
                             conflict = false,
                         )
                     }
+                    reconcileLinks()
                 }
                 is VaultResult.Failure -> {
                     val conflict = result.error is com.markrai.vaultist.domain.VaultError.Api &&
@@ -132,7 +141,7 @@ class NoteViewModel @Inject constructor(
 
     fun reloadAfterConflict() {
         cancelEdit()
-        load()
+        load(showLoading = true)
     }
 
     fun share() {
@@ -226,9 +235,26 @@ class NoteViewModel @Inject constructor(
         }
     }
 
-    private fun load() {
+    private fun reconcileLinks() {
+        val current = _state.value
+        if (current.editing || current.loading || current.saving || current.deleting || current.note == null) return
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null) }
+            repeat(browseUiConfig.indexPollAttempts) {
+                delay(browseUiConfig.indexPollDelayMs)
+                val status = repository.getIndexStatus()
+                if (status is VaultResult.Success && status.value.state != "indexing") {
+                    load(showLoading = false)
+                    return@launch
+                }
+            }
+        }
+    }
+
+    private fun load(showLoading: Boolean = true) {
+        viewModelScope.launch {
+            if (showLoading) {
+                _state.update { it.copy(loading = true, error = null) }
+            }
             val vault = repository.getVault()
             val canEdit = vault is VaultResult.Success && !vault.value.readOnly
             when (val result = repository.getNote(noteId)) {
@@ -248,8 +274,12 @@ class NoteViewModel @Inject constructor(
                         enterEdit()
                     }
                 }
-                is VaultResult.Failure -> _state.update {
-                    it.copy(loading = false, canEdit = canEdit, error = result.error.userMessage())
+                is VaultResult.Failure -> {
+                    if (showLoading) {
+                        _state.update {
+                            it.copy(loading = false, canEdit = canEdit, error = result.error.userMessage())
+                        }
+                    }
                 }
             }
         }

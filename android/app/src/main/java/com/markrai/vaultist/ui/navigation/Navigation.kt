@@ -70,6 +70,7 @@ fun VaultistNavigation(
             NoteScreen(
                 onBack = navController::popBackStack,
                 onOpenNote = { id, fragment -> navController.navigate(noteRoute(id, fragment)) },
+                onOpenNoteForEdit = { id -> navController.navigate(noteRoute(id, edit = true)) },
                 onBacklinks = { id -> navController.navigate(backlinksRoute(id)) },
                 onOpenImage = { id -> navController.navigate(imageRoute(id)) },
                 onDeleted = navController::popBackStack,

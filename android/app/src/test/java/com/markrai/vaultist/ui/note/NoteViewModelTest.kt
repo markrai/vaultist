@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.VaultError
 import com.markrai.vaultist.domain.VaultResult
+import com.markrai.vaultist.di.config.BrowseUiConfig
+import com.markrai.vaultist.domain.IndexState
 import com.markrai.vaultist.testutil.FakeNoteSharePreparer
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
@@ -49,7 +51,8 @@ class NoteViewModelTest {
         handle: SavedStateHandle = SavedStateHandle(mapOf("id" to "Folder/Note")),
         noteOpenSeed: NoteOpenSeed = NoteOpenSeed(),
         pendingBrowseSync: PendingBrowseSync = PendingBrowseSync(),
-    ) = NoteViewModel(handle, repository, sharePreparer, noteOpenSeed, pendingBrowseSync)
+        browseUiConfig: BrowseUiConfig = BrowseUiConfig(indexPollDelayMs = 1),
+    ) = NoteViewModel(handle, repository, sharePreparer, noteOpenSeed, pendingBrowseSync, browseUiConfig)
 
     @Test fun exposesNoteAndHeadingFragmentState() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository().apply {
@@ -70,6 +73,9 @@ class NoteViewModelTest {
         val repository = FakeVaultRepository().apply {
             noteResult = VaultResult.Success(sampleNote)
             updateNoteResult = VaultResult.Success(sampleNote.copy(content = "# Updated", revision = "sha256:new"))
+            indexStatusResults = List(30) {
+                VaultResult.Success(IndexState("indexing", 1, 1, 0, 0))
+            }
         }
         val viewModel = viewModel(repository = repository)
         advanceUntilIdle()
@@ -218,5 +224,60 @@ class NoteViewModelTest {
         assertTrue(viewModel.state.value.editing)
         assertEquals("# Note", viewModel.state.value.draftContent)
         assertEquals("sha256:abc", viewModel.state.value.baseRevision)
+    }
+
+    @Test fun onReturnedToScreenReloadsNoteAfterIndexReady() = runTest(dispatcherRule.dispatcher) {
+        val stale = sampleNote
+        val fresh = sampleNote.copy(content = "# Fresh links")
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(stale)
+            indexStatusResults = listOf(
+                VaultResult.Success(IndexState("indexing", 1, 1, 0, 0)),
+                VaultResult.Success(IndexState("ready", 2, 2, 0, 0)),
+            )
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        assertEquals("# Note", viewModel.state.value.note?.content)
+
+        repository.notesById = mapOf("Folder/Note" to fresh)
+        viewModel.onReturnedToScreen()
+        advanceUntilIdle()
+
+        assertEquals("# Fresh links", viewModel.state.value.note?.content)
+        assertFalse(viewModel.state.value.loading)
+    }
+
+    @Test fun onReturnedToScreenSkipsWhileEditing() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+            indexStatusResults = listOf(VaultResult.Success(IndexState("ready", 1, 1, 0, 0)))
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        val callsAfterLoad = repository.getNoteCallCount
+        viewModel.enterEdit()
+        viewModel.onReturnedToScreen()
+        advanceUntilIdle()
+        assertEquals(callsAfterLoad, repository.getNoteCallCount)
+    }
+
+    @Test fun saveReconcilesLinksAfterIndexReady() = runTest(dispatcherRule.dispatcher) {
+        val stale = sampleNote
+        val saved = sampleNote.copy(content = "# Saved", revision = "sha256:new")
+        val fresh = sampleNote.copy(content = "# Saved resolved", revision = "sha256:new")
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(stale)
+            updateNoteResult = VaultResult.Success(saved)
+            indexStatusResults = listOf(VaultResult.Success(IndexState("ready", 1, 1, 0, 0)))
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.enterEdit()
+        viewModel.updateDraft("# Saved")
+        viewModel.save()
+        repository.notesById = mapOf("Folder/Note" to fresh)
+        advanceUntilIdle()
+        assertEquals("# Saved resolved", viewModel.state.value.note?.content)
     }
 }

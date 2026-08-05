@@ -75,7 +75,7 @@ fun MarkdownRenderer(
     fragment: String?,
     assetUrl: (String) -> String?,
     onOpenNote: (String, String?) -> Unit,
-    onMissing: (String) -> Unit,
+    onMissing: (String, Boolean) -> Unit,
     onAmbiguous: (String, List<LinkCandidate>) -> Unit,
     onOpenImage: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -177,7 +177,7 @@ private fun ParagraphBlock(
     note: Note,
     assetUrl: (String) -> String?,
     onOpenNote: (String, String?) -> Unit,
-    onMissing: (String) -> Unit,
+    onMissing: (String, Boolean) -> Unit,
     onAmbiguous: (String, List<LinkCandidate>) -> Unit,
     onOpenImage: (String) -> Unit,
     onClearSelection: () -> Unit,
@@ -221,7 +221,7 @@ private fun ParagraphBlock(
                     color = MaterialTheme.colors.error,
                     modifier = Modifier
                         .clearSelectionOnTap(onClearSelection)
-                        .clickable { onMissing(link.target) },
+                        .clickable { onMissing(link.target, true) },
                 )
             }
         }
@@ -234,7 +234,7 @@ private fun InlineText(
     links: List<NoteLink>,
     style: TextStyle,
     onOpenNote: (String, String?) -> Unit,
-    onMissing: (String) -> Unit,
+    onMissing: (String, Boolean) -> Unit,
     onAmbiguous: (String, List<LinkCandidate>) -> Unit,
     onClearSelection: () -> Unit,
     modifier: Modifier = Modifier,
@@ -293,7 +293,7 @@ private fun dispatchInlineLinkClick(
     links: List<NoteLink>,
     uriHandler: UriHandler,
     onOpenNote: (String, String?) -> Unit,
-    onMissing: (String) -> Unit,
+    onMissing: (String, Boolean) -> Unit,
     onAmbiguous: (String, List<LinkCandidate>) -> Unit,
 ) {
     when (annotation.tag) {
@@ -302,7 +302,7 @@ private fun dispatchInlineLinkClick(
             onOpenNote(pieces[0], pieces.getOrNull(1)?.takeIf(String::isNotBlank))
         }
         UrlTag -> runCatching { uriHandler.openUri(annotation.item) }
-        MissingTag -> onMissing(annotation.item)
+        MissingTag -> onMissing(annotation.item, false)
         AmbiguousTag -> {
             val match = links.firstOrNull { it.raw == annotation.item && it.resolution.status == LinkStatus.Ambiguous }
             onAmbiguous(match?.target ?: annotation.item, match?.resolution?.candidates.orEmpty())
