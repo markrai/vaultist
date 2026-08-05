@@ -39,6 +39,7 @@ class NoteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: VaultRepository,
     private val sharePreparer: NoteSharePreparer,
+    noteOpenSeed: NoteOpenSeed,
 ) : ViewModel() {
     val noteId: String = requireNotNull(savedStateHandle["id"])
     val fragment: String? = savedStateHandle["fragment"]
@@ -48,7 +49,12 @@ class NoteViewModel @Inject constructor(
     val state: StateFlow<NoteUiState> = _state
 
     init {
-        load()
+        val seeded = noteOpenSeed.consume(noteId)
+        if (seeded != null) {
+            applySeeded(seeded)
+        } else {
+            load()
+        }
     }
 
     fun retry() = load()
@@ -194,6 +200,25 @@ class NoteViewModel @Inject constructor(
 
     fun consumeNoteDeleted() {
         _state.update { it.copy(noteDeleted = false) }
+    }
+
+    private fun applySeeded(note: Note) {
+        viewModelScope.launch {
+            val vault = repository.getVault()
+            val canEdit = vault is VaultResult.Success && !vault.value.readOnly
+            _state.update {
+                it.copy(
+                    loading = false,
+                    note = note,
+                    canEdit = canEdit,
+                    error = null,
+                )
+            }
+            if (autoEditPending && canEdit) {
+                autoEditPending = false
+                enterEdit()
+            }
+        }
     }
 
     private fun load() {

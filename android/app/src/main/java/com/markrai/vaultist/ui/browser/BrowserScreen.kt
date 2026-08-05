@@ -75,10 +75,12 @@ fun BrowserScreen(
     val createState by createNoteViewModel.state.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(createState.pendingOpenNoteId) {
-        createState.pendingOpenNoteId?.let { id ->
+    LaunchedEffect(createState.pendingOpenNote) {
+        createState.pendingOpenNote?.let { note ->
             createNoteViewModel.consumeOpenRequest()
-            onOpenNote(id, true)
+            viewModel.includeCreatedNote(note)
+            viewModel.reconcileAfterCreate()
+            onOpenNote(note.id, true)
         }
     }
 

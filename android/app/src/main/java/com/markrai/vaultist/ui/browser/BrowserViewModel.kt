@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.di.config.BrowseUiConfig
 import com.markrai.vaultist.domain.BrowseItem
+import com.markrai.vaultist.domain.BrowseKind
+import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.VaultMetadata
 import com.markrai.vaultist.domain.VaultResult
@@ -147,6 +149,49 @@ class BrowserViewModel @Inject constructor(
                         }
                     }
                     _state.update { it.copy(refreshing = false, error = "Refresh is still running. You can continue browsing.") }
+                }
+            }
+        }
+    }
+
+    /**
+     * Shows a just-created note in the current folder before the index catches up.
+     * Browse-only; create orchestration stays in [com.markrai.vaultist.ui.create.CreateNoteViewModel].
+     */
+    fun includeCreatedNote(note: Note) {
+        val current = _state.value
+        if (current.isSearchResults || current.searchMode == SearchMode.Ask) return
+        val parent = note.id.substringBeforeLast('/', missingDelimiterValue = "")
+        if (parent != current.folder) return
+        if (current.items.any { it.id == note.id }) return
+        val item = BrowseItem(
+            kind = BrowseKind.Note,
+            id = note.id,
+            name = note.filename,
+            title = note.title,
+            path = note.path,
+            error = note.error?.takeIf { it.isNotBlank() },
+        )
+        _state.update { state ->
+            val folders = state.items.filter { it.kind == BrowseKind.Folder }
+            val notes = (state.items.filter { it.kind == BrowseKind.Note } + item)
+                .sortedBy { it.name.lowercase() }
+            state.copy(items = folders + notes)
+        }
+    }
+
+    /** Wait for the create-triggered reindex, then reload browse from the server. */
+    fun reconcileAfterCreate() {
+        if (_state.value.searchMode == SearchMode.Ask) return
+        viewModelScope.launch {
+            repeat(browseUiConfig.indexPollAttempts) {
+                delay(browseUiConfig.indexPollDelayMs)
+                val status = repository.getIndexStatus()
+                if (status is VaultResult.Success && status.value.state != "indexing") {
+                    if (!_state.value.isSearchResults) {
+                        loadBrowse(_state.value.folder, keepQuery = true)
+                    }
+                    return@launch
                 }
             }
         }

@@ -33,7 +33,9 @@ class FakeVaultRepository : VaultRepository {
     override suspend fun testServer(url: String) = testResult
     override suspend fun saveServer(url: String) { savedUrl = url }
     override suspend fun getVault() = VaultResult.Success(VaultMetadata("Test", 1, 0, 1, false))
-    override suspend fun listNotes(folder: String, cursor: String?) = VaultResult.Success(BrowsePage(emptyList(), null, folder))
+    var listNotesResult: VaultResult<BrowsePage>? = null
+    override suspend fun listNotes(folder: String, cursor: String?) =
+        listNotesResult ?: VaultResult.Success(BrowsePage(emptyList(), null, folder))
     var updateNoteResult: VaultResult<Note>? = null
     var lastUpdateRevision: String? = null
     var lastUpdateContent: String? = null
@@ -53,8 +55,9 @@ class FakeVaultRepository : VaultRepository {
             Note(
                 id = id,
                 path = "$id.md",
-                filename = id.substringAfterLast('/').plus(".md"),
-                title = content.removePrefix("# ").substringBefore('\n').trim(),
+                filename = id.substringAfterLast('/') + ".md",
+                title = content.removePrefix("# ").substringBefore('\n').trim()
+                    .ifEmpty { id.substringAfterLast('/') },
                 aliases = emptyList(),
                 headings = emptyList(),
                 links = emptyList(),

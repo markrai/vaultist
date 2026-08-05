@@ -3,8 +3,10 @@ package com.markrai.vaultist.ui.create
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markrai.vaultist.data.repository.VaultRepository
+import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.domain.noteIdFromTitle
+import com.markrai.vaultist.ui.note.NoteOpenSeed
 import com.markrai.vaultist.ui.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -18,12 +20,13 @@ data class CreateNoteUiState(
     val title: String = "",
     val creating: Boolean = false,
     val error: String? = null,
-    val pendingOpenNoteId: String? = null,
+    val pendingOpenNote: Note? = null,
 )
 
 @HiltViewModel
 class CreateNoteViewModel @Inject constructor(
     private val repository: VaultRepository,
+    private val noteOpenSeed: NoteOpenSeed,
 ) : ViewModel() {
     private val _state = MutableStateFlow(CreateNoteUiState())
     val state: StateFlow<CreateNoteUiState> = _state
@@ -50,11 +53,14 @@ class CreateNoteViewModel @Inject constructor(
             _state.update { it.copy(error = validation.error) }
             return
         }
-        val content = "# $trimmedTitle\n\n"
+        val content = ""
         viewModelScope.launch {
             _state.update { it.copy(creating = true, error = null) }
             when (val result = repository.createNote(id, content)) {
-                is VaultResult.Success -> _state.update { CreateNoteUiState(pendingOpenNoteId = id) }
+                is VaultResult.Success -> {
+                    noteOpenSeed.offer(result.value)
+                    _state.update { CreateNoteUiState(pendingOpenNote = result.value) }
+                }
                 is VaultResult.Failure -> _state.update {
                     it.copy(creating = false, error = result.error.userMessage())
                 }
@@ -63,6 +69,6 @@ class CreateNoteViewModel @Inject constructor(
     }
 
     fun consumeOpenRequest() {
-        _state.update { it.copy(pendingOpenNoteId = null) }
+        _state.update { it.copy(pendingOpenNote = null) }
     }
 }

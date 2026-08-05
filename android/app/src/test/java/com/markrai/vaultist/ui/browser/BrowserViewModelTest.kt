@@ -4,6 +4,7 @@ import com.markrai.vaultist.di.config.BrowseUiConfig
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.BrowsePage
+import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.SearchPage
 import com.markrai.vaultist.domain.VaultResult
@@ -91,5 +92,36 @@ class BrowserViewModelTest {
         assertEquals("secret", repository.lastSearchQuery)
         assertTrue(viewModel.state.value.isSearchResults)
         assertEquals("Notes/Idea", viewModel.state.value.items.single().id)
+    }
+
+    @Test
+    fun includeCreatedNoteInsertsIntoCurrentFolder() = runTest(dispatcherRule.dispatcher) {
+        val existing = BrowseItem(BrowseKind.Note, "Folder/Old", "Old.md", "Old", "Folder/Old.md", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(BrowsePage(listOf(existing), null, "Folder"))
+        }
+        val viewModel = viewModel(repository)
+        viewModel.openFolder("Folder")
+        advanceUntilIdle()
+
+        viewModel.includeCreatedNote(
+            Note(
+                id = "Folder/New",
+                path = "Folder/New.md",
+                filename = "New.md",
+                title = "New",
+                aliases = emptyList(),
+                headings = emptyList(),
+                links = emptyList(),
+                attachments = emptyList(),
+                modifiedAt = "2026-01-01T00:00:00Z",
+                size = 1L,
+                revision = "sha256:created",
+                content = "# New\n\n",
+                error = null,
+            ),
+        )
+
+        assertEquals(listOf("Folder/New", "Folder/Old"), viewModel.state.value.items.map { it.id })
     }
 }

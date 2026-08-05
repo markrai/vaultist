@@ -3,6 +3,7 @@ package com.markrai.vaultist.ui.create
 import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
+import com.markrai.vaultist.ui.note.NoteOpenSeed
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -23,24 +24,30 @@ class CreateNoteViewModelTest {
     @get:Rule val dispatcherRule = MainDispatcherRule()
 
     private val repository = FakeVaultRepository()
+    private val noteOpenSeed = NoteOpenSeed()
+
+    private fun viewModel() = CreateNoteViewModel(repository, noteOpenSeed)
 
     @Test
-    fun submitCreatesNoteAndEmitsOpenId() = runTest {
-        val viewModel = CreateNoteViewModel(repository)
+    fun submitCreatesNoteSeedsOpenAndEmitsPendingNote() = runTest {
+        val viewModel = viewModel()
         viewModel.openDialog()
         viewModel.updateTitle("My Note")
         viewModel.submit("Folder")
         advanceUntilIdle()
 
         assertEquals("Folder/My Note", repository.lastCreateId)
-        assertEquals("# My Note\n\n", repository.lastCreateContent)
-        assertEquals("Folder/My Note", viewModel.state.value.pendingOpenNoteId)
+        assertEquals("", repository.lastCreateContent)
+        val pending = viewModel.state.value.pendingOpenNote
+        assertEquals("Folder/My Note", pending?.id)
+        assertEquals("", pending?.content)
+        assertEquals("Folder/My Note", noteOpenSeed.consume("Folder/My Note")?.id)
         assertFalse(viewModel.state.value.dialogVisible)
     }
 
     @Test
     fun submitKeepsDialogOpenOnValidationError() = runTest {
-        val viewModel = CreateNoteViewModel(repository)
+        val viewModel = viewModel()
         viewModel.openDialog()
         viewModel.submit("Folder")
         advanceUntilIdle()
@@ -48,6 +55,7 @@ class CreateNoteViewModelTest {
         assertNull(repository.lastCreateId)
         assertTrue(viewModel.state.value.dialogVisible)
         assertEquals("Enter a valid title.", viewModel.state.value.error)
+        assertNull(noteOpenSeed.consume("anything"))
     }
 
     @Test
@@ -55,7 +63,7 @@ class CreateNoteViewModelTest {
         repository.createNoteResult = VaultResult.Failure(
             com.markrai.vaultist.domain.VaultError.Api("note_exists", "A note with this ID already exists"),
         )
-        val viewModel = CreateNoteViewModel(repository)
+        val viewModel = viewModel()
         viewModel.openDialog()
         viewModel.updateTitle("Existing")
         viewModel.submit("Folder")
@@ -63,6 +71,7 @@ class CreateNoteViewModelTest {
 
         assertTrue(viewModel.state.value.dialogVisible)
         assertEquals("A note with this ID already exists", viewModel.state.value.error)
-        assertNull(viewModel.state.value.pendingOpenNoteId)
+        assertNull(viewModel.state.value.pendingOpenNote)
+        assertNull(noteOpenSeed.consume("Folder/Existing"))
     }
 }

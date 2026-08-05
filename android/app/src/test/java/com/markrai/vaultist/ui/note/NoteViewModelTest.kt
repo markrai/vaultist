@@ -46,7 +46,8 @@ class NoteViewModelTest {
         repository: FakeVaultRepository = FakeVaultRepository(),
         sharePreparer: FakeNoteSharePreparer = FakeNoteSharePreparer(),
         handle: SavedStateHandle = SavedStateHandle(mapOf("id" to "Folder/Note")),
-    ) = NoteViewModel(handle, repository, sharePreparer)
+        noteOpenSeed: NoteOpenSeed = NoteOpenSeed(),
+    ) = NoteViewModel(handle, repository, sharePreparer, noteOpenSeed)
 
     @Test fun exposesNoteAndHeadingFragmentState() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository().apply {
@@ -193,5 +194,25 @@ class NoteViewModelTest {
         advanceUntilIdle()
         assertTrue(viewModel.state.value.conflict)
         assertFalse(viewModel.state.value.noteDeleted)
+    }
+
+    @Test fun seededCreateOpensEditorWithoutGet() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Failure(VaultError.Api("note_not_found", "Note was not found"))
+        }
+        val seed = NoteOpenSeed().apply { offer(sampleNote) }
+        val viewModel = viewModel(
+            repository = repository,
+            handle = SavedStateHandle(mapOf("id" to "Folder/Note", "edit" to "true")),
+            noteOpenSeed = seed,
+        )
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.loading)
+        assertNull(viewModel.state.value.error)
+        assertEquals("Folder/Note", viewModel.state.value.note?.id)
+        assertTrue(viewModel.state.value.editing)
+        assertEquals("# Note", viewModel.state.value.draftContent)
+        assertEquals("sha256:abc", viewModel.state.value.baseRevision)
     }
 }
