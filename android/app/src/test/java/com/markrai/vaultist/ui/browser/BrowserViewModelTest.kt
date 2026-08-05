@@ -201,6 +201,32 @@ class BrowserViewModelTest {
     }
 
     @Test
+    fun afterNoteDeletedKeepsNoteHiddenUntilIndexDropsIt() = runTest(dispatcherRule.dispatcher) {
+        val deleted = BrowseItem(BrowseKind.Note, "Gone", "Gone.md", "Gone", "Gone.md", null)
+        val stay = BrowseItem(BrowseKind.Note, "Stay", "Stay.md", "Stay", "Stay.md", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(BrowsePage(listOf(deleted, stay), null, ""))
+        }
+        val viewModel = viewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.afterNoteDeleted("Gone")
+        advanceUntilIdle()
+        assertEquals(listOf("Stay"), viewModel.state.value.items.map { it.id })
+
+        // Stale index still returns the deleted note; list must stay filtered.
+        repository.listNotesResult = VaultResult.Success(BrowsePage(listOf(deleted, stay), null, ""))
+        viewModel.retry()
+        advanceUntilIdle()
+        assertEquals(listOf("Stay"), viewModel.state.value.items.map { it.id })
+
+        repository.listNotesResult = VaultResult.Success(BrowsePage(listOf(stay), null, ""))
+        viewModel.retry()
+        advanceUntilIdle()
+        assertEquals(listOf("Stay"), viewModel.state.value.items.map { it.id })
+    }
+
+    @Test
     fun toggleSortModeSwitchesToModifiedDescAndReorders() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository().apply {
             listNotesResult = VaultResult.Success(

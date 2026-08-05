@@ -53,6 +53,7 @@ class BrowserViewModel @Inject constructor(
     val state: StateFlow<BrowserUiState> = _state
 
     private var filesSearchJob: Job? = null
+    private var pendingDeletedNoteId: String? = null
 
     init {
         viewModelScope.launch {
@@ -261,6 +262,7 @@ class BrowserViewModel @Inject constructor(
     fun afterNoteDeleted(noteId: String) {
         if (_state.value.searchMode == SearchMode.Ask) return
         filesSearchJob?.cancel()
+        pendingDeletedNoteId = noteId
         _state.update {
             it.copy(
                 query = "",
@@ -268,9 +270,10 @@ class BrowserViewModel @Inject constructor(
                 searched = false,
                 isSearchResults = false,
                 error = null,
+                items = it.items.filter { item -> item.id != noteId },
             )
         }
-        loadBrowse(_state.value.folder, excludeNoteId = noteId)
+        loadBrowse(_state.value.folder)
         reconcileAfterMutation()
     }
 
@@ -340,7 +343,6 @@ class BrowserViewModel @Inject constructor(
         folder: String,
         refreshing: Boolean = false,
         keepQuery: Boolean = false,
-        excludeNoteId: String? = null,
     ) {
         viewModelScope.launch {
             val sortMode = _state.value.sortMode
@@ -363,10 +365,14 @@ class BrowserViewModel @Inject constructor(
                 is VaultResult.Success -> {
                     when (val allItems = fetchAllBrowseItems(folder, firstPage.value)) {
                         is VaultResult.Success -> {
-                            val items = if (excludeNoteId == null) {
+                            val excludeId = pendingDeletedNoteId
+                            val items = if (excludeId == null) {
                                 allItems.value
                             } else {
-                                allItems.value.filter { item -> item.id != excludeNoteId }
+                                allItems.value.filter { item -> item.id != excludeId }
+                            }
+                            if (excludeId != null && allItems.value.none { it.id == excludeId }) {
+                                pendingDeletedNoteId = null
                             }
                             _state.update {
                                 it.copy(
