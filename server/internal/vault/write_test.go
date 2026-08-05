@@ -31,3 +31,23 @@ func TestReplaceFileAtomicallyRejectsTraversal(t *testing.T) {
 		t.Fatal("expected traversal rejection")
 	}
 }
+
+func TestDeleteFileInsideRemovesFile(t *testing.T) {
+	root := t.TempDir()
+	if err := ReplaceFileAtomically(root, "Notes/Test.md", []byte("content")); err != nil {
+		t.Fatal(err)
+	}
+	if err := DeleteFileInside(root, "Notes/Test.md"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "Notes", "Test.md")); !os.IsNotExist(err) {
+		t.Fatalf("expected file removed, err=%v", err)
+	}
+}
+
+func TestDeleteFileInsideRejectsTraversal(t *testing.T) {
+	root := t.TempDir()
+	if err := DeleteFileInside(root, "../escape.md"); err == nil {
+		t.Fatal("expected traversal rejection")
+	}
+}

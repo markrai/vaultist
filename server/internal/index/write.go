@@ -105,6 +105,48 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 	return note, nil
 }
 
+func (m *Manager) DeleteNote(ctx context.Context, id, ifMatch string) error {
+	expectedRevision, err := normalizeRevisionETag(ifMatch)
+	if err != nil {
+		return ErrInvalidRevision
+	}
+
+	snapshot, err := m.Current()
+	if err != nil {
+		return err
+	}
+	existing, ok := snapshot.Notes[id]
+	if !ok {
+		return ErrNotFound
+	}
+
+	filePath, err := vault.JoinInside(m.root, existing.Path)
+	if err != nil {
+		return fmt.Errorf("invalid note path")
+	}
+	current, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("note could not be read")
+	}
+	actualRevision := contentRevision(current)
+	if actualRevision != expectedRevision {
+		return &RevisionConflictError{Expected: expectedRevision, Actual: actualRevision}
+	}
+
+	if err := vault.DeleteFileInside(m.root, existing.Path); err != nil {
+		if isWritePermissionError(err) {
+			return ErrWritePermission
+		}
+		return fmt.Errorf("note delete failed: %w", err)
+	}
+
+	_ = m.StartRefresh(ctx)
+	return nil
+}
+
 func resolveLinksForResponse(snapshot *Snapshot, note *model.Note) {
 	for linkIndex := range note.Links {
 		link := &note.Links[linkIndex]

@@ -59,6 +59,11 @@ class DefaultVaultRepository @Inject constructor(
         JSONObject(api.updateNote(base, id, revision, content).requireSuccess().body).toNote()
     }
 
+    override suspend fun deleteNote(id: String, revision: String) = configuredResult { base ->
+        api.deleteNote(base, id, revision).requireSuccess()
+        Unit
+    }
+
     override suspend fun searchNotes(query: String, mode: SearchMode, cursor: String?) = configuredResult { base ->
         JSONObject(api.search(base, query, mode, cursor).requireSuccess().body).toSearchPage()
     }

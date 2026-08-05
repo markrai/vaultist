@@ -158,4 +158,40 @@ class NoteViewModelTest {
         assertEquals("Could not prepare this note for sharing.", viewModel.state.value.shareError)
         assertNull(viewModel.state.value.pendingShare)
     }
+
+    @Test fun requestDeleteShowsDialogWhenWritable() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.requestDelete()
+        assertTrue(viewModel.state.value.showDeleteDialog)
+    }
+
+    @Test fun confirmDeleteNavigatesOnSuccess() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+            deleteNoteResult = VaultResult.Success(Unit)
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.confirmDelete()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.noteDeleted)
+        assertEquals("sha256:abc", repository.lastDeleteRevision)
+    }
+
+    @Test fun confirmDeleteSurfacesRevisionConflict() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+            deleteNoteResult = VaultResult.Failure(VaultError.Api("revision_conflict", "conflict"))
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.confirmDelete()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.conflict)
+        assertFalse(viewModel.state.value.noteDeleted)
+    }
 }

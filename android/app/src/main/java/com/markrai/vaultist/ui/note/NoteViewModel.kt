@@ -29,6 +29,9 @@ data class NoteUiState(
     val sharing: Boolean = false,
     val pendingShare: SharePayload? = null,
     val shareError: String? = null,
+    val showDeleteDialog: Boolean = false,
+    val deleting: Boolean = false,
+    val noteDeleted: Boolean = false,
 )
 
 @HiltViewModel
@@ -152,6 +155,43 @@ class NoteViewModel @Inject constructor(
 
     fun clearShareError() {
         _state.update { it.copy(shareError = null) }
+    }
+
+    fun requestDelete() {
+        if (!_state.value.canEdit || _state.value.note == null) return
+        _state.update { it.copy(showDeleteDialog = true) }
+    }
+
+    fun dismissDeleteDialog() {
+        _state.update { it.copy(showDeleteDialog = false) }
+    }
+
+    fun confirmDelete() {
+        val note = _state.value.note ?: return
+        if (_state.value.deleting) return
+        viewModelScope.launch {
+            _state.update {
+                it.copy(deleting = true, showDeleteDialog = false, error = null, conflict = false)
+            }
+            when (val result = repository.deleteNote(noteId, note.revision)) {
+                is VaultResult.Success -> _state.update { it.copy(deleting = false, noteDeleted = true) }
+                is VaultResult.Failure -> {
+                    val conflict = result.error is com.markrai.vaultist.domain.VaultError.Api &&
+                        (result.error as com.markrai.vaultist.domain.VaultError.Api).code == "revision_conflict"
+                    _state.update {
+                        it.copy(
+                            deleting = false,
+                            error = result.error.userMessage(),
+                            conflict = conflict,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun consumeNoteDeleted() {
+        _state.update { it.copy(noteDeleted = false) }
     }
 
     private fun load() {

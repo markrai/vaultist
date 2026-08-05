@@ -75,6 +75,8 @@ Write path:
 
 `AuthorizeWrite` gates PUT separately from read and refresh. `VaultResponse.readOnly` is `false` when writes are enabled. Android edits through `VaultRepository.updateNote` and a minimal edit UI on `NoteScreen`.
 
+Notes can be deleted with `DELETE /api/v1/notes/{id}` using a required `If-Match` header (same revision ETag as GET/PUT). The server verifies the on-disk revision, removes the `.md` file via `internal/vault`, and starts a full index refresh. Android deletes through `VaultRepository.deleteNote` and a trash icon on `NoteScreen` with confirmation.
+
 Note share on `NoteScreen` exports the loaded note body (or edit draft) to a cache `.md` file and opens the Android share chooser via `FileProvider`. The vault filesystem is never mounted on the device.
 
-Deferred: renames/moves, attachment CRUD, frontmatter/title editing, backlink-aware rewrites, create/delete notes.
+Deferred: renames/moves, attachment CRUD, frontmatter/title editing, backlink-aware rewrites, create notes.

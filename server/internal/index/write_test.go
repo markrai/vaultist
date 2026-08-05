@@ -57,6 +57,60 @@ func TestWriteNoteContentRejectsStaleRevision(t *testing.T) {
 	}
 }
 
+func TestDeleteNoteRemovesFile(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "Folder/Note.md", "# Note\noriginal")
+	manager := newTestManager(t, root)
+	snapshot, err := manager.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	note := snapshot.Notes["Folder/Note"]
+	if err := manager.DeleteNote(context.Background(), note.ID, note.Revision); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "Folder", "Note.md")); !os.IsNotExist(err) {
+		t.Fatalf("expected file removed, err=%v", err)
+	}
+}
+
+func TestDeleteNoteRejectsStaleRevision(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "Folder/Note.md", "# Note\noriginal")
+	manager := newTestManager(t, root)
+	snapshot, err := manager.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	note := snapshot.Notes["Folder/Note"]
+	err = manager.DeleteNote(context.Background(), note.ID, `"sha256:0000000000000000000000000000000000000000000000000000000000000000"`)
+	if err == nil {
+		t.Fatal("expected conflict")
+	}
+	conflict, ok := err.(*RevisionConflictError)
+	if !ok {
+		t.Fatalf("err = %T %v", err, err)
+	}
+	if conflict.Expected[:7] != "sha256:" || conflict.Actual != note.Revision {
+		t.Fatalf("conflict = %#v", conflict)
+	}
+}
+
+func TestDeleteNoteNotFound(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "Folder/Note.md", "# Note\noriginal")
+	manager := newTestManager(t, root)
+	snapshot, err := manager.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	note := snapshot.Notes["Folder/Note"]
+	err = manager.DeleteNote(context.Background(), "Missing/Note", note.Revision)
+	if err != ErrNotFound {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func writeFile(t *testing.T, root, relative, content string) {
 	t.Helper()
 	filePath := filepath.Join(root, filepath.FromSlash(relative))

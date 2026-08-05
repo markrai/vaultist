@@ -47,3 +47,22 @@ func ReplaceFileAtomically(root, relativePath string, content []byte) error {
 	}
 	return nil
 }
+
+func DeleteFileInside(root, relativePath string) error {
+	target, err := JoinInside(root, relativePath)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(target); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("note file not found: %w", err)
+		}
+		return fmt.Errorf("delete note file: %w", err)
+	}
+	dir := filepath.Dir(target)
+	if dirFile, err := os.Open(dir); err == nil {
+		_ = dirFile.Sync()
+		_ = dirFile.Close()
+	}
+	return nil
+}

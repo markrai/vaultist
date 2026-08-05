@@ -143,6 +143,20 @@ class DefaultVaultRepositoryTest {
     }
 
     @Test
+    fun deleteNoteMapsSuccessAndConflict() = runTest {
+        server.enqueue(MockResponse().setResponseCode(204))
+        val deleted = repository.deleteNote("Folder/Note", "sha256:abc")
+        assertTrue(deleted is VaultResult.Success)
+        assertEquals("DELETE", server.takeRequest().method)
+        assertEquals("\"sha256:abc\"", server.takeRequest().getHeader("If-Match"))
+
+        server.enqueue(MockResponse().setResponseCode(409).setBody(ApiFixtures.revisionConflictError()))
+        val conflict = repository.deleteNote("Folder/Note", "sha256:abc")
+        assertTrue(conflict is VaultResult.Failure)
+        assertEquals("revision_conflict", ((conflict as VaultResult.Failure).error as VaultError.Api).code)
+    }
+
+    @Test
     fun searchNotesParsesSearchPage() = runTest {
         server.enqueue(MockResponse().setBody(ApiFixtures.SEARCH))
         val result = repository.searchNotes("other", SearchMode.Files, null)

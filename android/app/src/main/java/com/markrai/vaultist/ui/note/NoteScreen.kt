@@ -1,7 +1,6 @@
 package com.markrai.vaultist.ui.note
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,8 +23,10 @@ import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowCircleRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,12 +51,19 @@ fun NoteScreen(
     onOpenNote: (String, String?) -> Unit,
     onBacklinks: (String) -> Unit,
     onOpenImage: (String) -> Unit,
+    onDeleted: () -> Unit = onBack,
     viewModel: NoteViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var missingTarget by remember { mutableStateOf<String?>(null) }
     var ambiguous by remember { mutableStateOf<AmbiguousDialog?>(null) }
+    LaunchedEffect(state.noteDeleted) {
+        if (state.noteDeleted) {
+            viewModel.consumeNoteDeleted()
+            onDeleted()
+        }
+    }
     ShareNoteEffect(
         pendingShare = state.pendingShare,
         shareError = state.shareError,
@@ -114,6 +122,15 @@ fun NoteScreen(
                         ) {
                             Icon(Icons.Default.ArrowCircleRight, contentDescription = "Share note")
                         }
+                        if (state.canEdit) {
+                            IconButton(
+                                onClick = viewModel::requestDelete,
+                                enabled = state.note != null && !state.loading && !state.deleting &&
+                                    !state.editing && !state.saving && !state.sharing,
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete note")
+                            }
+                        }
                     },
                 )
             }
@@ -162,12 +179,30 @@ fun NoteScreen(
                 modifier = Modifier.padding(padding),
             )
         }
-        if (state.saving) {
+        if (state.saving || state.deleting) {
             Box(
                 Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) { CircularProgressIndicator() }
         }
+    }
+    if (state.showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissDeleteDialog,
+            title = { Text("Delete note?") },
+            text = {
+                Text(
+                    state.note?.let { "${it.title}\n${it.path}" }
+                        ?: "This note will be permanently deleted from the vault.",
+                )
+            },
+            confirmButton = {
+                Button(onClick = viewModel::confirmDelete) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissDeleteDialog) { Text("Cancel") }
+            },
+        )
     }
     if (state.conflict) {
         AlertDialog(

@@ -56,6 +56,15 @@ class VaultistApi @Inject constructor(private val client: OkHttpClient) {
         )
     }
 
+    suspend fun deleteNote(baseUrl: String, id: String, revision: String): ApiPayload =
+        request(
+            Request.Builder()
+                .url(endpoint(baseUrl, listOf("notes", id)))
+                .delete()
+                .header("If-Match", quoteRevision(revision))
+                .build(),
+        )
+
     suspend fun backlinks(baseUrl: String, id: String): ApiPayload =
         get(baseUrl, listOf("notes", id, "backlinks"))
 

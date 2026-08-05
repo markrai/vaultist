@@ -71,6 +71,14 @@ func (h *Handler) serve(writer http.ResponseWriter, request *http.Request) {
 		h.updateNoteRoute(writer, request)
 		return
 	}
+	if request.Method == http.MethodDelete && strings.HasPrefix(request.URL.Path, apiPrefix+"/notes/") {
+		if !h.authorizer.AuthorizeWrite(request) {
+			writeError(writer, http.StatusForbidden, "forbidden", "Write access is not authorized", nil)
+			return
+		}
+		h.deleteNoteRoute(writer, request)
+		return
+	}
 	if !h.authorizer.AuthorizeRead(request) {
 		writeError(writer, http.StatusForbidden, "forbidden", "Read access is not authorized", nil)
 		return
@@ -224,13 +232,8 @@ func (h *Handler) noteRoute(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (h *Handler) updateNoteRoute(writer http.ResponseWriter, request *http.Request) {
-	raw := strings.TrimPrefix(request.URL.Path, apiPrefix+"/notes/")
-	if strings.HasSuffix(raw, "/backlinks") {
-		writeError(writer, http.StatusNotFound, "route_not_found", "API route not found", nil)
-		return
-	}
-	id, err := decodeID(raw)
-	if err != nil || strings.EqualFold(path.Ext(id), ".md") {
+	id, err := parseNoteIDFromPath(request.URL.Path)
+	if err != nil {
 		writeError(writer, http.StatusBadRequest, "invalid_note_id", "Note ID is invalid", nil)
 		return
 	}
@@ -293,6 +296,63 @@ func (h *Handler) updateNoteRoute(writer http.ResponseWriter, request *http.Requ
 		"attachments": orEmpty(note.Attachments), "modifiedAt": note.ModifiedAt, "size": note.Size,
 		"revision": note.Revision, "content": body.Content, "error": note.Error,
 	})
+}
+
+func (h *Handler) deleteNoteRoute(writer http.ResponseWriter, request *http.Request) {
+	id, err := parseNoteIDFromPath(request.URL.Path)
+	if err != nil {
+		writeError(writer, http.StatusBadRequest, "invalid_note_id", "Note ID is invalid", nil)
+		return
+	}
+	ifMatch := request.Header.Get("If-Match")
+	if strings.TrimSpace(ifMatch) == "" {
+		writeError(writer, http.StatusBadRequest, "invalid_revision", "If-Match header is required", nil)
+		return
+	}
+
+	err = h.manager.DeleteNote(request.Context(), id, ifMatch)
+	if errors.Is(err, index.ErrNotFound) {
+		writeError(writer, http.StatusNotFound, "note_not_found", "Note was not found", nil)
+		return
+	}
+	if errors.Is(err, index.ErrInvalidRevision) {
+		writeError(writer, http.StatusBadRequest, "invalid_revision", "If-Match revision is invalid", nil)
+		return
+	}
+	var conflict *index.RevisionConflictError
+	if errors.As(err, &conflict) {
+		writeError(writer, http.StatusConflict, "revision_conflict", "The note changed since it was loaded", map[string]string{
+			"expected": conflict.Expected,
+			"actual":   conflict.Actual,
+		})
+		return
+	}
+	if err != nil {
+		if errors.Is(err, index.ErrNotReady) {
+			h.requireIndex(writer)
+			return
+		}
+		if errors.Is(err, index.ErrWritePermission) {
+			writeError(writer, http.StatusForbidden, "note_delete_failed", "The server cannot write to the vault directory. Redeploy with deploy.sh so the container runs as the vault folder owner.", nil)
+			return
+		}
+		writeError(writer, http.StatusInternalServerError, "note_delete_failed", "Note could not be deleted", nil)
+		return
+	}
+
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+func parseNoteIDFromPath(requestPath string) (string, error) {
+	raw := strings.TrimPrefix(requestPath, apiPrefix+"/notes/")
+	if strings.HasSuffix(raw, "/backlinks") {
+		return "", errors.New("invalid note route")
+	}
+	id, err := decodeID(raw)
+	if err != nil || strings.EqualFold(path.Ext(id), ".md") {
+		return "", errors.New("invalid note id")
+	}
+	return id, nil
 }
 
 func (h *Handler) search(writer http.ResponseWriter, request *http.Request) {

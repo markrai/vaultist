@@ -97,6 +97,78 @@ func TestUpdateNoteWriteForbidden(t *testing.T) {
 	}
 }
 
+func TestDeleteNoteSuccess(t *testing.T) {
+	manager, server := contractFixtureWithManager(t)
+	defer server.Close()
+	snapshot, err := manager.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	note := snapshot.Notes["Folder/Note"]
+	payload, status := fetchWithHeaders(t, http.MethodDelete, server.URL+"/api/v1/notes/Folder/Note", nil, map[string]string{
+		"If-Match": quoteETag(note.Revision),
+	})
+	if status != http.StatusNoContent {
+		t.Fatalf("status = %d body=%s", status, payload)
+	}
+	if len(payload) != 0 {
+		t.Fatalf("expected empty body, got %q", payload)
+	}
+}
+
+func TestDeleteNoteRevisionConflict(t *testing.T) {
+	server := contractFixture(t)
+	defer server.Close()
+	payload, status := fetchWithHeaders(t, http.MethodDelete, server.URL+"/api/v1/notes/Folder/Note", nil, map[string]string{
+		"If-Match": `"sha256:0000000000000000000000000000000000000000000000000000000000000000"`,
+	})
+	if status != http.StatusConflict {
+		t.Fatalf("status = %d body=%s", status, payload)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	errorObj := decoded["error"].(map[string]any)
+	if errorObj["code"] != "revision_conflict" {
+		t.Fatalf("code = %#v", errorObj["code"])
+	}
+}
+
+func TestDeleteNoteMissingIfMatch(t *testing.T) {
+	server := contractFixture(t)
+	defer server.Close()
+	payload, status := fetchWithHeaders(t, http.MethodDelete, server.URL+"/api/v1/notes/Folder/Note", nil, nil)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status = %d body=%s", status, payload)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	errorObj := decoded["error"].(map[string]any)
+	if errorObj["code"] != "invalid_revision" {
+		t.Fatalf("code = %#v", errorObj["code"])
+	}
+}
+
+func TestDeleteNoteWriteForbidden(t *testing.T) {
+	manager, _ := contractFixtureWithManager(t)
+	denied := httptest.NewServer(NewHandler(manager, denyAuthorizer{}))
+	defer denied.Close()
+	snapshot, err := manager.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	note := snapshot.Notes["Folder/Note"]
+	_, status := fetchWithHeaders(t, http.MethodDelete, denied.URL+"/api/v1/notes/Folder/Note", nil, map[string]string{
+		"If-Match": quoteETag(note.Revision),
+	})
+	if status != http.StatusForbidden {
+		t.Fatalf("status = %d", status)
+	}
+}
+
 func fetchWithHeaders(t *testing.T, method, endpoint string, body io.Reader, headers map[string]string) ([]byte, int) {
 	t.Helper()
 	request, err := http.NewRequest(method, endpoint, body)

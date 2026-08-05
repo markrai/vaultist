@@ -71,6 +71,7 @@ fun VaultistNavigation(
                 onOpenNote = { id, fragment -> navController.navigate(noteRoute(id, fragment)) },
                 onBacklinks = { id -> navController.navigate(backlinksRoute(id)) },
                 onOpenImage = { id -> navController.navigate(imageRoute(id)) },
+                onDeleted = navController::popBackStack,
             )
         }
         composable("backlinks/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {

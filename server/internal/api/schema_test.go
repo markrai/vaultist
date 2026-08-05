@@ -109,6 +109,12 @@ func TestResponsesMatchOpenAPISchemas(t *testing.T) {
 	}
 	validateSchema(t, document, "NoteResponse", updatePayload)
 
+	var updateResponse map[string]any
+	if err := json.Unmarshal(updatePayload, &updateResponse); err != nil {
+		t.Fatal(err)
+	}
+	revisionAfterUpdate, _ := updateResponse["revision"].(string)
+
 	conflictPayload, conflictStatus := fetchWithHeaders(t, http.MethodPut, base+"/api/v1/notes/Folder/Note", strings.NewReader(`{"content":"# stale"}`), map[string]string{
 		"If-Match":     `"sha256:0000000000000000000000000000000000000000000000000000000000000000"`,
 		"Content-Type": "application/json",
@@ -117,4 +123,19 @@ func TestResponsesMatchOpenAPISchemas(t *testing.T) {
 		t.Fatalf("revision conflict status = %d body=%s", conflictStatus, conflictPayload)
 	}
 	validateSchema(t, document, "ErrorResponse", conflictPayload)
+
+	deletePayload, deleteStatus := fetchWithHeaders(t, http.MethodDelete, base+"/api/v1/notes/Folder/Note", nil, map[string]string{
+		"If-Match": `"` + revisionAfterUpdate + `"`,
+	})
+	if deleteStatus != http.StatusNoContent {
+		t.Fatalf("delete note status = %d body=%s", deleteStatus, deletePayload)
+	}
+
+	deleteMissingPayload, deleteMissingStatus := fetchWithHeaders(t, http.MethodDelete, base+"/api/v1/notes/Folder/Note", nil, map[string]string{
+		"If-Match": `"sha256:0000000000000000000000000000000000000000000000000000000000000000"`,
+	})
+	if deleteMissingStatus != http.StatusNotFound {
+		t.Fatalf("delete after removed status = %d body=%s", deleteMissingStatus, deleteMissingPayload)
+	}
+	validateSchema(t, document, "ErrorResponse", deleteMissingPayload)
 }

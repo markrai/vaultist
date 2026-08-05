@@ -101,6 +101,23 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/RevisionConflict" }
         "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      summary: Delete a note file
+      operationId: deleteNote
+      parameters:
+        - $ref: "#/components/parameters/NoteId"
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string }
+          description: Required revision ETag from GET /notes/{id}; same format as the response ETag header.
+      responses:
+        "204": { description: Note deleted. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/RevisionConflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /notes/{id}/backlinks:
     get:
       summary: Get incoming note-link occurrences

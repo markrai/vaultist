@@ -77,6 +77,16 @@ class VaultistApiTest {
     }
 
     @Test
+    fun deleteNoteUsesDeleteIfMatch() = runTest {
+        server.enqueue(MockResponse().setResponseCode(204))
+        api.deleteNote(baseUrl(), "Folder/Note", "sha256:abc")
+        val request = server.takeRequest()
+        assertEquals("DELETE", request.method)
+        assertEquals("/api/v1/notes/Folder%2FNote", request.path)
+        assertEquals("\"sha256:abc\"", request.getHeader("If-Match"))
+    }
+
+    @Test
     fun refreshUsesPost() = runTest {
         server.enqueue(MockResponse().setResponseCode(202).setBody("""{"status":"indexing"}"""))
         val payload = api.refresh(baseUrl())
