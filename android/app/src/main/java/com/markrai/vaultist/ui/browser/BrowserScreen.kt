@@ -79,20 +79,20 @@ fun BrowserScreen(
         createState.pendingOpenNote?.let { note ->
             createNoteViewModel.consumeOpenRequest()
             viewModel.includeCreatedNote(note)
-            viewModel.reconcileAfterCreate()
+            viewModel.reconcileAfterMutation()
             onOpenNote(note.id, true)
         }
     }
 
     val openNoteForBrowse: (String) -> Unit = { id -> onOpenNote(id, false) }
 
-    DisposableEffect(lifecycleOwner, state.searchMode) {
-        if (state.searchMode != SearchMode.Ask) {
-            return@DisposableEffect onDispose { }
-        }
+    DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                askViewModel.onResumed()
+                viewModel.onReturnedToBrowse()
+                if (viewModel.state.value.searchMode == SearchMode.Ask) {
+                    askViewModel.onResumed()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

@@ -8,6 +8,7 @@ import com.markrai.vaultist.data.share.NoteSharePreparer
 import com.markrai.vaultist.data.share.SharePayload
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.VaultResult
+import com.markrai.vaultist.ui.browser.PendingBrowseSync
 import com.markrai.vaultist.ui.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -40,6 +41,7 @@ class NoteViewModel @Inject constructor(
     private val repository: VaultRepository,
     private val sharePreparer: NoteSharePreparer,
     noteOpenSeed: NoteOpenSeed,
+    private val pendingBrowseSync: PendingBrowseSync,
 ) : ViewModel() {
     val noteId: String = requireNotNull(savedStateHandle["id"])
     val fragment: String? = savedStateHandle["fragment"]
@@ -182,7 +184,10 @@ class NoteViewModel @Inject constructor(
                 it.copy(deleting = true, showDeleteDialog = false, error = null, conflict = false)
             }
             when (val result = repository.deleteNote(noteId, note.revision)) {
-                is VaultResult.Success -> _state.update { it.copy(deleting = false, noteDeleted = true) }
+                is VaultResult.Success -> {
+                    pendingBrowseSync.offerAfterDelete(noteId)
+                    _state.update { it.copy(deleting = false, noteDeleted = true) }
+                }
                 is VaultResult.Failure -> {
                     val conflict = result.error is com.markrai.vaultist.domain.VaultError.Api &&
                         (result.error as com.markrai.vaultist.domain.VaultError.Api).code == "revision_conflict"

@@ -40,6 +40,7 @@ data class BrowserUiState(
 class BrowserViewModel @Inject constructor(
     private val repository: VaultRepository,
     private val browseUiConfig: BrowseUiConfig,
+    private val pendingBrowseSync: PendingBrowseSync,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BrowserUiState())
     val state: StateFlow<BrowserUiState> = _state
@@ -47,6 +48,10 @@ class BrowserViewModel @Inject constructor(
     private var filesSearchJob: Job? = null
 
     init { loadBrowse("") }
+
+    fun onReturnedToBrowse() {
+        pendingBrowseSync.consumeAfterDelete()?.let { afterNoteDeleted(it) }
+    }
 
     fun openFolder(folder: String) {
         clearSearch()
@@ -180,8 +185,8 @@ class BrowserViewModel @Inject constructor(
         }
     }
 
-    /** Wait for the create-triggered reindex, then reload browse from the server. */
-    fun reconcileAfterCreate() {
+    /** Wait for a write-triggered reindex, then reload browse from the server. */
+    fun reconcileAfterMutation() {
         if (_state.value.searchMode == SearchMode.Ask) return
         viewModelScope.launch {
             repeat(browseUiConfig.indexPollAttempts) {
@@ -195,6 +200,26 @@ class BrowserViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * After a note is deleted: leave search, drop the note from the current list,
+     * then reload the folder once the delete-triggered reindex finishes.
+     */
+    fun afterNoteDeleted(noteId: String) {
+        if (_state.value.searchMode == SearchMode.Ask) return
+        filesSearchJob?.cancel()
+        _state.update {
+            it.copy(
+                query = "",
+                searching = false,
+                searched = false,
+                isSearchResults = false,
+                error = null,
+            )
+        }
+        loadBrowse(_state.value.folder, excludeNoteId = noteId)
+        reconcileAfterMutation()
     }
 
     private fun onFilesQueryChanged(query: String) {
@@ -252,7 +277,12 @@ class BrowserViewModel @Inject constructor(
         }
     }
 
-    private fun loadBrowse(folder: String, refreshing: Boolean = false, keepQuery: Boolean = false) {
+    private fun loadBrowse(
+        folder: String,
+        refreshing: Boolean = false,
+        keepQuery: Boolean = false,
+        excludeNoteId: String? = null,
+    ) {
         viewModelScope.launch {
             _state.update {
                 it.copy(
@@ -271,11 +301,16 @@ class BrowserViewModel @Inject constructor(
             val vault = repository.getVault()
             when (val page = repository.listNotes(folder)) {
                 is VaultResult.Success -> _state.update {
+                    val items = if (excludeNoteId == null) {
+                        page.value.items
+                    } else {
+                        page.value.items.filter { item -> item.id != excludeNoteId }
+                    }
                     it.copy(
                         loading = false,
                         refreshing = false,
                         vault = (vault as? VaultResult.Success)?.value ?: it.vault,
-                        items = page.value.items,
+                        items = items,
                         nextCursor = page.value.nextCursor,
                     )
                 }

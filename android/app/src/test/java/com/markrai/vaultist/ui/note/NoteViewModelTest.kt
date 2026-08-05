@@ -7,6 +7,7 @@ import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.testutil.FakeNoteSharePreparer
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
+import com.markrai.vaultist.ui.browser.PendingBrowseSync
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -47,7 +48,8 @@ class NoteViewModelTest {
         sharePreparer: FakeNoteSharePreparer = FakeNoteSharePreparer(),
         handle: SavedStateHandle = SavedStateHandle(mapOf("id" to "Folder/Note")),
         noteOpenSeed: NoteOpenSeed = NoteOpenSeed(),
-    ) = NoteViewModel(handle, repository, sharePreparer, noteOpenSeed)
+        pendingBrowseSync: PendingBrowseSync = PendingBrowseSync(),
+    ) = NoteViewModel(handle, repository, sharePreparer, noteOpenSeed, pendingBrowseSync)
 
     @Test fun exposesNoteAndHeadingFragmentState() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository().apply {
@@ -171,16 +173,18 @@ class NoteViewModelTest {
     }
 
     @Test fun confirmDeleteNavigatesOnSuccess() = runTest(dispatcherRule.dispatcher) {
+        val pendingBrowseSync = PendingBrowseSync()
         val repository = FakeVaultRepository().apply {
             noteResult = VaultResult.Success(sampleNote)
             deleteNoteResult = VaultResult.Success(Unit)
         }
-        val viewModel = viewModel(repository = repository)
+        val viewModel = viewModel(repository = repository, pendingBrowseSync = pendingBrowseSync)
         advanceUntilIdle()
         viewModel.confirmDelete()
         advanceUntilIdle()
         assertTrue(viewModel.state.value.noteDeleted)
         assertEquals("sha256:abc", repository.lastDeleteRevision)
+        assertEquals("Folder/Note", pendingBrowseSync.consumeAfterDelete())
     }
 
     @Test fun confirmDeleteSurfacesRevisionConflict() = runTest(dispatcherRule.dispatcher) {

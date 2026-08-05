@@ -26,7 +26,7 @@ class BrowserViewModelTest {
     @get:Rule val dispatcherRule = MainDispatcherRule()
 
     private fun viewModel(repository: FakeVaultRepository = FakeVaultRepository()) =
-        BrowserViewModel(repository, BrowseUiConfig())
+        BrowserViewModel(repository, BrowseUiConfig(), PendingBrowseSync())
 
     @Test
     fun filesSearchDebouncesAndPopulatesResults() = runTest(dispatcherRule.dispatcher) {
@@ -123,5 +123,76 @@ class BrowserViewModelTest {
         )
 
         assertEquals(listOf("Folder/New", "Folder/Old"), viewModel.state.value.items.map { it.id })
+    }
+
+    @Test
+    fun afterNoteDeletedClearsSearchAndExcludesNote() = runTest(dispatcherRule.dispatcher) {
+        val hit = BrowseItem(BrowseKind.Note, "Folder/Cake", "Cake.md", "Cake", "Folder/Cake.md", null)
+        val repository = FakeVaultRepository().apply {
+            searchResult = VaultResult.Success(SearchPage(listOf(hit), null, "cake"))
+            listNotesResult = VaultResult.Success(
+                BrowsePage(
+                    listOf(
+                        hit,
+                        BrowseItem(BrowseKind.Note, "Folder/Other", "Other.md", "Other", "Folder/Other.md", null),
+                    ),
+                    null,
+                    "Folder",
+                ),
+            )
+        }
+        val viewModel = viewModel(repository)
+        viewModel.openFolder("Folder")
+        advanceUntilIdle()
+        viewModel.updateQuery("cake")
+        advanceTimeBy(300)
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.isSearchResults)
+
+        viewModel.afterNoteDeleted("Folder/Cake")
+        repository.listNotesResult = VaultResult.Success(
+            BrowsePage(
+                listOf(
+                    BrowseItem(BrowseKind.Note, "Folder/Other", "Other.md", "Other", "Folder/Other.md", null),
+                ),
+                null,
+                "Folder",
+            ),
+        )
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isSearchResults)
+        assertEquals("", viewModel.state.value.query)
+        assertEquals(listOf("Folder/Other"), viewModel.state.value.items.map { it.id })
+    }
+
+    @Test
+    fun onReturnedToBrowseAppliesPendingDelete() = runTest(dispatcherRule.dispatcher) {
+        val sync = PendingBrowseSync()
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(
+                BrowsePage(
+                    listOf(
+                        BrowseItem(BrowseKind.Note, "Gone", "Gone.md", "Gone", "Gone.md", null),
+                        BrowseItem(BrowseKind.Note, "Stay", "Stay.md", "Stay", "Stay.md", null),
+                    ),
+                    null,
+                    "",
+                ),
+            )
+        }
+        val viewModel = BrowserViewModel(repository, BrowseUiConfig(), sync)
+        advanceUntilIdle()
+        sync.offerAfterDelete("Gone")
+        viewModel.onReturnedToBrowse()
+        repository.listNotesResult = VaultResult.Success(
+            BrowsePage(
+                listOf(BrowseItem(BrowseKind.Note, "Stay", "Stay.md", "Stay", "Stay.md", null)),
+                null,
+                "",
+            ),
+        )
+        advanceUntilIdle()
+        assertEquals(listOf("Stay"), viewModel.state.value.items.map { it.id })
     }
 }
