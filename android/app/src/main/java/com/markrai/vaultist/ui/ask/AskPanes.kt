@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
@@ -186,7 +186,7 @@ fun AskResultsPane(
 
         if (state.askSources.isNotEmpty()) {
             item { Text("Sources", style = MaterialTheme.typography.overline) }
-            items(state.askSources, key = { "ask:${it.path}" }) { item ->
+            itemsIndexed(state.askSources, key = { index, item -> "ask:$index:${item.path}" }) { _, item ->
                 NoteResultCard(item, onClick = { item.id?.let(onOpenNote) })
             }
         }
