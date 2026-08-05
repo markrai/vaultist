@@ -4,6 +4,7 @@ import com.markrai.vaultist.domain.LinkStatus
 import com.markrai.vaultist.testutil.ApiFixtures
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -84,7 +85,7 @@ class ApiDtosTest {
 
         val vault = JSONObject(ApiFixtures.VAULT).toVaultMetadata()
         assertEquals("Contract Vault", vault.name)
-        assertTrue(vault.readOnly)
+        assertFalse(vault.readOnly)
 
         val search = JSONObject(ApiFixtures.SEARCH).toSearchPage()
         assertEquals("other", search.query)

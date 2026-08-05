@@ -93,4 +93,28 @@ func TestResponsesMatchOpenAPISchemas(t *testing.T) {
 		t.Fatalf("forbidden status = %d body=%s", forbiddenStatus, forbiddenBody)
 	}
 	validateSchema(t, document, "ErrorResponse", forbiddenBody)
+
+	noteBody := mustGETBody(t, base+"/api/v1/notes/Folder/Note")
+	var note map[string]any
+	if err := json.Unmarshal(noteBody, &note); err != nil {
+		t.Fatal(err)
+	}
+	revision, _ := note["revision"].(string)
+	updatePayload, updateStatus := fetchWithHeaders(t, http.MethodPut, base+"/api/v1/notes/Folder/Note", strings.NewReader(`{"content":"# Note\nupdated from schema test"}`), map[string]string{
+		"If-Match":     `"` + revision + `"`,
+		"Content-Type": "application/json",
+	})
+	if updateStatus != http.StatusOK {
+		t.Fatalf("update note status = %d body=%s", updateStatus, updatePayload)
+	}
+	validateSchema(t, document, "NoteResponse", updatePayload)
+
+	conflictPayload, conflictStatus := fetchWithHeaders(t, http.MethodPut, base+"/api/v1/notes/Folder/Note", strings.NewReader(`{"content":"# stale"}`), map[string]string{
+		"If-Match":     `"sha256:0000000000000000000000000000000000000000000000000000000000000000"`,
+		"Content-Type": "application/json",
+	})
+	if conflictStatus != http.StatusConflict {
+		t.Fatalf("revision conflict status = %d body=%s", conflictStatus, conflictPayload)
+	}
+	validateSchema(t, document, "ErrorResponse", conflictPayload)
 }

@@ -1,11 +1,17 @@
 package com.markrai.vaultist.ui.note
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
+import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
@@ -17,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,12 +48,41 @@ fun NoteScreen(
         TopAppBar(
             title = { Text(state.note?.title ?: "Note") },
             navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
-            actions = { IconButton(onClick = { onBacklinks(viewModel.noteId) }) { Icon(Icons.Default.Link, "Backlinks") } },
+            actions = {
+                when {
+                    state.editing -> {
+                        TextButton(onClick = viewModel::cancelEdit, enabled = !state.saving) { Text("Cancel") }
+                        TextButton(onClick = viewModel::save, enabled = !state.saving) { Text("Save") }
+                    }
+                    state.canEdit && state.note != null -> {
+                        TextButton(onClick = viewModel::enterEdit) { Text("Edit") }
+                    }
+                }
+                IconButton(onClick = { onBacklinks(viewModel.noteId) }) {
+                    Icon(Icons.Default.Link, contentDescription = "Backlinks")
+                }
+            },
         )
     }) { padding ->
         when {
-            state.loading -> androidx.compose.foundation.layout.Box(Modifier.padding(padding), contentAlignment = androidx.compose.ui.Alignment.Center) { CircularProgressIndicator() }
-            state.error != null -> ErrorPanel(state.error.orEmpty(), Modifier.padding(padding), viewModel::retry)
+            state.loading -> Box(
+                Modifier.padding(padding).fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator() }
+            state.error != null && state.note == null -> ErrorPanel(
+                state.error.orEmpty(),
+                Modifier.padding(padding),
+                viewModel::retry,
+            )
+            state.editing -> OutlinedTextField(
+                value = state.draftContent,
+                onValueChange = viewModel::updateDraft,
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                enabled = !state.saving,
+            )
             state.note != null -> MarkdownRenderer(
                 note = requireNotNull(state.note),
                 fragment = viewModel.fragment,
@@ -58,6 +94,20 @@ fun NoteScreen(
                 modifier = Modifier.padding(padding),
             )
         }
+        if (state.saving) {
+            Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator() }
+        }
+    }
+    if (state.conflict) {
+        AlertDialog(
+            onDismissRequest = viewModel::reloadAfterConflict,
+            title = { Text("Note changed on server") },
+            text = { Text(state.error.orEmpty()) },
+            confirmButton = { Button(onClick = viewModel::reloadAfterConflict) { Text("Reload") } },
+        )
     }
     missingTarget?.let { target ->
         AlertDialog(
@@ -75,7 +125,9 @@ fun NoteScreen(
                 androidx.compose.foundation.layout.Column {
                     Text("${dialog.target} matches more than one note:")
                     dialog.candidates.forEach { candidate ->
-                        TextButton(onClick = { ambiguous = null; onOpenNote(candidate.id, null) }) { Text(candidate.path) }
+                        TextButton(onClick = { ambiguous = null; onOpenNote(candidate.id, null) }) {
+                            Text(candidate.path)
+                        }
                     }
                 }
             },

@@ -12,7 +12,7 @@ object ApiFixtures {
 
     const val VAULT = """{
       "name":"Contract Vault","noteCount":4,"assetCount":1,"generation":1,
-      "indexedAt":"2026-01-01T00:00:00Z","readOnly":true
+      "indexedAt":"2026-01-01T00:00:00Z","readOnly":false
     }"""
 
     const val BROWSE_ROOT = """{
@@ -46,4 +46,6 @@ object ApiFixtures {
     }"""
 
     fun noteNotFoundError() = """{"error":{"code":"note_not_found","message":"Note was not found"}}"""
+
+    fun revisionConflictError() = """{"error":{"code":"revision_conflict","message":"The note changed since it was loaded","details":{"expected":"sha256:abc","actual":"sha256:def"}}}"""
 }
