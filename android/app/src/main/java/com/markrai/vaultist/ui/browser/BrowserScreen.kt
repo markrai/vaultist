@@ -26,11 +26,13 @@ import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +50,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.R
 import com.markrai.vaultist.domain.BrowseKind
+import com.markrai.vaultist.domain.BrowseSortMode
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.ui.ask.AskHint
 import com.markrai.vaultist.ui.ask.AskResultsPane
@@ -111,6 +114,18 @@ fun BrowserScreen(
             },
             actions = {
                 if (state.searchMode != SearchMode.Ask) {
+                    IconButton(onClick = viewModel::toggleSortMode) {
+                        when (state.sortMode) {
+                            BrowseSortMode.Alphabetical -> Icon(
+                                Icons.Default.SortByAlpha,
+                                contentDescription = "Sort by date modified",
+                            )
+                            BrowseSortMode.ModifiedDesc -> Icon(
+                                Icons.Default.AccessTime,
+                                contentDescription = "Sort alphabetically",
+                            )
+                        }
+                    }
                     IconButton(onClick = viewModel::refresh, enabled = !state.refreshing) {
                         Icon(Icons.Default.Refresh, "Refresh index")
                     }

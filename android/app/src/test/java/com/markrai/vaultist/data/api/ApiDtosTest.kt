@@ -75,6 +75,23 @@ class ApiDtosTest {
         val page = JSONObject("""{"items":[{"kind":"folder","name":"Projects","path":"Projects"}],"nextCursor":"50","folder":""}""").toBrowsePage()
         assertEquals(com.markrai.vaultist.domain.BrowseKind.Folder, page.items.single().kind)
         assertEquals("50", page.nextCursor)
+        assertNull(page.items.single().modifiedAt)
+    }
+
+    @Test
+    fun mapsBrowseItemModifiedAtWhenPresent() {
+        val item = JSONObject(
+            """{"kind":"note","id":"Folder/Note","name":"Note.md","title":"Note","path":"Folder/Note.md","modifiedAt":"2026-08-05T17:32:54.773503567Z"}"""
+        ).toBrowseItem()
+        assertEquals("2026-08-05T17:32:54.773503567Z", item.modifiedAt)
+    }
+
+    @Test
+    fun mapsBrowseItemWithoutModifiedAt() {
+        val item = JSONObject(
+            """{"kind":"note","id":"Folder/Note","name":"Note.md","title":"Note","path":"Folder/Note.md"}"""
+        ).toBrowseItem()
+        assertNull(item.modifiedAt)
     }
 
     @Test

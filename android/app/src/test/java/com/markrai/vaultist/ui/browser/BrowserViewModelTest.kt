@@ -5,9 +5,11 @@ import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.BrowsePage
 import com.markrai.vaultist.domain.Note
+import com.markrai.vaultist.domain.BrowseSortMode
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.SearchPage
 import com.markrai.vaultist.domain.VaultResult
+import com.markrai.vaultist.testutil.FakeBrowseSortPreferences
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,14 +27,16 @@ import org.junit.Test
 class BrowserViewModelTest {
     @get:Rule val dispatcherRule = MainDispatcherRule()
 
-    private fun viewModel(repository: FakeVaultRepository = FakeVaultRepository()) =
-        BrowserViewModel(repository, BrowseUiConfig(), PendingBrowseSync())
+    private fun viewModel(
+        repository: FakeVaultRepository = FakeVaultRepository(),
+        sortPreferences: FakeBrowseSortPreferences = FakeBrowseSortPreferences(),
+    ) = BrowserViewModel(repository, BrowseUiConfig(), PendingBrowseSync(), sortPreferences)
 
     @Test
     fun filesSearchDebouncesAndPopulatesResults() = runTest(dispatcherRule.dispatcher) {
         val item = BrowseItem(BrowseKind.Note, "Folder/Vega", "Vega.md", "Vega", "Folder/Vega.md", null)
         val repository = FakeVaultRepository().apply {
-            searchResult = VaultResult.Success(SearchPage(listOf(item), "100", "vega"))
+            searchResult = VaultResult.Success(SearchPage(listOf(item), null, "vega"))
         }
         val viewModel = viewModel(repository)
         advanceUntilIdle()
@@ -181,7 +185,7 @@ class BrowserViewModelTest {
                 ),
             )
         }
-        val viewModel = BrowserViewModel(repository, BrowseUiConfig(), sync)
+        val viewModel = BrowserViewModel(repository, BrowseUiConfig(), sync, FakeBrowseSortPreferences())
         advanceUntilIdle()
         sync.offerAfterDelete("Gone")
         viewModel.onReturnedToBrowse()
@@ -194,5 +198,58 @@ class BrowserViewModelTest {
         )
         advanceUntilIdle()
         assertEquals(listOf("Stay"), viewModel.state.value.items.map { it.id })
+    }
+
+    @Test
+    fun toggleSortModeSwitchesToModifiedDescAndReorders() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(
+                BrowsePage(
+                    listOf(
+                        BrowseItem(BrowseKind.Note, "Alpha", "Alpha.md", "Alpha", "Alpha.md", null, "2026-01-01T00:00:00Z"),
+                        BrowseItem(BrowseKind.Note, "Zulu", "Zulu.md", "Zulu", "Zulu.md", null, "2026-01-03T00:00:00Z"),
+                    ),
+                    null,
+                    "",
+                ),
+            )
+        }
+        val viewModel = viewModel(repository)
+        advanceUntilIdle()
+        assertEquals(BrowseSortMode.Alphabetical, viewModel.state.value.sortMode)
+        assertEquals(listOf("Alpha", "Zulu"), viewModel.state.value.items.map { it.id })
+
+        viewModel.toggleSortMode()
+        advanceUntilIdle()
+        assertEquals(BrowseSortMode.ModifiedDesc, viewModel.state.value.sortMode)
+        assertEquals(listOf("Zulu", "Alpha"), viewModel.state.value.items.map { it.id })
+    }
+
+    @Test
+    fun refreshPreservesActiveSortMode() = runTest(dispatcherRule.dispatcher) {
+        val sortPreferences = FakeBrowseSortPreferences(BrowseSortMode.ModifiedDesc)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(
+                BrowsePage(
+                    listOf(
+                        BrowseItem(BrowseKind.Note, "A", "A.md", "A", "A.md", null, "2026-01-02T00:00:00Z"),
+                    ),
+                    null,
+                    "",
+                ),
+            )
+        }
+        val viewModel = BrowserViewModel(
+            repository,
+            BrowseUiConfig(indexPollDelayMs = 1),
+            PendingBrowseSync(),
+            sortPreferences,
+        )
+        advanceUntilIdle()
+        assertEquals(BrowseSortMode.ModifiedDesc, viewModel.state.value.sortMode)
+
+        viewModel.refresh()
+        advanceUntilIdle()
+        assertEquals(BrowseSortMode.ModifiedDesc, viewModel.state.value.sortMode)
     }
 }

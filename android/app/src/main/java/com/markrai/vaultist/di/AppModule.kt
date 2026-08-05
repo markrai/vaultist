@@ -4,6 +4,8 @@ import com.markrai.vaultist.data.repository.DefaultVaultRepository
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.AskPreferences
 import com.markrai.vaultist.data.settings.DataStoreAskPreferences
+import com.markrai.vaultist.data.settings.BrowseSortPreferences
+import com.markrai.vaultist.data.settings.DataStoreBrowseSortPreferences
 import com.markrai.vaultist.data.settings.DataStoreThemePreferences
 import com.markrai.vaultist.data.settings.ServerSettings
 import com.markrai.vaultist.data.settings.ServerUrlSettings
@@ -31,6 +33,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindThemePreferences(preferences: DataStoreThemePreferences): ThemePreferences
+
+    @Binds
+    @Singleton
+    abstract fun bindBrowseSortPreferences(preferences: DataStoreBrowseSortPreferences): BrowseSortPreferences
 
     @Binds
     @Singleton

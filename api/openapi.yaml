@@ -331,6 +331,7 @@ components:
         title: { type: string }
         path: { type: string }
         error: { type: string }
+        modifiedAt: { type: string, format: date-time }
     BrowseResponse:
       type: object
       required: [items, nextCursor, folder]

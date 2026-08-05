@@ -34,6 +34,7 @@ data class BrowseItem(
     val title: String?,
     val path: String,
     val error: String?,
+    val modifiedAt: String? = null,
 )
 
 data class BrowsePage(

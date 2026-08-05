@@ -131,12 +131,13 @@ func (h *Handler) vault(writer http.ResponseWriter) {
 }
 
 type browseItem struct {
-	Kind  string `json:"kind"`
-	ID    string `json:"id,omitempty"`
-	Name  string `json:"name"`
-	Title string `json:"title,omitempty"`
-	Path  string `json:"path"`
-	Error string `json:"error,omitempty"`
+	Kind       string     `json:"kind"`
+	ID         string     `json:"id,omitempty"`
+	Name       string     `json:"name"`
+	Title      string     `json:"title,omitempty"`
+	Path       string     `json:"path"`
+	Error      string     `json:"error,omitempty"`
+	ModifiedAt *time.Time `json:"modifiedAt,omitempty"`
 }
 
 func (h *Handler) notes(writer http.ResponseWriter, request *http.Request) {
@@ -180,7 +181,11 @@ func browseItems(snapshot *index.Snapshot, folder string) []browseItem {
 			folders[folderPath] = browseItem{Kind: "folder", Name: name, Path: folderPath}
 			continue
 		}
-		notes = append(notes, browseItem{Kind: "note", ID: note.ID, Name: note.Filename, Title: note.Title, Path: note.Path, Error: note.Error})
+		modifiedAt := note.ModifiedAt
+		notes = append(notes, browseItem{
+			Kind: "note", ID: note.ID, Name: note.Filename, Title: note.Title,
+			Path: note.Path, Error: note.Error, ModifiedAt: &modifiedAt,
+		})
 	}
 	items := make([]browseItem, 0, len(folders)+len(notes))
 	for _, folderItem := range folders {
@@ -396,9 +401,14 @@ func (h *Handler) search(writer http.ResponseWriter, request *http.Request) {
 	}
 	matches := make([]browseItem, 0, len(hits.Hits))
 	for _, hit := range hits.Hits {
-		matches = append(matches, browseItem{
+		item := browseItem{
 			Kind: "note", ID: hit.ID, Name: hit.Name, Title: hit.Title, Path: hit.Path, Error: hit.Error,
-		})
+		}
+		if note, ok := snapshot.Notes[hit.ID]; ok {
+			modifiedAt := note.ModifiedAt
+			item.ModifiedAt = &modifiedAt
+		}
+		matches = append(matches, item)
 	}
 	pageItems, next := paginate(matches, cursor, limit)
 	writeJSON(writer, http.StatusOK, map[string]any{"items": pageItems, "nextCursor": next, "query": query})

@@ -51,6 +51,7 @@ internal fun JSONObject.toBrowseItem(): BrowseItem = BrowseItem(
     title = optString("title").takeIf(String::isNotBlank),
     path = getString("path"),
     error = optString("error").takeIf(String::isNotBlank),
+    modifiedAt = optString("modifiedAt").takeIf(String::isNotBlank),
 )
 
 internal fun JSONObject.toNote(): Note = Note(

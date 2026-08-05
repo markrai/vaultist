@@ -5,9 +5,39 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/markrai/vaultist/server/internal/model"
 )
+
+func TestIndexedNoteModifiedAtFromMtime(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "Timed.md", "# Timed")
+	filePath := filepath.Join(root, "Timed.md")
+	want := time.Date(2026, 8, 5, 17, 32, 54, 0, time.UTC)
+	if err := os.Chtimes(filePath, want, want); err != nil {
+		t.Fatal(err)
+	}
+
+	manager, err := NewManager(root, "Test Vault")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := manager.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	note := snapshot.Notes["Timed"]
+	if note == nil {
+		t.Fatal("Timed note missing from index")
+	}
+	if !note.ModifiedAt.UTC().Truncate(time.Second).Equal(want) {
+		t.Fatalf("ModifiedAt = %v, want %v", note.ModifiedAt, want)
+	}
+}
 
 func TestIndexResolutionBacklinksAssetsAndRefresh(t *testing.T) {
 	root := t.TempDir()
