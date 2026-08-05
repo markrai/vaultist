@@ -48,4 +48,6 @@ object ApiFixtures {
     fun noteNotFoundError() = """{"error":{"code":"note_not_found","message":"Note was not found"}}"""
 
     fun revisionConflictError() = """{"error":{"code":"revision_conflict","message":"The note changed since it was loaded","details":{"expected":"sha256:abc","actual":"sha256:def"}}}"""
+
+    fun noteExistsError() = """{"error":{"code":"note_exists","message":"A note with this ID already exists"}}"""
 }

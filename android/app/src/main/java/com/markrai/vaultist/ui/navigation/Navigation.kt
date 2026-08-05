@@ -55,15 +55,16 @@ fun VaultistNavigation(
         }
         composable(BrowserRoute) {
             BrowserScreen(
-                onOpenNote = { id -> navController.navigate(noteRoute(id)) },
+                onOpenNote = { id, edit -> navController.navigate(noteRoute(id, edit = edit)) },
                 onSettings = { navController.navigate(SetupRoute) },
             )
         }
         composable(
-            route = "note/{id}?fragment={fragment}",
+            route = "note/{id}?fragment={fragment}&edit={edit}",
             arguments = listOf(
                 navArgument("id") { type = NavType.StringType },
                 navArgument("fragment") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("edit") { type = NavType.StringType; nullable = true; defaultValue = null },
             ),
         ) {
             NoteScreen(
@@ -86,8 +87,13 @@ fun VaultistNavigation(
     }
 }
 
-fun noteRoute(id: String, fragment: String? = null): String =
-    "note/${Uri.encode(id)}" + (fragment?.let { "?fragment=${Uri.encode(it)}" } ?: "")
+fun noteRoute(id: String, fragment: String? = null, edit: Boolean = false): String {
+    val params = buildList {
+        fragment?.let { add("fragment=${Uri.encode(it)}") }
+        if (edit) add("edit=true")
+    }
+    return "note/${Uri.encode(id)}" + if (params.isEmpty()) "" else "?${params.joinToString("&")}"
+}
 
 fun backlinksRoute(id: String): String = "backlinks/${Uri.encode(id)}"
 fun imageRoute(id: String): String = "image/${Uri.encode(id)}"

@@ -87,6 +87,20 @@ class VaultistApiTest {
     }
 
     @Test
+    fun createNoteUsesPostJsonBody() = runTest {
+        server.enqueue(MockResponse().setResponseCode(201).setBody(ApiFixtures.NOTE).setHeader("ETag", "\"sha256:created\""))
+        val payload = api.createNote(baseUrl(), "Folder/New Note", "# New Note\n\n")
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/v1/notes", request.path)
+        val body = org.json.JSONObject(request.body.readUtf8())
+        assertEquals("Folder/New Note", body.getString("id"))
+        assertEquals("# New Note\n\n", body.getString("content"))
+        assertEquals(201, payload.status)
+        assertEquals("\"sha256:created\"", payload.etag)
+    }
+
+    @Test
     fun refreshUsesPost() = runTest {
         server.enqueue(MockResponse().setResponseCode(202).setBody("""{"status":"indexing"}"""))
         val payload = api.refresh(baseUrl())

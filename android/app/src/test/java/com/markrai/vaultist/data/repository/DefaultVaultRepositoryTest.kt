@@ -147,13 +147,28 @@ class DefaultVaultRepositoryTest {
         server.enqueue(MockResponse().setResponseCode(204))
         val deleted = repository.deleteNote("Folder/Note", "sha256:abc")
         assertTrue(deleted is VaultResult.Success)
-        assertEquals("DELETE", server.takeRequest().method)
-        assertEquals("\"sha256:abc\"", server.takeRequest().getHeader("If-Match"))
+        val request = server.takeRequest()
+        assertEquals("DELETE", request.method)
+        assertEquals("\"sha256:abc\"", request.getHeader("If-Match"))
 
         server.enqueue(MockResponse().setResponseCode(409).setBody(ApiFixtures.revisionConflictError()))
         val conflict = repository.deleteNote("Folder/Note", "sha256:abc")
         assertTrue(conflict is VaultResult.Failure)
         assertEquals("revision_conflict", ((conflict as VaultResult.Failure).error as VaultError.Api).code)
+    }
+
+    @Test
+    fun createNoteMapsSuccessAndConflict() = runTest {
+        server.enqueue(MockResponse().setResponseCode(201).setBody(ApiFixtures.NOTE))
+        val created = repository.createNote("Folder/New Note", "# New Note\n\n")
+        assertTrue(created is VaultResult.Success)
+        assertEquals("POST", server.takeRequest().method)
+        assertEquals("Folder/Note", (created as VaultResult.Success).value.id)
+
+        server.enqueue(MockResponse().setResponseCode(409).setBody(ApiFixtures.noteExistsError()))
+        val conflict = repository.createNote("Folder/Note", "# duplicate")
+        assertTrue(conflict is VaultResult.Failure)
+        assertEquals("note_exists", ((conflict as VaultResult.Failure).error as VaultError.Api).code)
     }
 
     @Test

@@ -59,6 +59,10 @@ class DefaultVaultRepository @Inject constructor(
         JSONObject(api.updateNote(base, id, revision, content).requireSuccess().body).toNote()
     }
 
+    override suspend fun createNote(id: String, content: String) = configuredResult { base ->
+        JSONObject(api.createNote(base, id, content).requireSuccess().body).toNote()
+    }
+
     override suspend fun deleteNote(id: String, revision: String) = configuredResult { base ->
         api.deleteNote(base, id, revision).requireSuccess()
         Unit

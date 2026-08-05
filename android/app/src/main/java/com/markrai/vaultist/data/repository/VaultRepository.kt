@@ -18,6 +18,7 @@ interface VaultRepository {
     suspend fun listNotes(folder: String, cursor: String? = null): VaultResult<BrowsePage>
     suspend fun getNote(id: String): VaultResult<Note>
     suspend fun updateNote(id: String, revision: String, content: String): VaultResult<Note>
+    suspend fun createNote(id: String, content: String): VaultResult<Note>
     suspend fun deleteNote(id: String, revision: String): VaultResult<Unit>
     suspend fun searchNotes(query: String, mode: SearchMode = SearchMode.Files, cursor: String? = null): VaultResult<SearchPage>
     suspend fun getBacklinks(id: String): VaultResult<List<Backlink>>

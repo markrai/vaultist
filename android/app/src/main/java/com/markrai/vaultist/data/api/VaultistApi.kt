@@ -65,6 +65,20 @@ class VaultistApi @Inject constructor(private val client: OkHttpClient) {
                 .build(),
         )
 
+    suspend fun createNote(baseUrl: String, id: String, content: String): ApiPayload {
+        val body = JSONObject()
+            .put("id", id)
+            .put("content", content)
+            .toString()
+            .toRequestBody("application/json".toMediaType())
+        return request(
+            Request.Builder()
+                .url(endpoint(baseUrl, listOf("notes")))
+                .post(body)
+                .build(),
+        )
+    }
+
     suspend fun backlinks(baseUrl: String, id: String): ApiPayload =
         get(baseUrl, listOf("notes", id, "backlinks"))
 

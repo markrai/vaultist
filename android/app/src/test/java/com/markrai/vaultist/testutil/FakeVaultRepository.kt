@@ -38,10 +38,35 @@ class FakeVaultRepository : VaultRepository {
     var lastUpdateRevision: String? = null
     var lastUpdateContent: String? = null
     var deleteNoteResult: VaultResult<Unit>? = null
+    var createNoteResult: VaultResult<Note>? = null
+    var lastCreateId: String? = null
+    var lastCreateContent: String? = null
     var lastDeleteRevision: String? = null
 
     override suspend fun getNote(id: String): VaultResult<Note> =
         notesById[id]?.let { VaultResult.Success(it) } ?: noteResult
+
+    override suspend fun createNote(id: String, content: String): VaultResult<Note> {
+        lastCreateId = id
+        lastCreateContent = content
+        return createNoteResult ?: VaultResult.Success(
+            Note(
+                id = id,
+                path = "$id.md",
+                filename = id.substringAfterLast('/').plus(".md"),
+                title = content.removePrefix("# ").substringBefore('\n').trim(),
+                aliases = emptyList(),
+                headings = emptyList(),
+                links = emptyList(),
+                attachments = emptyList(),
+                modifiedAt = "2026-01-01T00:00:00Z",
+                size = content.length.toLong(),
+                revision = "sha256:created",
+                content = content,
+                error = "",
+            ),
+        )
+    }
 
     override suspend fun updateNote(id: String, revision: String, content: String): VaultResult<Note> {
         lastUpdateRevision = revision

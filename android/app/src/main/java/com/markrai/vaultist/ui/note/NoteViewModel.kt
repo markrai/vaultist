@@ -42,6 +42,8 @@ class NoteViewModel @Inject constructor(
 ) : ViewModel() {
     val noteId: String = requireNotNull(savedStateHandle["id"])
     val fragment: String? = savedStateHandle["fragment"]
+    private val openInEdit: Boolean = savedStateHandle.get<String>("edit") == "true"
+    private var autoEditPending = openInEdit
     private val _state = MutableStateFlow(NoteUiState())
     val state: StateFlow<NoteUiState> = _state
 
@@ -200,14 +202,21 @@ class NoteViewModel @Inject constructor(
             val vault = repository.getVault()
             val canEdit = vault is VaultResult.Success && !vault.value.readOnly
             when (val result = repository.getNote(noteId)) {
-                is VaultResult.Success -> _state.update {
-                    it.copy(
-                        loading = false,
-                        note = result.value,
-                        canEdit = canEdit,
-                        error = null,
-                        baseRevision = if (it.editing) it.baseRevision else null,
-                    )
+                is VaultResult.Success -> {
+                    val note = result.value
+                    _state.update {
+                        it.copy(
+                            loading = false,
+                            note = note,
+                            canEdit = canEdit,
+                            error = null,
+                            baseRevision = if (it.editing) it.baseRevision else null,
+                        )
+                    }
+                    if (autoEditPending && canEdit) {
+                        autoEditPending = false
+                        enterEdit()
+                    }
                 }
                 is VaultResult.Failure -> _state.update {
                     it.copy(loading = false, canEdit = canEdit, error = result.error.userMessage())

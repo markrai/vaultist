@@ -26,12 +26,14 @@ import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +52,8 @@ import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.ui.ask.AskHint
 import com.markrai.vaultist.ui.ask.AskResultsPane
 import com.markrai.vaultist.ui.ask.AskViewModel
+import com.markrai.vaultist.ui.create.CreateNoteDialog
+import com.markrai.vaultist.ui.create.CreateNoteViewModel
 import com.markrai.vaultist.ui.components.ErrorPanel
 import com.markrai.vaultist.ui.components.NoteResultCard
 import com.markrai.vaultist.ui.theme.Spacing
@@ -60,14 +64,25 @@ private val SearchControlHeight = 56.dp
 
 @Composable
 fun BrowserScreen(
-    onOpenNote: (String) -> Unit,
+    onOpenNote: (String, Boolean) -> Unit,
     onSettings: () -> Unit,
     viewModel: BrowserViewModel = hiltViewModel(),
     askViewModel: AskViewModel = hiltViewModel(),
+    createNoteViewModel: CreateNoteViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val askState by askViewModel.state.collectAsStateWithLifecycle()
+    val createState by createNoteViewModel.state.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(createState.pendingOpenNoteId) {
+        createState.pendingOpenNoteId?.let { id ->
+            createNoteViewModel.consumeOpenRequest()
+            onOpenNote(id, true)
+        }
+    }
+
+    val openNoteForBrowse: (String) -> Unit = { id -> onOpenNote(id, false) }
 
     DisposableEffect(lifecycleOwner, state.searchMode) {
         if (state.searchMode != SearchMode.Ask) {
@@ -96,6 +111,11 @@ fun BrowserScreen(
                 if (state.searchMode != SearchMode.Ask) {
                     IconButton(onClick = viewModel::refresh, enabled = !state.refreshing) {
                         Icon(Icons.Default.Refresh, "Refresh index")
+                    }
+                }
+                if (state.vault?.readOnly == false) {
+                    IconButton(onClick = createNoteViewModel::openDialog) {
+                        Icon(Icons.Default.Add, "Create note")
                     }
                 }
                 IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "Server settings") }
@@ -153,7 +173,7 @@ fun BrowserScreen(
             if (state.searchMode == SearchMode.Ask) {
                 AskResultsPane(
                     state = askState,
-                    onOpenNote = onOpenNote,
+                    onOpenNote = openNoteForBrowse,
                     onCancel = askViewModel::cancel,
                     onRetry = { askViewModel.retry(state.query) },
                 )
@@ -164,13 +184,24 @@ fun BrowserScreen(
                         askViewModel.invalidate()
                         viewModel.openFolder(path)
                     },
-                    onOpenNote = onOpenNote,
+                    onOpenNote = openNoteForBrowse,
                     onUp = viewModel::up,
                     onRetry = viewModel::retry,
                     onLoadMore = viewModel::loadMore,
                 )
             }
         }
+    }
+    if (createState.dialogVisible) {
+        CreateNoteDialog(
+            folder = state.folder,
+            title = createState.title,
+            creating = createState.creating,
+            error = createState.error,
+            onTitleChange = createNoteViewModel::updateTitle,
+            onDismiss = createNoteViewModel::dismissDialog,
+            onCreate = { createNoteViewModel.submit(state.folder) },
+        )
     }
 }
 
