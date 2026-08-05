@@ -21,6 +21,7 @@ data class NoteUiState(
     val canEdit: Boolean = false,
     val editing: Boolean = false,
     val draftContent: String = "",
+    val baseRevision: String? = null,
     val saving: Boolean = false,
     val conflict: Boolean = false,
 )
@@ -34,7 +35,6 @@ class NoteViewModel @Inject constructor(
     val fragment: String? = savedStateHandle["fragment"]
     private val _state = MutableStateFlow(NoteUiState())
     val state: StateFlow<NoteUiState> = _state
-    private var baseRevision: String? = null
 
     init {
         load()
@@ -45,17 +45,28 @@ class NoteViewModel @Inject constructor(
 
     fun enterEdit() {
         val note = _state.value.note ?: return
-        baseRevision = note.revision
         _state.update {
-            it.copy(editing = true, draftContent = note.content, error = null, conflict = false)
+            it.copy(
+                editing = true,
+                draftContent = note.content,
+                baseRevision = note.revision,
+                error = null,
+                conflict = false,
+            )
         }
     }
 
     fun cancelEdit() {
         _state.update {
-            it.copy(editing = false, draftContent = "", saving = false, error = null, conflict = false)
+            it.copy(
+                editing = false,
+                draftContent = "",
+                baseRevision = null,
+                saving = false,
+                error = null,
+                conflict = false,
+            )
         }
-        baseRevision = null
     }
 
     fun updateDraft(content: String) {
@@ -63,18 +74,22 @@ class NoteViewModel @Inject constructor(
     }
 
     fun save() {
-        val revision = baseRevision ?: return
+        val revision = _state.value.baseRevision
+        if (revision.isNullOrBlank()) {
+            _state.update { it.copy(error = "This note cannot be saved because its revision is missing. Cancel and reopen the note.") }
+            return
+        }
         if (_state.value.saving) return
         viewModelScope.launch {
             _state.update { it.copy(saving = true, error = null, conflict = false) }
             when (val result = repository.updateNote(noteId, revision, _state.value.draftContent)) {
                 is VaultResult.Success -> {
-                    baseRevision = null
                     _state.update {
                         it.copy(
                             saving = false,
                             editing = false,
                             draftContent = "",
+                            baseRevision = null,
                             note = result.value,
                             error = null,
                             conflict = false,
@@ -108,7 +123,13 @@ class NoteViewModel @Inject constructor(
             val canEdit = vault is VaultResult.Success && !vault.value.readOnly
             when (val result = repository.getNote(noteId)) {
                 is VaultResult.Success -> _state.update {
-                    it.copy(loading = false, note = result.value, canEdit = canEdit, error = null)
+                    it.copy(
+                        loading = false,
+                        note = result.value,
+                        canEdit = canEdit,
+                        error = null,
+                        baseRevision = if (it.editing) it.baseRevision else null,
+                    )
                 }
                 is VaultResult.Failure -> _state.update {
                     it.copy(loading = false, canEdit = canEdit, error = result.error.userMessage())

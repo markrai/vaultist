@@ -115,7 +115,7 @@ tailscale serve status
 
 Tailscale changed Serve CLI syntax in client 1.52, so verify the command against the current [official Serve command reference](https://tailscale.com/docs/reference/tailscale-cli/serve) before applying it on the Linux host. Do not use Tailscale Funnel: Funnel is public exposure, while Vaultist is designed for tailnet-only Serve access.
 
-The container binds only to host loopback, runs as the distroless non-root user, drops Linux capabilities, uses a read-only root filesystem, and mounts `${VAULT_HOST_PATH}:/vault:ro` (default `/srv/Vault`).
+The container binds only to host loopback, runs as the distroless non-root user, drops Linux capabilities, uses a read-only root filesystem, and mounts `${VAULT_HOST_PATH}:/vault:rw` (default `/srv/Vault`) so note edits can be saved.
 
 ## Security model
 

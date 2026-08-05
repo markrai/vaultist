@@ -76,4 +76,19 @@ class NoteViewModelTest {
         assertTrue(viewModel.state.value.conflict)
         assertTrue(viewModel.state.value.editing)
     }
+
+    @Test fun saveSurfacesNonConflictErrors() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+            updateNoteResult = VaultResult.Failure(VaultError.Api("note_write_failed", "Note could not be saved"))
+        }
+        val viewModel = NoteViewModel(SavedStateHandle(mapOf("id" to "Folder/Note")), repository)
+        advanceUntilIdle()
+        viewModel.enterEdit()
+        viewModel.save()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.editing)
+        assertFalse(viewModel.state.value.conflict)
+        assertEquals("The server could not save this note. If you use Docker, ensure the vault volume is mounted read-write.", viewModel.state.value.error)
+    }
 }

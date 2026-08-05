@@ -1,6 +1,7 @@
 package com.markrai.vaultist.ui.note
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.domain.LinkCandidate
 import com.markrai.vaultist.ui.components.ErrorPanel
 import com.markrai.vaultist.ui.markdown.MarkdownRenderer
+import com.markrai.vaultist.ui.theme.Spacing
 
 private data class AmbiguousDialog(val target: String, val candidates: List<LinkCandidate>)
 
@@ -52,7 +54,7 @@ fun NoteScreen(
                 when {
                     state.editing -> {
                         TextButton(onClick = viewModel::cancelEdit, enabled = !state.saving) { Text("Cancel") }
-                        TextButton(onClick = viewModel::save, enabled = !state.saving) { Text("Save") }
+                        TextButton(onClick = { viewModel.save() }, enabled = !state.saving) { Text("Save") }
                     }
                     state.canEdit && state.note != null -> {
                         TextButton(onClick = viewModel::enterEdit) { Text("Edit") }
@@ -65,6 +67,28 @@ fun NoteScreen(
         )
     }) { padding ->
         when {
+            state.editing -> Column(
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+            ) {
+                OutlinedTextField(
+                    value = state.draftContent,
+                    onValueChange = viewModel::updateDraft,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    enabled = !state.saving,
+                )
+                if (state.error != null && !state.conflict) {
+                    ErrorPanel(
+                        message = state.error.orEmpty(),
+                        modifier = Modifier.padding(Spacing.md),
+                        onRetry = viewModel::save,
+                    )
+                }
+            }
             state.loading -> Box(
                 Modifier.padding(padding).fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -73,15 +97,6 @@ fun NoteScreen(
                 state.error.orEmpty(),
                 Modifier.padding(padding),
                 viewModel::retry,
-            )
-            state.editing -> OutlinedTextField(
-                value = state.draftContent,
-                onValueChange = viewModel::updateDraft,
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                enabled = !state.saving,
             )
             state.note != null -> MarkdownRenderer(
                 note = requireNotNull(state.note),

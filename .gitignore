@@ -20,3 +20,4 @@ deploy/.env
 
 # Local drafting
 docs/draft/
+AGENTS.md

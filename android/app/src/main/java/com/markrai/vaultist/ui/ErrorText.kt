@@ -8,6 +8,7 @@ fun VaultError.userMessage(): String = when (this) {
     VaultError.InvalidServerUrl -> "Enter a valid server URL. Non-local servers must use HTTPS."
     is VaultError.Api -> when (code) {
         "revision_conflict" -> "This note changed on the server. Reload and try again."
+        "note_write_failed" -> "The server could not save this note. If you use Docker, ensure the vault volume is mounted read-write."
         else -> message
     }
     is VaultError.InvalidResponse -> message
