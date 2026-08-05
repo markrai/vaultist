@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="vaultist.png" alt="Vaultist" />
+</p>
+
 # Vaultist
 
 Vaultist is a Markdown Vault viewer made of two independently buildable applications:
