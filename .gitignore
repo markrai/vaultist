@@ -16,6 +16,7 @@ Thumbs.db
 
 # Config
 deploy.env
+deploy/.env
 
 # Local drafting
 docs/draft/
