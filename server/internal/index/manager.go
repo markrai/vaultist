@@ -30,6 +30,7 @@ type Manager struct {
 	state     model.IndexState
 	cancel    context.CancelFunc
 	log       *slog.Logger
+	refreshHook func()
 }
 
 func NewManager(root, vaultName string) (*Manager, error) {
@@ -65,6 +66,14 @@ func (m *Manager) State() model.IndexState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.state
+}
+
+// SetRefreshHook runs hook at the start of each refresh, before building the index.
+// It is intended for tests that need to observe or hold the indexing state.
+func (m *Manager) SetRefreshHook(hook func()) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.refreshHook = hook
 }
 
 func (m *Manager) StartRefresh(parent context.Context) error {
@@ -117,6 +126,12 @@ func (m *Manager) Close() {
 }
 
 func (m *Manager) refresh(ctx context.Context, startedAt time.Time) error {
+	m.mu.Lock()
+	hook := m.refreshHook
+	m.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
 	previous := m.snapshot.Load()
 	generation := uint64(1)
 	if previous != nil {

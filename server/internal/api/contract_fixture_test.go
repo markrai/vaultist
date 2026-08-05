@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/markrai/vaultist/server/internal/index"
 )
@@ -33,6 +34,30 @@ func contractFixtureWithManager(t *testing.T) (*index.Manager, *httptest.Server)
 		t.Fatal(err)
 	}
 	return manager, httptest.NewServer(NewHandler(manager, nil))
+}
+
+// holdActiveRefresh starts a refresh and blocks it until the returned release
+// function is called. Use this when tests must observe the indexing state.
+func holdActiveRefresh(t *testing.T, manager *index.Manager) func() {
+	t.Helper()
+	entered := make(chan struct{})
+	done := make(chan struct{})
+	manager.SetRefreshHook(func() {
+		close(entered)
+		<-done
+	})
+	if err := manager.StartRefresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for refresh to start")
+	}
+	return func() {
+		close(done)
+		manager.SetRefreshHook(nil)
+	}
 }
 
 func fetchResponse(t *testing.T, method, endpoint string, body io.Reader) ([]byte, int) {

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -70,9 +69,8 @@ func TestRefreshConflictWhileIndexing(t *testing.T) {
 	manager, server := contractFixtureWithManager(t)
 	defer server.Close()
 
-	if err := manager.StartRefresh(context.Background()); err != nil {
-		t.Fatal(err)
-	}
+	release := holdActiveRefresh(t, manager)
+	defer release()
 	request, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/index/refresh", strings.NewReader(""))
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {

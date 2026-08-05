@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -79,7 +78,8 @@ func TestResponsesMatchOpenAPISchemas(t *testing.T) {
 
 	manager, serverWithManager := contractFixtureWithManager(t)
 	defer serverWithManager.Close()
-	_ = manager.StartRefresh(context.Background())
+	release := holdActiveRefresh(t, manager)
+	defer release()
 	conflictBody, conflictStatus := fetchResponse(t, http.MethodPost, serverWithManager.URL+"/api/v1/index/refresh", strings.NewReader(""))
 	if conflictStatus != http.StatusConflict {
 		t.Fatalf("refresh conflict status = %d body=%s", conflictStatus, conflictBody)
