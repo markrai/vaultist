@@ -35,6 +35,49 @@ func TestWriteNoteContentUpdatesFileAndRevision(t *testing.T) {
 	}
 }
 
+func TestWriteNoteContentAllowsUnindexedOnDiskNote(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "Folder/Indexed.md", "# Indexed\n")
+	manager := newTestManager(t, root)
+	content := []byte("draft body")
+	writeFile(t, root, "Folder/Unindexed.md", string(content))
+	revision := contentRevision(content)
+
+	updated, err := manager.WriteNoteContent(context.Background(), "Folder/Unindexed", revision, []byte("saved body"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.ID != "Folder/Unindexed" {
+		t.Fatalf("id = %q", updated.ID)
+	}
+	if updated.Revision != contentRevision([]byte("saved body")) {
+		t.Fatalf("revision = %q", updated.Revision)
+	}
+	onDisk, err := os.ReadFile(filepath.Join(root, "Folder", "Unindexed.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(onDisk) != "saved body" {
+		t.Fatalf("on disk = %q", onDisk)
+	}
+}
+
+func TestDeleteNoteAllowsUnindexedOnDiskNote(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "Folder/Indexed.md", "# Indexed\n")
+	manager := newTestManager(t, root)
+	content := []byte("to delete")
+	writeFile(t, root, "Folder/Unindexed.md", string(content))
+	revision := contentRevision(content)
+
+	if err := manager.DeleteNote(context.Background(), "Folder/Unindexed", revision); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "Folder", "Unindexed.md")); !os.IsNotExist(err) {
+		t.Fatalf("expected file removed, err=%v", err)
+	}
+}
+
 func TestWriteNoteContentRejectsStaleRevision(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "Folder/Note.md", "# Note\noriginal")

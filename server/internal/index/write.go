@@ -60,17 +60,20 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 	if err != nil {
 		return nil, err
 	}
-	existing, ok := snapshot.Notes[id]
-	if !ok {
-		return nil, ErrNotFound
+	noteID, relativePath, err := resolveOnDiskNote(snapshot, m.root, id)
+	if err != nil {
+		return nil, err
 	}
 
-	filePath, err := vault.JoinInside(m.root, existing.Path)
+	filePath, err := vault.JoinInside(m.root, relativePath)
 	if err != nil {
 		return nil, fmt.Errorf("invalid note path")
 	}
 	current, err := os.ReadFile(filePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("note could not be read")
 	}
 	actualRevision := contentRevision(current)
@@ -78,7 +81,7 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 		return nil, &RevisionConflictError{Expected: expectedRevision, Actual: actualRevision}
 	}
 
-	if err := vault.ReplaceFileAtomically(m.root, existing.Path, content); err != nil {
+	if err := vault.ReplaceFileAtomically(m.root, relativePath, content); err != nil {
 		if isWritePermissionError(err) {
 			return nil, ErrWritePermission
 		}
@@ -91,11 +94,11 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 	}
 
 	note := &model.Note{
-		ID: existing.ID, Path: existing.Path, Filename: existing.Filename,
+		ID: noteID, Path: relativePath, Filename: path.Base(relativePath),
 		ModifiedAt: info.ModTime().UTC(), Size: info.Size(),
 		Revision: contentRevision(content),
 	}
-	parsed := m.parser.Parse(content, strings.TrimSuffix(path.Base(existing.Path), path.Ext(existing.Path)))
+	parsed := m.parser.Parse(content, strings.TrimSuffix(path.Base(relativePath), path.Ext(relativePath)))
 	note.Title = parsed.Title
 	note.Aliases = parsed.Aliases
 	note.Headings = parsed.Headings
@@ -175,12 +178,12 @@ func (m *Manager) DeleteNote(ctx context.Context, id, ifMatch string) error {
 	if err != nil {
 		return err
 	}
-	existing, ok := snapshot.Notes[id]
-	if !ok {
-		return ErrNotFound
+	_, relativePath, err := resolveOnDiskNote(snapshot, m.root, id)
+	if err != nil {
+		return err
 	}
 
-	filePath, err := vault.JoinInside(m.root, existing.Path)
+	filePath, err := vault.JoinInside(m.root, relativePath)
 	if err != nil {
 		return fmt.Errorf("invalid note path")
 	}
@@ -196,7 +199,7 @@ func (m *Manager) DeleteNote(ctx context.Context, id, ifMatch string) error {
 		return &RevisionConflictError{Expected: expectedRevision, Actual: actualRevision}
 	}
 
-	if err := vault.DeleteFileInside(m.root, existing.Path); err != nil {
+	if err := vault.DeleteFileInside(m.root, relativePath); err != nil {
 		if isWritePermissionError(err) {
 			return ErrWritePermission
 		}
@@ -205,6 +208,30 @@ func (m *Manager) DeleteNote(ctx context.Context, id, ifMatch string) error {
 
 	_ = m.StartRefresh(ctx)
 	return nil
+}
+
+// resolveOnDiskNote finds a writable note by snapshot entry or, if the index
+// has not caught up yet, by validating the id and confirming the .md file exists.
+func resolveOnDiskNote(snapshot *Snapshot, root, id string) (noteID, relativePath string, err error) {
+	if existing, ok := snapshot.Notes[id]; ok {
+		return existing.ID, existing.Path, nil
+	}
+	noteID, err = vault.NoteID(id + ".md")
+	if err != nil {
+		return "", "", ErrInvalidNoteID
+	}
+	relativePath = noteID + ".md"
+	filePath, err := vault.JoinInside(root, relativePath)
+	if err != nil {
+		return "", "", ErrInvalidNoteID
+	}
+	if _, statErr := os.Stat(filePath); statErr != nil {
+		if os.IsNotExist(statErr) {
+			return "", "", ErrNotFound
+		}
+		return "", "", fmt.Errorf("note could not be read: %w", statErr)
+	}
+	return noteID, relativePath, nil
 }
 
 func resolveLinksForResponse(snapshot *Snapshot, note *model.Note) {

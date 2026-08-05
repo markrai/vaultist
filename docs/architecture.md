@@ -67,7 +67,7 @@ Note bodies can be replaced with `PUT /api/v1/notes/{id}` using a required `If-M
 
 Write path:
 
-1. Resolve the note from the current snapshot and read on-disk bytes.
+1. Resolve the note from the current snapshot, or — if the index has not caught up after create — from an on-disk `.md` at the validated note id (same path rules as create).
 2. Compare on-disk revision hash to `If-Match` (not snapshot alone).
 3. Write via temp file in the note directory, sync, atomic rename (`internal/vault`).
 4. Return updated `NoteResponse` with new revision computed from written bytes; link resolutions use the current snapshot tables.
