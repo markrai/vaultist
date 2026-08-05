@@ -274,6 +274,10 @@ func (h *Handler) updateNoteRoute(writer http.ResponseWriter, request *http.Requ
 			h.requireIndex(writer)
 			return
 		}
+		if errors.Is(err, index.ErrWritePermission) {
+			writeError(writer, http.StatusForbidden, "note_write_failed", "The server cannot write to the vault directory. Redeploy with deploy.sh so the container runs as the vault folder owner.", nil)
+			return
+		}
 		if strings.Contains(err.Error(), "exceeds write limit") || strings.Contains(err.Error(), "too large") {
 			writeError(writer, http.StatusBadRequest, "invalid_note_body", "Note body exceeds the maximum size", nil)
 			return

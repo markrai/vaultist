@@ -89,6 +89,6 @@ class NoteViewModelTest {
         advanceUntilIdle()
         assertTrue(viewModel.state.value.editing)
         assertFalse(viewModel.state.value.conflict)
-        assertEquals("The server could not save this note. If you use Docker, ensure the vault volume is mounted read-write.", viewModel.state.value.error)
+        assertEquals("Note could not be saved", viewModel.state.value.error)
     }
 }

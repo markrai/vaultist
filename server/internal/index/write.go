@@ -20,6 +20,7 @@ const maxNoteWriteBytes = 32 << 20
 var revisionPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 var ErrInvalidRevision = errors.New("invalid revision")
+var ErrWritePermission = errors.New("note write permission denied")
 
 type RevisionConflictError struct {
 	Expected string
@@ -76,6 +77,9 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 	}
 
 	if err := vault.ReplaceFileAtomically(m.root, existing.Path, content); err != nil {
+		if isWritePermissionError(err) {
+			return nil, ErrWritePermission
+		}
 		return nil, fmt.Errorf("note write failed: %w", err)
 	}
 
@@ -110,4 +114,17 @@ func resolveLinksForResponse(snapshot *Snapshot, note *model.Note) {
 			link.Resolution = snapshot.ResolveNote(note.Path, link.Target, link.Kind == model.LinkMarkdown)
 		}
 	}
+}
+
+func isWritePermissionError(err error) bool {
+	for err != nil {
+		if errors.Is(err, os.ErrPermission) {
+			return true
+		}
+		if strings.Contains(strings.ToLower(err.Error()), "permission denied") {
+			return true
+		}
+		err = errors.Unwrap(err)
+	}
+	return false
 }

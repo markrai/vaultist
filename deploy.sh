@@ -32,6 +32,29 @@ fi
 git pull --ff-only origin "$BRANCH"
 
 cd "$COMPOSE_DIR"
+
+ENV_FILE=".env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ENV_FILE"
+  set +a
+fi
+
+VAULT_HOST_PATH="${VAULT_HOST_PATH:-/srv/Vault}"
+if [[ -z "${VAULT_UID:-}" || -z "${VAULT_GID:-}" ]]; then
+  if [[ -d "$VAULT_HOST_PATH" ]]; then
+    VAULT_UID="$(stat -c '%u' "$VAULT_HOST_PATH")"
+    VAULT_GID="$(stat -c '%g' "$VAULT_HOST_PATH")"
+    echo "Using vault ownership UID:GID=${VAULT_UID}:${VAULT_GID} for ${VAULT_HOST_PATH}"
+  else
+    echo "Warning: ${VAULT_HOST_PATH} does not exist; container will run as nonroot (65532)." >&2
+    VAULT_UID="65532"
+    VAULT_GID="65532"
+  fi
+fi
+export VAULT_UID VAULT_GID
+
 docker compose config --quiet
 docker compose up -d --build --remove-orphans
 

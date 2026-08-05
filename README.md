@@ -101,7 +101,7 @@ Instrumentation execution additionally requires a running emulator or physical d
 
 1. Copy or check out the project on the Linux host.
 2. Review `deploy/example.env` and create `deploy/.env` if desired.
-3. Confirm `VAULT_HOST_PATH` (default `/srv/Vault`) is the intended Markdown Vault on the host.
+3. Confirm `VAULT_HOST_PATH` (default `/srv/Vault`) is the intended Markdown Vault on the host and is writable by the vault directory owner (`deploy.sh` runs the container as that UID/GID).
 4. From `deploy`, run `docker compose up -d --build`.
 5. Confirm `curl http://127.0.0.1:8080/api/v1/status` returns JSON.
 6. Expose that loopback service to the tailnet with Tailscale Serve.
@@ -115,7 +115,7 @@ tailscale serve status
 
 Tailscale changed Serve CLI syntax in client 1.52, so verify the command against the current [official Serve command reference](https://tailscale.com/docs/reference/tailscale-cli/serve) before applying it on the Linux host. Do not use Tailscale Funnel: Funnel is public exposure, while Vaultist is designed for tailnet-only Serve access.
 
-The container binds only to host loopback, runs as the distroless non-root user, drops Linux capabilities, uses a read-only root filesystem, and mounts `${VAULT_HOST_PATH}:/vault:rw` (default `/srv/Vault`) so note edits can be saved.
+The container binds only to host loopback, runs as the vault directory owner (UID/GID from `deploy.sh` or `VAULT_UID`/`VAULT_GID` in `deploy/.env`), drops Linux capabilities, uses a read-only root filesystem, and mounts `${VAULT_HOST_PATH}:/vault:rw` (default `/srv/Vault`) so note edits can be saved.
 
 ## Security model
 

@@ -11,6 +11,7 @@ services:
       LISTEN_ADDR: 0.0.0.0:8080
     volumes:
       - ${VAULT_HOST_PATH:-/srv/Vault}:/vault:rw
+    user: "${VAULT_UID:-65532}:${VAULT_GID:-65532}"
     ports:
       - 127.0.0.1:${VAULTIST_PORT:-8080}:8080
     read_only: true
