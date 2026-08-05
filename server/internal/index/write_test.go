@@ -111,6 +111,59 @@ func TestDeleteNoteNotFound(t *testing.T) {
 	}
 }
 
+func TestCreateNoteWritesFileAndReturnsMetadata(t *testing.T) {
+	root := t.TempDir()
+	manager := newTestManager(t, root)
+	content := []byte("# New Note\n\n")
+	created, err := manager.CreateNote(context.Background(), "Folder/New Note", content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.ID != "Folder/New Note" {
+		t.Fatalf("id = %q", created.ID)
+	}
+	if created.Revision != contentRevision(content) {
+		t.Fatalf("revision = %q", created.Revision)
+	}
+	onDisk, err := os.ReadFile(filepath.Join(root, "Folder", "New Note.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(onDisk) != string(content) {
+		t.Fatalf("on disk = %q", onDisk)
+	}
+}
+
+func TestCreateNoteRejectsExistingSnapshotNote(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "Folder/Note.md", "# Note\noriginal")
+	manager := newTestManager(t, root)
+	_, err := manager.CreateNote(context.Background(), "Folder/Note", []byte("# duplicate"))
+	if err != ErrNoteExists {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestCreateNoteRejectsExistingOnDiskFile(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "Folder/Note.md", "# Note\noriginal")
+	manager := newTestManager(t, root)
+	writeFile(t, root, "Folder/Unindexed.md", "# unindexed\n")
+	_, err := manager.CreateNote(context.Background(), "Folder/Unindexed", []byte("# new"))
+	if err != ErrNoteExists {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestCreateNoteRejectsInvalidID(t *testing.T) {
+	root := t.TempDir()
+	manager := newTestManager(t, root)
+	_, err := manager.CreateNote(context.Background(), "../secret", []byte(""))
+	if err != ErrInvalidNoteID {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func writeFile(t *testing.T, root, relative, content string) {
 	t.Helper()
 	filePath := filepath.Join(root, filepath.FromSlash(relative))

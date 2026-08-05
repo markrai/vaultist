@@ -21,6 +21,8 @@ var revisionPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 var ErrInvalidRevision = errors.New("invalid revision")
 var ErrWritePermission = errors.New("note write permission denied")
+var ErrNoteExists = errors.New("note already exists")
+var ErrInvalidNoteID = errors.New("invalid note id")
 
 type RevisionConflictError struct {
 	Expected string
@@ -94,6 +96,64 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 		Revision: contentRevision(content),
 	}
 	parsed := m.parser.Parse(content, strings.TrimSuffix(path.Base(existing.Path), path.Ext(existing.Path)))
+	note.Title = parsed.Title
+	note.Aliases = parsed.Aliases
+	note.Headings = parsed.Headings
+	note.Links = parsed.Links
+	note.Attachments = parsed.Attachments
+	resolveLinksForResponse(snapshot, note)
+
+	_ = m.StartRefresh(ctx)
+	return note, nil
+}
+
+func (m *Manager) CreateNote(ctx context.Context, id string, content []byte) (*model.Note, error) {
+	if len(content) > maxNoteWriteBytes {
+		return nil, fmt.Errorf("note body exceeds write limit")
+	}
+
+	noteID, err := vault.NoteID(id + ".md")
+	if err != nil {
+		return nil, ErrInvalidNoteID
+	}
+	relativePath := noteID + ".md"
+
+	snapshot, err := m.Current()
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := snapshot.Notes[noteID]; ok {
+		return nil, ErrNoteExists
+	}
+
+	filePath, err := vault.JoinInside(m.root, relativePath)
+	if err != nil {
+		return nil, ErrInvalidNoteID
+	}
+	if _, statErr := os.Stat(filePath); statErr == nil {
+		return nil, ErrNoteExists
+	} else if !os.IsNotExist(statErr) {
+		return nil, fmt.Errorf("note create failed: %w", statErr)
+	}
+
+	if err := vault.ReplaceFileAtomically(m.root, relativePath, content); err != nil {
+		if isWritePermissionError(err) {
+			return nil, ErrWritePermission
+		}
+		return nil, fmt.Errorf("note create failed: %w", err)
+	}
+
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("note create failed: %w", err)
+	}
+
+	note := &model.Note{
+		ID: noteID, Path: relativePath, Filename: path.Base(relativePath),
+		ModifiedAt: info.ModTime().UTC(), Size: info.Size(),
+		Revision: contentRevision(content),
+	}
+	parsed := m.parser.Parse(content, strings.TrimSuffix(path.Base(relativePath), path.Ext(relativePath)))
 	note.Title = parsed.Title
 	note.Aliases = parsed.Aliases
 	note.Headings = parsed.Headings

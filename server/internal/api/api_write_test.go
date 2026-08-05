@@ -169,6 +169,81 @@ func TestDeleteNoteWriteForbidden(t *testing.T) {
 	}
 }
 
+func TestCreateNoteSuccess(t *testing.T) {
+	_, server := contractFixtureWithManager(t)
+	defer server.Close()
+	body := `{"id":"Folder/New Note","content":"# New Note\n\n"}`
+	payload, status := fetchWithHeaders(t, http.MethodPost, server.URL+"/api/v1/notes", strings.NewReader(body), map[string]string{
+		"Content-Type": "application/json",
+	})
+	if status != http.StatusCreated {
+		t.Fatalf("status = %d body=%s", status, payload)
+	}
+	var response map[string]any
+	if err := json.Unmarshal(payload, &response); err != nil {
+		t.Fatal(err)
+	}
+	if response["id"] != "Folder/New Note" {
+		t.Fatalf("id = %#v", response["id"])
+	}
+	if response["content"] != "# New Note\n\n" {
+		t.Fatalf("content = %#v", response["content"])
+	}
+}
+
+func TestCreateNoteConflict(t *testing.T) {
+	server := contractFixture(t)
+	defer server.Close()
+	body := `{"id":"Folder/Note","content":"# duplicate"}`
+	payload, status := fetchWithHeaders(t, http.MethodPost, server.URL+"/api/v1/notes", strings.NewReader(body), map[string]string{
+		"Content-Type": "application/json",
+	})
+	if status != http.StatusConflict {
+		t.Fatalf("status = %d body=%s", status, payload)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	errorObj := decoded["error"].(map[string]any)
+	if errorObj["code"] != "note_exists" {
+		t.Fatalf("code = %#v", errorObj["code"])
+	}
+}
+
+func TestCreateNoteInvalidID(t *testing.T) {
+	server := contractFixture(t)
+	defer server.Close()
+	body := `{"id":"../secret","content":""}`
+	payload, status := fetchWithHeaders(t, http.MethodPost, server.URL+"/api/v1/notes", strings.NewReader(body), map[string]string{
+		"Content-Type": "application/json",
+	})
+	if status != http.StatusBadRequest {
+		t.Fatalf("status = %d body=%s", status, payload)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	errorObj := decoded["error"].(map[string]any)
+	if errorObj["code"] != "invalid_note_id" {
+		t.Fatalf("code = %#v", errorObj["code"])
+	}
+}
+
+func TestCreateNoteWriteForbidden(t *testing.T) {
+	manager, _ := contractFixtureWithManager(t)
+	denied := httptest.NewServer(NewHandler(manager, denyAuthorizer{}))
+	defer denied.Close()
+	body := `{"id":"Folder/Blocked","content":""}`
+	_, status := fetchWithHeaders(t, http.MethodPost, denied.URL+"/api/v1/notes", strings.NewReader(body), map[string]string{
+		"Content-Type": "application/json",
+	})
+	if status != http.StatusForbidden {
+		t.Fatalf("status = %d", status)
+	}
+}
+
 func fetchWithHeaders(t *testing.T, method, endpoint string, body io.Reader, headers map[string]string) ([]byte, int) {
 	t.Helper()
 	request, err := http.NewRequest(method, endpoint, body)

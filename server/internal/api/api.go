@@ -55,6 +55,14 @@ func (h *Handler) serve(writer http.ResponseWriter, request *http.Request) {
 		writeError(writer, http.StatusNotFound, "route_not_found", "API route not found", nil)
 		return
 	}
+	if request.Method == http.MethodPost && request.URL.Path == apiPrefix+"/notes" {
+		if !h.authorizer.AuthorizeWrite(request) {
+			writeError(writer, http.StatusForbidden, "forbidden", "Write access is not authorized", nil)
+			return
+		}
+		h.createNoteRoute(writer, request)
+		return
+	}
 	if request.Method == http.MethodPost && request.URL.Path == apiPrefix+"/index/refresh" {
 		if !h.authorizer.AuthorizeRefresh(request) {
 			writeError(writer, http.StatusForbidden, "forbidden", "Refresh is not authorized", nil)

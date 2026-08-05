@@ -21,3 +21,4 @@ deploy/.env
 # Local drafting
 docs/draft/
 AGENTS.md
+tests.bat

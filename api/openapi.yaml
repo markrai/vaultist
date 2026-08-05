@@ -34,6 +34,26 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /notes:
+    post:
+      summary: Create a new note file
+      operationId: createNote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateNoteRequest" }
+      responses:
+        "201":
+          description: Created note metadata, body, and resolved links.
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NoteResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/NoteExists" }
+        "503": { $ref: "#/components/responses/Unavailable" }
     get:
       summary: Browse a vault folder
       operationId: listNotes
@@ -244,6 +264,9 @@ components:
     RevisionConflict:
       description: The note revision does not match If-Match.
       content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    NoteExists:
+      description: A note with this ID already exists.
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
     Forbidden:
       description: The current authorization policy does not allow this operation.
       content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
@@ -280,6 +303,17 @@ components:
         generation: { type: integer, format: uint64 }
         indexedAt: { type: string, format: date-time }
         readOnly: { type: boolean }
+    CreateNoteRequest:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          description: Stable ID derived from the normalized vault-relative Markdown path without .md.
+        content:
+          type: string
+          default: ""
+          description: Initial Markdown body. Maximum 32 MiB.
     UpdateNoteRequest:
       type: object
       required: [content]
@@ -394,6 +428,6 @@ components:
           properties:
             code:
               type: string
-              enum: [vault_unavailable, note_not_found, link_target_missing, link_target_ambiguous, asset_not_found, invalid_note_id, invalid_asset_id, invalid_folder, invalid_query, invalid_pagination, index_not_ready, index_refresh_running, note_read_failed, asset_read_failed, route_not_found, forbidden, index_refresh_failed, revision_conflict, invalid_revision, invalid_note_body, note_write_failed]
+              enum: [vault_unavailable, note_not_found, link_target_missing, link_target_ambiguous, asset_not_found, invalid_note_id, invalid_asset_id, invalid_folder, invalid_query, invalid_pagination, index_not_ready, index_refresh_running, note_read_failed, asset_read_failed, route_not_found, forbidden, index_refresh_failed, revision_conflict, invalid_revision, invalid_note_body, note_write_failed, note_create_failed, note_exists]
             message: { type: string }
             details: { type: object, additionalProperties: true }

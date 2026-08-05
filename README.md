@@ -125,9 +125,9 @@ Read and refresh authorization are isolated behind a server interface so future 
 
 ## Scope and roadmap
 
-Note body editing is supported via conditional `PUT /api/v1/notes/{id}` with `If-Match` revision checks. There are no uploads, moves, offline write queues, synchronization, graph/canvas views, Dataview evaluation, plugin execution, collaboration, analytics, or telemetry. Search covers filenames/titles/aliases (`mode=files`) and note body text (`mode=content`). Ask answers on-device after retrieving notes through those search modes; it is not a separate HTTP search mode.
+Note body editing is supported via conditional `PUT /api/v1/notes/{id}` with `If-Match` revision checks. New notes can be created with `POST /api/v1/notes` from the browser `+` action when the vault is writable. Notes can be deleted with conditional `DELETE`. There are no uploads, moves, offline write queues, synchronization, graph/canvas views, Dataview evaluation, plugin execution, collaboration, analytics, or telemetry. Search covers filenames/titles/aliases (`mode=files`) and note body text (`mode=content`). Ask answers on-device after retrieving notes through those search modes; it is not a separate HTTP search mode.
 
-Future work: attachment CRUD, renames with backlink updates, create/delete notes. Writes use vault-concept endpoints with atomic replacement — not last-writer-wins or unrestricted filesystem access.
+Future work: attachment CRUD, renames with backlink updates. Writes use vault-concept endpoints with atomic replacement — not last-writer-wins or unrestricted filesystem access.
 
 See [docs/architecture.md](docs/architecture.md), [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md), and [api/openapi.yaml](api/openapi.yaml) for the detailed design and contract.
 

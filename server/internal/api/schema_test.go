@@ -124,6 +124,22 @@ func TestResponsesMatchOpenAPISchemas(t *testing.T) {
 	}
 	validateSchema(t, document, "ErrorResponse", conflictPayload)
 
+	createPayload, createStatus := fetchWithHeaders(t, http.MethodPost, base+"/api/v1/notes", strings.NewReader(`{"id":"Folder/SchemaCreated","content":"# Created\n\n"}`), map[string]string{
+		"Content-Type": "application/json",
+	})
+	if createStatus != http.StatusCreated {
+		t.Fatalf("create note status = %d body=%s", createStatus, createPayload)
+	}
+	validateSchema(t, document, "NoteResponse", createPayload)
+
+	existsPayload, existsStatus := fetchWithHeaders(t, http.MethodPost, base+"/api/v1/notes", strings.NewReader(`{"id":"Folder/SchemaCreated","content":"# duplicate"}`), map[string]string{
+		"Content-Type": "application/json",
+	})
+	if existsStatus != http.StatusConflict {
+		t.Fatalf("create conflict status = %d body=%s", existsStatus, existsPayload)
+	}
+	validateSchema(t, document, "ErrorResponse", existsPayload)
+
 	deletePayload, deleteStatus := fetchWithHeaders(t, http.MethodDelete, base+"/api/v1/notes/Folder/Note", nil, map[string]string{
 		"If-Match": `"` + revisionAfterUpdate + `"`,
 	})

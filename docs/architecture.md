@@ -77,6 +77,8 @@ Write path:
 
 Notes can be deleted with `DELETE /api/v1/notes/{id}` using a required `If-Match` header (same revision ETag as GET/PUT). The server verifies the on-disk revision, removes the `.md` file via `internal/vault`, and starts a full index refresh. Android deletes through `VaultRepository.deleteNote` and a trash icon on `NoteScreen` with confirmation.
 
+Notes can be created with `POST /api/v1/notes` and body `{ "id": "...", "content": "..." }` (no `If-Match`). The server validates the note ID via `internal/vault`, rejects conflicts when the note exists in the snapshot or on disk (`409` / `note_exists`), writes atomically, returns `201` + `NoteResponse`, and starts a full index refresh. Android creates through `VaultRepository.createNote`, orchestrated by `CreateNoteViewModel` on the browser route (title dialog → note in current folder → open in edit mode). The browse top bar shows `+` when `readOnly` is false.
+
 Note share on `NoteScreen` exports the loaded note body (or edit draft) to a cache `.md` file and opens the Android share chooser via `FileProvider`. The vault filesystem is never mounted on the device.
 
-Deferred: renames/moves, attachment CRUD, frontmatter/title editing, backlink-aware rewrites, create notes.
+Deferred: renames/moves, attachment CRUD, frontmatter/title editing, backlink-aware rewrites.
