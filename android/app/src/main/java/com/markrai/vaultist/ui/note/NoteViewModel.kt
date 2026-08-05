@@ -13,6 +13,7 @@ import com.markrai.vaultist.ui.browser.PendingBrowseSync
 import com.markrai.vaultist.ui.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,12 +45,14 @@ class NoteViewModel @Inject constructor(
     private val sharePreparer: NoteSharePreparer,
     noteOpenSeed: NoteOpenSeed,
     private val pendingBrowseSync: PendingBrowseSync,
+    private val pendingNoteSync: PendingNoteSync,
     private val browseUiConfig: BrowseUiConfig,
 ) : ViewModel() {
     val noteId: String = requireNotNull(savedStateHandle["id"])
     val fragment: String? = savedStateHandle["fragment"]
     private val openInEdit: Boolean = savedStateHandle.get<String>("edit") == "true"
     private var autoEditPending = openInEdit
+    private var reconcileJob: Job? = null
     private val _state = MutableStateFlow(NoteUiState())
     val state: StateFlow<NoteUiState> = _state
 
@@ -67,6 +70,7 @@ class NoteViewModel @Inject constructor(
 
     fun onReturnedToScreen() {
         if (_state.value.editing) return
+        pendingNoteSync.consumeReload(noteId)
         reconcileLinks()
     }
 
@@ -238,14 +242,15 @@ class NoteViewModel @Inject constructor(
     private fun reconcileLinks() {
         val current = _state.value
         if (current.editing || current.loading || current.saving || current.deleting || current.note == null) return
-        viewModelScope.launch {
+        reconcileJob?.cancel()
+        reconcileJob = viewModelScope.launch {
             repeat(browseUiConfig.indexPollAttempts) {
-                delay(browseUiConfig.indexPollDelayMs)
                 val status = repository.getIndexStatus()
                 if (status is VaultResult.Success && status.value.state != "indexing") {
                     load(showLoading = false)
                     return@launch
                 }
+                delay(browseUiConfig.indexPollDelayMs)
             }
         }
     }

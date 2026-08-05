@@ -122,13 +122,53 @@ class MarkdownInlineLinksTest {
         assertEquals(text.lastIndex, end)
     }
 
-    private fun hasLinkStyle(annotated: androidx.compose.ui.text.AnnotatedString, label: String): Boolean {
+    @Test
+    fun unmatchedWikiLinksRenderAsMissing() {
+        val annotated = annotatedInline(
+            text = "See [[Missing Note]] here.",
+            links = emptyList(),
+            linkColor = linkColor,
+            errorColor = errorColor,
+        )
+        val missing = annotated.getStringAnnotations(0, annotated.length)
+            .filter { it.tag == "missing" }
+            .map { it.item }
+        assertEquals(listOf("Missing Note"), missing)
+        assertTrue(hasLinkStyle(annotated, "Missing Note", errorColor))
+    }
+
+    @Test
+    fun linksForBacklinkContextMarksWikiSyntaxResolved() {
+        val links = linksForBacklinkContext(
+            context = "Ref [[Target|label]] end",
+            targetNoteId = "Folder/Target",
+            fragment = null,
+            display = "label",
+            occurrenceKind = "wiki",
+        )
+        val annotated = annotatedInline(
+            text = "Ref [[Target|label]] end",
+            links = links,
+            linkColor = linkColor,
+            errorColor = errorColor,
+        )
+        assertTrue(hasLinkStyle(annotated, "label", linkColor))
+    }
+
+    private fun hasLinkStyle(
+        annotated: androidx.compose.ui.text.AnnotatedString,
+        label: String,
+        color: Color = linkColor,
+    ): Boolean {
         val start = annotated.text.indexOf(label)
         require(start >= 0) { "label not found: $label" }
         return annotated.spanStyles.any { range ->
             range.start <= start && range.end >= start + label.length &&
                 range.item.textDecoration == TextDecoration.Underline &&
-                range.item.color == linkColor
+                range.item.color == color
         }
     }
+
+    private fun hasLinkStyle(annotated: androidx.compose.ui.text.AnnotatedString, label: String): Boolean =
+        hasLinkStyle(annotated, label, linkColor)
 }

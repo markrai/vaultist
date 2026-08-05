@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import com.markrai.vaultist.domain.LinkCandidate
+import com.markrai.vaultist.domain.LinkResolution
 import com.markrai.vaultist.domain.LinkStatus
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.NoteLink
@@ -226,6 +227,68 @@ private fun ParagraphBlock(
             }
         }
     }
+}
+
+@Composable
+fun InlineMarkdownText(
+    text: String,
+    links: List<NoteLink>,
+    onOpenNote: (String, String?) -> Unit,
+    onMissing: (String, Boolean) -> Unit,
+    onAmbiguous: (String, List<LinkCandidate>) -> Unit,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.body1,
+) {
+    InlineText(
+        text = text,
+        links = links,
+        style = style,
+        onOpenNote = onOpenNote,
+        onMissing = onMissing,
+        onAmbiguous = onAmbiguous,
+        onClearSelection = {},
+        modifier = modifier,
+    )
+}
+
+internal fun linksForBacklinkContext(
+    context: String,
+    targetNoteId: String,
+    fragment: String?,
+    display: String?,
+    occurrenceKind: String,
+): List<NoteLink> {
+    val links = mutableListOf<NoteLink>()
+    var cursor = 0
+    while (cursor < context.length) {
+        if (!context.startsWith("[[", cursor)) {
+            cursor++
+            continue
+        }
+        val end = context.indexOf("]]", cursor + 2)
+        if (end <= cursor) break
+        val raw = context.substring(cursor + 2, end)
+        links += NoteLink(
+            kind = occurrenceKind,
+            raw = raw,
+            target = raw.substringBefore('|').substringBefore('#').trim(),
+            fragment = fragment,
+            display = display,
+            line = 1,
+            column = cursor + 1,
+            context = context,
+            isEmbed = occurrenceKind == "wiki_embed",
+            isAsset = false,
+            resolution = LinkResolution(
+                status = LinkStatus.Resolved,
+                noteId = targetNoteId,
+                assetId = null,
+                candidates = emptyList(),
+            ),
+        )
+        cursor = end + 2
+    }
+    return links
 }
 
 @Composable
@@ -485,7 +548,12 @@ private fun AnnotatedString.Builder.appendAnnotatedLink(
             val target = raw.substringBefore('|').substringBefore('#').trim()
             appendStyledLink(label, UrlTag, normalizeWebUrl(target), linkColor)
         } else {
-            append(label)
+            val target = raw.substringBefore('|').substringBefore('#').trim()
+            if (target.isNotEmpty()) {
+                appendStyledLink(label, MissingTag, target, errorColor)
+            } else {
+                append(label)
+            }
         }
         return
     }

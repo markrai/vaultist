@@ -9,6 +9,7 @@ import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.domain.noteIdFromMissingLink
 import com.markrai.vaultist.domain.noteIdFromTitle
 import com.markrai.vaultist.ui.note.NoteOpenSeed
+import com.markrai.vaultist.ui.note.PendingNoteSync
 import com.markrai.vaultist.ui.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -29,6 +30,7 @@ data class CreateNoteUiState(
 class CreateNoteViewModel @Inject constructor(
     private val repository: VaultRepository,
     private val noteOpenSeed: NoteOpenSeed,
+    private val pendingNoteSync: PendingNoteSync,
 ) : ViewModel() {
     private val _state = MutableStateFlow(CreateNoteUiState())
     val state: StateFlow<CreateNoteUiState> = _state
@@ -86,6 +88,7 @@ class CreateNoteViewModel @Inject constructor(
             _state.update { it.copy(creating = true, error = null) }
             when (val result = repository.createNote(id, "")) {
                 is VaultResult.Success -> {
+                    pendingNoteSync.offerReload(sourceNoteId)
                     noteOpenSeed.offer(result.value)
                     _state.update { CreateNoteUiState(pendingOpenNote = result.value) }
                 }
@@ -95,6 +98,7 @@ class CreateNoteViewModel @Inject constructor(
                     if (exists) {
                         when (val existing = repository.getNote(id)) {
                             is VaultResult.Success -> {
+                                pendingNoteSync.offerReload(sourceNoteId)
                                 noteOpenSeed.offer(existing.value)
                                 _state.update { CreateNoteUiState(pendingOpenNote = existing.value) }
                             }

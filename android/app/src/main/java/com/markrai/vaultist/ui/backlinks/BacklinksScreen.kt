@@ -22,7 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.ui.components.ErrorPanel
+import com.markrai.vaultist.ui.markdown.InlineMarkdownText
+import com.markrai.vaultist.ui.markdown.linksForBacklinkContext
 import com.markrai.vaultist.ui.theme.Spacing
+import androidx.compose.ui.text.style.TextDecoration
 
 @Composable
 fun BacklinksScreen(
@@ -43,9 +46,28 @@ fun BacklinksScreen(
                 items(state.items, key = { "${it.sourceId}:${it.line}:${it.column}" }) { backlink ->
                     Card(Modifier.fillMaxWidth().clickable { onOpenSource(backlink.sourceId, backlink.line) }) {
                         Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                            Text(backlink.sourceTitle, style = MaterialTheme.typography.subtitle1)
+                            Text(
+                                backlink.sourceTitle,
+                                style = MaterialTheme.typography.subtitle1.copy(
+                                    color = MaterialTheme.colors.primary,
+                                    textDecoration = TextDecoration.Underline,
+                                ),
+                            )
                             Text(backlink.sourcePath, style = MaterialTheme.typography.caption)
-                            Text(backlink.context, style = MaterialTheme.typography.body2)
+                            InlineMarkdownText(
+                                text = backlink.context,
+                                links = linksForBacklinkContext(
+                                    context = backlink.context,
+                                    targetNoteId = viewModel.noteId,
+                                    fragment = backlink.fragment,
+                                    display = backlink.display,
+                                    occurrenceKind = backlink.occurrenceKind,
+                                ),
+                                onOpenNote = { _, _ -> onOpenSource(backlink.sourceId, backlink.line) },
+                                onMissing = { _, _ -> onOpenSource(backlink.sourceId, backlink.line) },
+                                onAmbiguous = { _, _ -> onOpenSource(backlink.sourceId, backlink.line) },
+                                style = MaterialTheme.typography.body2,
+                            )
                             Text("Line ${backlink.line}", color = MaterialTheme.colors.primary, style = MaterialTheme.typography.caption)
                         }
                     }

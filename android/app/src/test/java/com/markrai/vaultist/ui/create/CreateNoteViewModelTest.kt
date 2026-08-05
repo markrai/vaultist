@@ -5,6 +5,7 @@ import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
 import com.markrai.vaultist.ui.note.NoteOpenSeed
+import com.markrai.vaultist.ui.note.PendingNoteSync
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -26,8 +27,9 @@ class CreateNoteViewModelTest {
 
     private val repository = FakeVaultRepository()
     private val noteOpenSeed = NoteOpenSeed()
+    private val pendingNoteSync = PendingNoteSync()
 
-    private fun viewModel() = CreateNoteViewModel(repository, noteOpenSeed)
+    private fun viewModel() = CreateNoteViewModel(repository, noteOpenSeed, pendingNoteSync)
 
     @Test
     fun submitCreatesNoteSeedsOpenAndEmitsPendingNote() = runTest {
@@ -86,6 +88,7 @@ class CreateNoteViewModelTest {
         assertEquals("", repository.lastCreateContent)
         assertEquals("Projects/Cake", viewModel.state.value.pendingOpenNote?.id)
         assertEquals("Projects/Cake", noteOpenSeed.consume("Projects/Cake")?.id)
+        assertTrue(pendingNoteSync.consumeReload("Projects/A"))
     }
 
     @Test
@@ -125,5 +128,6 @@ class CreateNoteViewModelTest {
 
         assertEquals("Projects/baba", viewModel.state.value.pendingOpenNote?.id)
         assertEquals("Projects/baba", noteOpenSeed.consume("Projects/baba")?.id)
+        assertTrue(pendingNoteSync.consumeReload("Projects/gaga"))
     }
 }

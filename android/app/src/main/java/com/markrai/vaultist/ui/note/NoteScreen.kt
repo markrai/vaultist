@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -82,9 +83,17 @@ fun NoteScreen(
         }
     }
     val lifecycleOwner = LocalLifecycleOwner.current
+    var hasBeenVisible by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (hasBeenVisible) {
+            viewModel.onReturnedToScreen()
+        } else {
+            hasBeenVisible = true
+        }
+    }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
+            if (event == Lifecycle.Event.ON_RESUME && hasBeenVisible) {
                 viewModel.onReturnedToScreen()
             }
         }

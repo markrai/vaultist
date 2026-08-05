@@ -51,8 +51,9 @@ class NoteViewModelTest {
         handle: SavedStateHandle = SavedStateHandle(mapOf("id" to "Folder/Note")),
         noteOpenSeed: NoteOpenSeed = NoteOpenSeed(),
         pendingBrowseSync: PendingBrowseSync = PendingBrowseSync(),
+        pendingNoteSync: PendingNoteSync = PendingNoteSync(),
         browseUiConfig: BrowseUiConfig = BrowseUiConfig(indexPollDelayMs = 1),
-    ) = NoteViewModel(handle, repository, sharePreparer, noteOpenSeed, pendingBrowseSync, browseUiConfig)
+    ) = NoteViewModel(handle, repository, sharePreparer, noteOpenSeed, pendingBrowseSync, pendingNoteSync, browseUiConfig)
 
     @Test fun exposesNoteAndHeadingFragmentState() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository().apply {
