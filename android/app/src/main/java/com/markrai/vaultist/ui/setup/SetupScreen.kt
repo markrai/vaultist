@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedButton
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Switch
@@ -29,6 +30,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.R
+import com.markrai.vaultist.ui.theme.AppAppearance
+import com.markrai.vaultist.ui.theme.AppColorTheme
 import com.markrai.vaultist.ui.theme.Spacing
 
 @Composable
@@ -41,6 +44,8 @@ fun SetupScreen(onSaved: () -> Unit, onBack: () -> Unit, viewModel: SetupViewMod
         onTest = viewModel::testConnection,
         onSave = viewModel::save,
         onEnableAskThinkingChange = viewModel::setEnableAskThinking,
+        onColorThemeChange = viewModel::setColorTheme,
+        onAppearanceChange = viewModel::setAppearance,
         onBack = onBack,
     )
 }
@@ -52,6 +57,8 @@ fun SetupContent(
     onTest: () -> Unit,
     onSave: () -> Unit,
     onEnableAskThinkingChange: (Boolean) -> Unit,
+    onColorThemeChange: (AppColorTheme) -> Unit,
+    onAppearanceChange: (AppAppearance) -> Unit,
     onBack: () -> Unit,
 ) {
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.setup_server_title)) }, navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }) }) { padding ->
@@ -79,6 +86,44 @@ fun SetupContent(
             }
             Text(stringResource(R.string.setup_url_storage_note), style = MaterialTheme.typography.caption)
 
+            Text("Theme", style = MaterialTheme.typography.subtitle1)
+            Row(
+                Modifier.fillMaxWidth().testTag("theme_toggle_row"),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                ThemeOptionButton(
+                    label = "Ruby",
+                    selected = state.colorTheme == AppColorTheme.Ruby,
+                    onClick = { onColorThemeChange(AppColorTheme.Ruby) },
+                    modifier = Modifier.weight(1f).testTag("theme_ruby"),
+                )
+                ThemeOptionButton(
+                    label = "Forest",
+                    selected = state.colorTheme == AppColorTheme.Forest,
+                    onClick = { onColorThemeChange(AppColorTheme.Forest) },
+                    modifier = Modifier.weight(1f).testTag("theme_forest"),
+                )
+            }
+
+            Text("Appearance", style = MaterialTheme.typography.subtitle1)
+            Row(
+                Modifier.fillMaxWidth().testTag("appearance_toggle_row"),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                ThemeOptionButton(
+                    label = "Light",
+                    selected = state.appearance == AppAppearance.Light,
+                    onClick = { onAppearanceChange(AppAppearance.Light) },
+                    modifier = Modifier.weight(1f).testTag("appearance_light"),
+                )
+                ThemeOptionButton(
+                    label = "Dark",
+                    selected = state.appearance == AppAppearance.Dark,
+                    onClick = { onAppearanceChange(AppAppearance.Dark) },
+                    modifier = Modifier.weight(1f).testTag("appearance_dark"),
+                )
+            }
+
             Text("Ask", style = MaterialTheme.typography.subtitle1)
             Row(
                 Modifier.fillMaxWidth().testTag("ask_thinking_row"),
@@ -98,6 +143,24 @@ fun SetupContent(
                     modifier = Modifier.testTag("ask_thinking_toggle"),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ThemeOptionButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (selected) {
+        Button(onClick = onClick, modifier = modifier) {
+            Text(label)
+        }
+    } else {
+        OutlinedButton(onClick = onClick, modifier = modifier) {
+            Text(label)
         }
     }
 }

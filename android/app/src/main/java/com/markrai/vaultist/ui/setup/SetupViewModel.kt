@@ -6,7 +6,10 @@ import com.markrai.vaultist.BuildConfig
 import com.markrai.vaultist.data.api.normalizeServerUrl
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.AskPreferences
+import com.markrai.vaultist.data.settings.ThemePreferences
 import com.markrai.vaultist.domain.VaultResult
+import com.markrai.vaultist.ui.theme.AppAppearance
+import com.markrai.vaultist.ui.theme.AppColorTheme
 import com.markrai.vaultist.ui.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -24,12 +27,15 @@ data class SetupUiState(
     val valid: Boolean = false,
     val saved: Boolean = false,
     val enableAskThinking: Boolean = false,
+    val colorTheme: AppColorTheme = AppColorTheme.Ruby,
+    val appearance: AppAppearance = AppAppearance.Light,
 )
 
 @HiltViewModel
 class SetupViewModel @Inject constructor(
     private val repository: VaultRepository,
     private val askPreferences: AskPreferences,
+    private val themePreferences: ThemePreferences,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SetupUiState())
     val state: StateFlow<SetupUiState> = _state
@@ -43,6 +49,16 @@ class SetupViewModel @Inject constructor(
                 _state.update { it.copy(enableAskThinking = enabled) }
             }
         }
+        viewModelScope.launch {
+            themePreferences.colorTheme.collect { theme ->
+                _state.update { it.copy(colorTheme = theme) }
+            }
+        }
+        viewModelScope.launch {
+            themePreferences.appearance.collect { appearance ->
+                _state.update { it.copy(appearance = appearance) }
+            }
+        }
     }
 
     fun updateUrl(value: String) {
@@ -52,6 +68,18 @@ class SetupViewModel @Inject constructor(
     fun setEnableAskThinking(enabled: Boolean) {
         viewModelScope.launch {
             askPreferences.setEnableAskThinking(enabled)
+        }
+    }
+
+    fun setColorTheme(theme: AppColorTheme) {
+        viewModelScope.launch {
+            themePreferences.setColorTheme(theme)
+        }
+    }
+
+    fun setAppearance(appearance: AppAppearance) {
+        viewModelScope.launch {
+            themePreferences.setAppearance(appearance)
         }
     }
 

@@ -1,0 +1,27 @@
+package com.markrai.vaultist.testutil
+
+import com.markrai.vaultist.data.settings.ThemePreferences
+import com.markrai.vaultist.ui.theme.AppAppearance
+import com.markrai.vaultist.ui.theme.AppColorTheme
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+class FakeThemePreferences(
+    initialColorTheme: AppColorTheme = AppColorTheme.Ruby,
+    initialAppearance: AppAppearance = AppAppearance.Light,
+) : ThemePreferences {
+    private val _colorTheme = MutableStateFlow(initialColorTheme)
+    override val colorTheme: Flow<AppColorTheme> = _colorTheme.asStateFlow()
+
+    private val _appearance = MutableStateFlow(initialAppearance)
+    override val appearance: Flow<AppAppearance> = _appearance.asStateFlow()
+
+    override suspend fun setColorTheme(theme: AppColorTheme) {
+        _colorTheme.value = theme
+    }
+
+    override suspend fun setAppearance(appearance: AppAppearance) {
+        _appearance.value = appearance
+    }
+}

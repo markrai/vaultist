@@ -1,7 +1,10 @@
 package com.markrai.vaultist.ui.setup
 
 import com.markrai.vaultist.testutil.FakeAskPreferences
+import com.markrai.vaultist.testutil.FakeThemePreferences
 import com.markrai.vaultist.testutil.FakeVaultRepository
+import com.markrai.vaultist.ui.theme.AppAppearance
+import com.markrai.vaultist.ui.theme.AppColorTheme
 import com.markrai.vaultist.testutil.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -18,7 +21,7 @@ class SetupViewModelTest {
 
     @Test fun validatesTestsAndSavesOnlyTheTestedUrl() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository()
-        val viewModel = SetupViewModel(repository, FakeAskPreferences())
+        val viewModel = SetupViewModel(repository, FakeAskPreferences(), FakeThemePreferences())
         advanceUntilIdle()
         viewModel.updateUrl("https://vega.example.ts.net")
         viewModel.testConnection()
@@ -32,11 +35,31 @@ class SetupViewModelTest {
 
     @Test fun persistsAskThinkingPreference() = runTest(dispatcherRule.dispatcher) {
         val prefs = FakeAskPreferences()
-        val viewModel = SetupViewModel(FakeVaultRepository(), prefs)
+        val viewModel = SetupViewModel(FakeVaultRepository(), prefs, FakeThemePreferences())
         advanceUntilIdle()
         assertFalse(viewModel.state.value.enableAskThinking)
         viewModel.setEnableAskThinking(true)
         advanceUntilIdle()
         assertTrue(viewModel.state.value.enableAskThinking)
+    }
+
+    @Test fun persistsColorThemePreference() = runTest(dispatcherRule.dispatcher) {
+        val themePrefs = FakeThemePreferences()
+        val viewModel = SetupViewModel(FakeVaultRepository(), FakeAskPreferences(), themePrefs)
+        advanceUntilIdle()
+        assertEquals(AppColorTheme.Ruby, viewModel.state.value.colorTheme)
+        viewModel.setColorTheme(AppColorTheme.Forest)
+        advanceUntilIdle()
+        assertEquals(AppColorTheme.Forest, viewModel.state.value.colorTheme)
+    }
+
+    @Test fun persistsAppearancePreference() = runTest(dispatcherRule.dispatcher) {
+        val themePrefs = FakeThemePreferences()
+        val viewModel = SetupViewModel(FakeVaultRepository(), FakeAskPreferences(), themePrefs)
+        advanceUntilIdle()
+        assertEquals(AppAppearance.Light, viewModel.state.value.appearance)
+        viewModel.setAppearance(AppAppearance.Dark)
+        advanceUntilIdle()
+        assertEquals(AppAppearance.Dark, viewModel.state.value.appearance)
     }
 }
