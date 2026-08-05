@@ -22,8 +22,10 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowCircleRight
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -135,7 +137,11 @@ fun NoteScreen(
                     backgroundColor = MaterialTheme.colors.background,
                     contentColor = MaterialTheme.colors.onBackground,
                     elevation = 0.dp,
-                    navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
+                    },
                     actions = {
                         when {
                             state.editing -> {
@@ -147,7 +153,9 @@ fun NoteScreen(
                                 }
                             }
                             state.canEdit && state.note != null -> {
-                                TextButton(onClick = viewModel::enterEdit) { Text("Edit") }
+                                IconButton(onClick = viewModel::enterEdit) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                                }
                             }
                         }
                         IconButton(onClick = { onBacklinks(viewModel.noteId) }) {
