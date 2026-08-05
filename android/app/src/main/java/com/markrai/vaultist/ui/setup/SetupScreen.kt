@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
@@ -46,6 +48,7 @@ fun SetupScreen(onSaved: () -> Unit, onBack: () -> Unit, viewModel: SetupViewMod
         onEnableAskThinkingChange = viewModel::setEnableAskThinking,
         onColorThemeChange = viewModel::setColorTheme,
         onAppearanceChange = viewModel::setAppearance,
+        onRelativeModifiedDatesChange = viewModel::setRelativeModifiedDates,
         onBack = onBack,
     )
 }
@@ -59,11 +62,16 @@ fun SetupContent(
     onEnableAskThinkingChange: (Boolean) -> Unit,
     onColorThemeChange: (AppColorTheme) -> Unit,
     onAppearanceChange: (AppAppearance) -> Unit,
+    onRelativeModifiedDatesChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.setup_server_title)) }, navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }) }) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).padding(Spacing.md),
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             Text("Enter the HTTPS address exposed by Tailscale Serve. The Android emulator development default is 10.0.2.2, not localhost.")
@@ -121,6 +129,26 @@ fun SetupContent(
                     selected = state.appearance == AppAppearance.Dark,
                     onClick = { onAppearanceChange(AppAppearance.Dark) },
                     modifier = Modifier.weight(1f).testTag("appearance_dark"),
+                )
+            }
+
+            Text("Browse", style = MaterialTheme.typography.subtitle1)
+            Row(
+                Modifier.fillMaxWidth().testTag("relative_modified_dates_row"),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = Spacing.sm)) {
+                    Text("Relative dates")
+                    Text(
+                        "Show modified times as \"3 days ago\" instead of calendar dates.",
+                        style = MaterialTheme.typography.caption,
+                    )
+                }
+                Switch(
+                    checked = state.relativeModifiedDates,
+                    onCheckedChange = onRelativeModifiedDatesChange,
+                    modifier = Modifier.testTag("relative_modified_dates_toggle"),
                 )
             }
 

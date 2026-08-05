@@ -3,6 +3,7 @@ package com.markrai.vaultist.ui.browser
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.BrowseSortMode
+import com.markrai.vaultist.ui.components.parseModifiedAt
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

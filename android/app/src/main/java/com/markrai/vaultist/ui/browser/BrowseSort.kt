@@ -3,8 +3,7 @@ package com.markrai.vaultist.ui.browser
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.BrowseSortMode
-import java.time.Instant
-import java.time.format.DateTimeParseException
+import com.markrai.vaultist.ui.components.parseModifiedAt
 
 fun sortBrowseItems(items: List<BrowseItem>, mode: BrowseSortMode): List<BrowseItem> {
     val folders = items.filter { it.kind == BrowseKind.Folder }.sortedWith(folderComparator())
@@ -41,13 +40,4 @@ private fun modifiedDescNoteComparator() = Comparator<BrowseItem> { a, b ->
     val pathCmp = a.path.compareTo(b.path)
     if (pathCmp != 0) return@Comparator pathCmp
     a.id.orEmpty().compareTo(b.id.orEmpty())
-}
-
-internal fun parseModifiedAt(value: String?): Instant? {
-    if (value.isNullOrBlank()) return null
-    return try {
-        Instant.parse(value)
-    } catch (_: DateTimeParseException) {
-        null
-    }
 }

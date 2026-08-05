@@ -6,7 +6,9 @@ import com.markrai.vaultist.BuildConfig
 import com.markrai.vaultist.data.api.normalizeServerUrl
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.AskPreferences
+import com.markrai.vaultist.data.settings.ModifiedDatePreferences
 import com.markrai.vaultist.data.settings.ThemePreferences
+import com.markrai.vaultist.domain.ModifiedDateStyle
 import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.ui.theme.AppAppearance
 import com.markrai.vaultist.ui.theme.AppColorTheme
@@ -29,6 +31,7 @@ data class SetupUiState(
     val enableAskThinking: Boolean = false,
     val colorTheme: AppColorTheme = AppColorTheme.Ruby,
     val appearance: AppAppearance = AppAppearance.Light,
+    val relativeModifiedDates: Boolean = false,
 )
 
 @HiltViewModel
@@ -36,6 +39,7 @@ class SetupViewModel @Inject constructor(
     private val repository: VaultRepository,
     private val askPreferences: AskPreferences,
     private val themePreferences: ThemePreferences,
+    private val modifiedDatePreferences: ModifiedDatePreferences,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SetupUiState())
     val state: StateFlow<SetupUiState> = _state
@@ -59,6 +63,11 @@ class SetupViewModel @Inject constructor(
                 _state.update { it.copy(appearance = appearance) }
             }
         }
+        viewModelScope.launch {
+            modifiedDatePreferences.style.collect { style ->
+                _state.update { it.copy(relativeModifiedDates = style == ModifiedDateStyle.Relative) }
+            }
+        }
     }
 
     fun updateUrl(value: String) {
@@ -80,6 +89,14 @@ class SetupViewModel @Inject constructor(
     fun setAppearance(appearance: AppAppearance) {
         viewModelScope.launch {
             themePreferences.setAppearance(appearance)
+        }
+    }
+
+    fun setRelativeModifiedDates(enabled: Boolean) {
+        viewModelScope.launch {
+            modifiedDatePreferences.setStyle(
+                if (enabled) ModifiedDateStyle.Relative else ModifiedDateStyle.Absolute,
+            )
         }
     }
 

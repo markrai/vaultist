@@ -28,6 +28,7 @@ class SetupScreenTest {
                     onEnableAskThinkingChange = {},
                     onColorThemeChange = {},
                     onAppearanceChange = {},
+                    onRelativeModifiedDatesChange = {},
                     onBack = {},
                 )
             }
