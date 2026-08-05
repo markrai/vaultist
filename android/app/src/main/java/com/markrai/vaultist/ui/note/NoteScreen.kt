@@ -118,6 +118,7 @@ fun NoteScreen(
                 Text(
                     text = state.note?.title ?: "Note",
                     style = MaterialTheme.typography.h6,
+                    color = MaterialTheme.colors.primary,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(

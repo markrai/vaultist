@@ -9,10 +9,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.markrai.vaultist.domain.SearchMode
 
 private val LightColors = lightColors(
-    primary = Color(0xFF6750A4),
-    primaryVariant = Color(0xFF4F378B),
+    primary = Color(0xFFE0115F),
+    primaryVariant = Color(0xFFB80E4C),
     secondary = Color(0xFF625B71),
     background = Color(0xFFFFFBFE),
     surface = Color(0xFFFFFBFE),
@@ -22,39 +23,65 @@ private val LightColors = lightColors(
 )
 
 private val DarkColors = darkColors(
-    primary = Color(0xFFD0BCFF),
-    primaryVariant = Color(0xFFEADDFF),
+    primary = Color(0xFFFF6B8F),
+    primaryVariant = Color(0xFFFF8FA8),
     secondary = Color(0xFFCCC2DC),
     background = Color(0xFF1C1B1F),
     surface = Color(0xFF1C1B1F),
-    onPrimary = Color(0xFF381E72),
+    onPrimary = Color(0xFF3B0015),
     onBackground = Color(0xFFE6E1E5),
     onSurface = Color(0xFFE6E1E5),
 )
 
 data class VaultistExtendedColors(
-    val browseModeToggle: Color,
-    val onBrowseModeToggle: Color,
+    val browseModeFiles: Color,
+    val onBrowseModeFiles: Color,
+    val browseModeContent: Color,
+    val onBrowseModeContent: Color,
+    val browseModeAsk: Color,
+    val onBrowseModeAsk: Color,
 )
 
 private val LightExtendedColors = VaultistExtendedColors(
-    browseModeToggle = Color(0xFF2E5A3C),
-    onBrowseModeToggle = Color.White,
+    browseModeFiles = Color(0xFFDE3163),
+    onBrowseModeFiles = Color.White,
+    browseModeContent = Color(0xFFDE3163),
+    onBrowseModeContent = Color.White,
+    browseModeAsk = Color(0xFFDE3163),
+    onBrowseModeAsk = Color.White,
 )
 
 private val DarkExtendedColors = VaultistExtendedColors(
-    browseModeToggle = Color(0xFF4A8B5E),
-    onBrowseModeToggle = Color(0xFFE8F5E9),
+    browseModeFiles = Color(0xFFDE3163),
+    onBrowseModeFiles = Color.White,
+    browseModeContent = Color(0xFFDE3163),
+    onBrowseModeContent = Color.White,
+    browseModeAsk = Color(0xFFDE3163),
+    onBrowseModeAsk = Color.White,
 )
 
 val LocalVaultistExtendedColors = staticCompositionLocalOf { LightExtendedColors }
 
 object VaultistThemeColors {
-    val browseModeToggle: Color
-        @Composable get() = LocalVaultistExtendedColors.current.browseModeToggle
+    @Composable
+    fun browseModeToggle(mode: SearchMode): Color {
+        val colors = LocalVaultistExtendedColors.current
+        return when (mode) {
+            SearchMode.Files -> colors.browseModeFiles
+            SearchMode.Content -> colors.browseModeContent
+            SearchMode.Ask -> colors.browseModeAsk
+        }
+    }
 
-    val onBrowseModeToggle: Color
-        @Composable get() = LocalVaultistExtendedColors.current.onBrowseModeToggle
+    @Composable
+    fun onBrowseModeToggle(mode: SearchMode): Color {
+        val colors = LocalVaultistExtendedColors.current
+        return when (mode) {
+            SearchMode.Files -> colors.onBrowseModeFiles
+            SearchMode.Content -> colors.onBrowseModeContent
+            SearchMode.Ask -> colors.onBrowseModeAsk
+        }
+    }
 }
 
 @Composable

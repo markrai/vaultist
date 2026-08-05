@@ -266,8 +266,8 @@ private fun SearchBar(
             elevation = ButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
             contentPadding = PaddingValues(horizontal = Spacing.xs),
             colors = ButtonDefaults.buttonColors(
-                backgroundColor = VaultistThemeColors.browseModeToggle,
-                contentColor = VaultistThemeColors.onBrowseModeToggle,
+                backgroundColor = VaultistThemeColors.browseModeToggle(searchMode),
+                contentColor = VaultistThemeColors.onBrowseModeToggle(searchMode),
             ),
         ) {
             Text(
