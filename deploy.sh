@@ -36,8 +36,22 @@ cd "$COMPOSE_DIR"
 ENV_FILE=".env"
 if [[ -f "$ENV_FILE" ]]; then
   set -a
-  # shellcheck disable=SC1091
-  source "$ENV_FILE"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -z "$line" ]] && continue
+    if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      key="${BASH_REMATCH[1]}"
+      value="${BASH_REMATCH[2]}"
+      if [[ "$value" =~ ^\".*\"$ ]]; then
+        value="${value:1:-1}"
+      elif [[ "$value" =~ ^\'.*\'$ ]]; then
+        value="${value:1:-1}"
+      fi
+      export "$key=$value"
+    fi
+  done < "$ENV_FILE"
   set +a
 fi
 
