@@ -1,5 +1,6 @@
 package com.markrai.vaultist.ui.markdown
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -14,21 +16,31 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.Card
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -62,6 +74,14 @@ fun MarkdownRenderer(
 ) {
     val blocks = remember(note.id, note.revision) { MarkdownDocumentParser.parse(note.content) }
     val listState = rememberLazyListState()
+    val focusManager = LocalFocusManager.current
+    val view = LocalView.current
+    val clearSelection = remember(focusManager, view) {
+        {
+            focusManager.clearFocus(force = true)
+            view.clearFocus()
+        }
+    }
     LaunchedEffect(note.id, fragment, blocks) {
         val target = when {
             fragment.isNullOrBlank() -> -1
@@ -73,33 +93,69 @@ fun MarkdownRenderer(
         }
         if (target >= 0) listState.scrollToItem(target)
     }
-    LazyColumn(
-        modifier = modifier.padding(horizontal = Spacing.md),
-        state = listState,
-        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        itemsIndexed(blocks, key = { index, block -> "${block.sourceLine}:$index" }) { _, block ->
-            when (block) {
-                is MarkdownBlock.Heading -> InlineText(
-                    block.text, note.links, headingStyle(block.level), onOpenNote, onMissing, onAmbiguous,
-                    modifier = Modifier.padding(top = if (block.level <= 2) Spacing.md else Spacing.sm),
-                )
-                is MarkdownBlock.Paragraph -> ParagraphBlock(block.text, note, assetUrl, onOpenNote, onMissing, onAmbiguous, onOpenImage)
-                is MarkdownBlock.ListItem -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Text(if (block.ordered) "${block.number ?: 1}." else "•", style = MaterialTheme.typography.body1)
-                    InlineText(block.text, note.links, MaterialTheme.typography.body1, onOpenNote, onMissing, onAmbiguous, Modifier.weight(1f))
-                }
-                is MarkdownBlock.Quote -> Row {
-                    Box(Modifier.padding(end = Spacing.sm).background(MaterialTheme.colors.primary).heightIn(min = 24.dp).padding(horizontal = 2.dp))
-                    InlineText(
-                        block.text, note.links, MaterialTheme.typography.body1.copy(fontStyle = FontStyle.Italic),
-                        onOpenNote, onMissing, onAmbiguous, Modifier.weight(1f),
+    SelectionContainer(modifier = modifier) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .clearSelectionOnUnhandledTap(clearSelection)
+                .padding(horizontal = Spacing.md),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            itemsIndexed(blocks, key = { index, block -> "${block.sourceLine}:$index" }) { _, block ->
+                when (block) {
+                    is MarkdownBlock.Heading -> InlineText(
+                        block.text, note.links, headingStyle(block.level), onOpenNote, onMissing, onAmbiguous,
+                        onClearSelection = clearSelection,
+                        modifier = Modifier.padding(top = if (block.level <= 2) Spacing.md else Spacing.sm),
                     )
-                }
-                is MarkdownBlock.Code -> Card(backgroundColor = MaterialTheme.colors.onSurface.copy(alpha = 0.06f), elevation = 0.dp) {
-                    Column(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(Spacing.md)) {
-                        block.language?.let { Text(it, style = MaterialTheme.typography.caption, color = MaterialTheme.colors.primary) }
-                        Text(block.content, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.body2)
+                    is MarkdownBlock.Paragraph -> ParagraphBlock(
+                        block.text, note, assetUrl, onOpenNote, onMissing, onAmbiguous, onOpenImage, clearSelection,
+                    )
+                    is MarkdownBlock.ListItem -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        Text(
+                            if (block.ordered) "${block.number ?: 1}." else "•",
+                            style = MaterialTheme.typography.body1,
+                            modifier = Modifier.clearSelectionOnTap(clearSelection),
+                        )
+                        InlineText(
+                            block.text, note.links, MaterialTheme.typography.body1, onOpenNote, onMissing, onAmbiguous,
+                            onClearSelection = clearSelection,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    is MarkdownBlock.Quote -> Row {
+                        Box(Modifier.padding(end = Spacing.sm).background(MaterialTheme.colors.primary).heightIn(min = 24.dp).padding(horizontal = 2.dp))
+                        InlineText(
+                            block.text, note.links, MaterialTheme.typography.body1.copy(fontStyle = FontStyle.Italic),
+                            onOpenNote, onMissing, onAmbiguous,
+                            onClearSelection = clearSelection,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    is MarkdownBlock.Code -> Card(backgroundColor = MaterialTheme.colors.onSurface.copy(alpha = 0.06f), elevation = 0.dp) {
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .clearSelectionOnTap(clearSelection)
+                                .padding(Spacing.md),
+                        ) {
+                            block.language?.let {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.caption,
+                                    color = MaterialTheme.colors.primary,
+                                    modifier = Modifier.clearSelectionOnTap(clearSelection),
+                                )
+                            }
+                            Text(
+                                block.content,
+                                fontFamily = FontFamily.Monospace,
+                                style = MaterialTheme.typography.body2,
+                                modifier = Modifier.clearSelectionOnTap(clearSelection),
+                            )
+                        }
                     }
                 }
             }
@@ -116,11 +172,17 @@ private fun ParagraphBlock(
     onMissing: (String) -> Unit,
     onAmbiguous: (String, List<LinkCandidate>) -> Unit,
     onOpenImage: (String) -> Unit,
+    onClearSelection: () -> Unit,
 ) {
     val images = remember(text, note.links) { imageLinks(text, note.links) }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         val displayText = removeImageSyntax(text, note.links)
-        if (displayText.isNotBlank()) InlineText(displayText, note.links, MaterialTheme.typography.body1, onOpenNote, onMissing, onAmbiguous)
+        if (displayText.isNotBlank()) {
+            InlineText(
+                displayText, note.links, MaterialTheme.typography.body1, onOpenNote, onMissing, onAmbiguous,
+                onClearSelection = onClearSelection,
+            )
+        }
         images.forEach { link ->
             when (link.resolution.status) {
                 LinkStatus.Resolved -> {
@@ -132,14 +194,27 @@ private fun ParagraphBlock(
                         contentScale = ContentScale.FillWidth,
                         loading = { Box(Modifier.fillMaxWidth().heightIn(min = 120.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } },
                         error = { Text("Image could not be loaded: ${link.target}", color = MaterialTheme.colors.error) },
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp).clickable(enabled = assetId != null) { assetId?.let(onOpenImage) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 480.dp)
+                            .clickable(enabled = assetId != null) {
+                                onClearSelection()
+                                assetId?.let(onOpenImage)
+                            },
                     )
                 }
                 LinkStatus.Ambiguous -> Text(
                     "Ambiguous image: ${link.target} (${link.resolution.candidates.joinToString { it.path }})",
                     color = MaterialTheme.colors.error,
+                    modifier = Modifier.clearSelectionOnTap(onClearSelection),
                 )
-                else -> Text("Missing image: ${link.target}", color = MaterialTheme.colors.error, modifier = Modifier.clickable { onMissing(link.target) })
+                else -> Text(
+                    "Missing image: ${link.target}",
+                    color = MaterialTheme.colors.error,
+                    modifier = Modifier
+                        .clearSelectionOnTap(onClearSelection)
+                        .clickable { onMissing(link.target) },
+                )
             }
         }
     }
@@ -153,25 +228,78 @@ private fun InlineText(
     onOpenNote: (String, String?) -> Unit,
     onMissing: (String) -> Unit,
     onAmbiguous: (String, List<LinkCandidate>) -> Unit,
+    onClearSelection: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val linkColor = MaterialTheme.colors.primary
     val errorColor = MaterialTheme.colors.error
     val annotated = remember(text, links, linkColor, errorColor) { annotatedInline(text, links, linkColor, errorColor) }
     val uriHandler = LocalUriHandler.current
-    ClickableText(text = annotated, style = style.copy(color = MaterialTheme.colors.onSurface), modifier = modifier) { offset ->
-        annotated.getStringAnnotations(start = offset, end = offset).firstOrNull()?.let { annotation ->
-            when (annotation.tag) {
-                NoteTag -> {
-                    val pieces = annotation.item.split('\n', limit = 2)
-                    onOpenNote(pieces[0], pieces.getOrNull(1)?.takeIf(String::isNotBlank))
+    var layoutResult by remember(text, annotated) { mutableStateOf<TextLayoutResult?>(null) }
+    Text(
+        text = annotated,
+        style = style.copy(color = MaterialTheme.colors.onSurface),
+        modifier = modifier.pointerInput(annotated, layoutResult, onClearSelection) {
+            detectTapGestures { position ->
+                val offset = layoutResult?.getOffsetForPosition(position) ?: run {
+                    onClearSelection()
+                    return@detectTapGestures
                 }
-                UrlTag -> runCatching { uriHandler.openUri(annotation.item) }
-                MissingTag -> onMissing(annotation.item)
-                AmbiguousTag -> {
-                    val match = links.firstOrNull { it.raw == annotation.item && it.resolution.status == LinkStatus.Ambiguous }
-                    onAmbiguous(match?.target ?: annotation.item, match?.resolution?.candidates.orEmpty())
+                val hasLink = annotated.getStringAnnotations(start = offset, end = offset).isNotEmpty()
+                if (hasLink) {
+                    handleInlineAnnotationClick(
+                        offset = offset,
+                        annotated = annotated,
+                        links = links,
+                        uriHandler = uriHandler,
+                        onOpenNote = onOpenNote,
+                        onMissing = onMissing,
+                        onAmbiguous = onAmbiguous,
+                    )
+                } else {
+                    onClearSelection()
                 }
+            }
+        },
+        onTextLayout = { layoutResult = it },
+    )
+}
+
+private fun Modifier.clearSelectionOnTap(onClearSelection: () -> Unit): Modifier = pointerInput(onClearSelection) {
+    detectTapGestures { onClearSelection() }
+}
+
+private fun Modifier.clearSelectionOnUnhandledTap(onClearSelection: () -> Unit): Modifier = pointerInput(onClearSelection) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Final)
+            if (event.type != PointerEventType.Release) continue
+            if (event.changes.any { it.isConsumed }) continue
+            onClearSelection()
+        }
+    }
+}
+
+private fun handleInlineAnnotationClick(
+    offset: Int,
+    annotated: AnnotatedString,
+    links: List<NoteLink>,
+    uriHandler: UriHandler,
+    onOpenNote: (String, String?) -> Unit,
+    onMissing: (String) -> Unit,
+    onAmbiguous: (String, List<LinkCandidate>) -> Unit,
+) {
+    annotated.getStringAnnotations(start = offset, end = offset).firstOrNull()?.let { annotation ->
+        when (annotation.tag) {
+            NoteTag -> {
+                val pieces = annotation.item.split('\n', limit = 2)
+                onOpenNote(pieces[0], pieces.getOrNull(1)?.takeIf(String::isNotBlank))
+            }
+            UrlTag -> runCatching { uriHandler.openUri(annotation.item) }
+            MissingTag -> onMissing(annotation.item)
+            AmbiguousTag -> {
+                val match = links.firstOrNull { it.raw == annotation.item && it.resolution.status == LinkStatus.Ambiguous }
+                onAmbiguous(match?.target ?: annotation.item, match?.resolution?.candidates.orEmpty())
             }
         }
     }
