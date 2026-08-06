@@ -81,6 +81,7 @@ private val SearchControlHeight = 56.dp
 // Matches NoteResultCard with caption + title (grid cells share one row height).
 private val BrowseGridTileMinHeight = 76.dp
 private val BrowseGridDateRowHeight = 16.dp
+private const val ShowVaultNameInTopBar = false
 
 @Composable
 fun BrowserScreen(
@@ -122,39 +123,14 @@ fun BrowserScreen(
     Scaffold(topBar = {
         TopAppBar(
             title = {
-                Column {
-                    Text(state.vault?.name ?: stringResource(R.string.default_vault_name))
-                    if (!state.isSearchResults && state.searchMode != SearchMode.Ask && state.folder.isNotEmpty()) {
-                        Text(state.folder, style = MaterialTheme.typography.caption)
-                    }
-                }
+                BrowseTopBarTitle(
+                    state = state,
+                    onToggleViewMode = viewModel::toggleViewMode,
+                    onToggleSortMode = viewModel::toggleSortMode,
+                )
             },
             actions = {
                 if (state.searchMode != SearchMode.Ask) {
-                    IconButton(onClick = viewModel::toggleViewMode) {
-                        when (state.viewMode) {
-                            BrowseViewMode.Stacked -> Icon(
-                                Icons.Default.GridView,
-                                contentDescription = "Grid view",
-                            )
-                            BrowseViewMode.Grid -> Icon(
-                                Icons.Default.ViewAgenda,
-                                contentDescription = "Stacked view",
-                            )
-                        }
-                    }
-                    IconButton(onClick = viewModel::toggleSortMode) {
-                        when (state.sortMode) {
-                            BrowseSortMode.Alphabetical -> Icon(
-                                Icons.Default.SortByAlpha,
-                                contentDescription = "Sort by date modified",
-                            )
-                            BrowseSortMode.ModifiedDesc -> Icon(
-                                Icons.Default.AccessTime,
-                                contentDescription = "Sort alphabetically",
-                            )
-                        }
-                    }
                     IconButton(onClick = viewModel::refresh, enabled = !state.refreshing) {
                         Icon(Icons.Default.Refresh, "Refresh index")
                     }
@@ -248,6 +224,50 @@ fun BrowserScreen(
             onDismiss = createNoteViewModel::dismissDialog,
             onCreate = { createNoteViewModel.submit(state.folder) },
         )
+    }
+}
+
+@Composable
+private fun BrowseTopBarTitle(
+    state: BrowserUiState,
+    onToggleViewMode: () -> Unit,
+    onToggleSortMode: () -> Unit,
+) {
+    Column {
+        if (ShowVaultNameInTopBar) {
+            Text(state.vault?.name ?: stringResource(R.string.default_vault_name))
+        }
+        if (state.searchMode != SearchMode.Ask) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onToggleViewMode) {
+                    when (state.viewMode) {
+                        BrowseViewMode.Stacked -> Icon(
+                            Icons.Default.GridView,
+                            contentDescription = "Grid view",
+                        )
+                        BrowseViewMode.Grid -> Icon(
+                            Icons.Default.ViewAgenda,
+                            contentDescription = "Stacked view",
+                        )
+                    }
+                }
+                IconButton(onClick = onToggleSortMode) {
+                    when (state.sortMode) {
+                        BrowseSortMode.Alphabetical -> Icon(
+                            Icons.Default.SortByAlpha,
+                            contentDescription = "Sort by date modified",
+                        )
+                        BrowseSortMode.ModifiedDesc -> Icon(
+                            Icons.Default.AccessTime,
+                            contentDescription = "Sort alphabetically",
+                        )
+                    }
+                }
+            }
+        }
+        if (!state.isSearchResults && state.searchMode != SearchMode.Ask && state.folder.isNotEmpty()) {
+            Text(state.folder, style = MaterialTheme.typography.caption)
+        }
     }
 }
 
