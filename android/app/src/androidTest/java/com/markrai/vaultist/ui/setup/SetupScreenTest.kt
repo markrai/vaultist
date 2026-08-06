@@ -29,6 +29,7 @@ class SetupScreenTest {
                     onColorThemeChange = {},
                     onAppearanceChange = {},
                     onRelativeModifiedDatesChange = {},
+                    onDateTimeInsertFormatChange = {},
                     onBack = {},
                     initialTab = SetupTab.CONNECT,
                 )
@@ -53,11 +54,13 @@ class SetupScreenTest {
                     onColorThemeChange = {},
                     onAppearanceChange = {},
                     onRelativeModifiedDatesChange = {},
+                    onDateTimeInsertFormatChange = {},
                     onBack = {},
                 )
             }
         }
         composeRule.onNodeWithTag("relative_modified_dates_toggle").assertExists()
+        composeRule.onNodeWithTag("datetime_format_iso_date_time").assertExists()
         composeRule.onNodeWithTag("ask_thinking_toggle").assertDoesNotExist()
         composeRule.onNodeWithTag("server_url").assertDoesNotExist()
     }
@@ -74,6 +77,7 @@ class SetupScreenTest {
                     onColorThemeChange = {},
                     onAppearanceChange = {},
                     onRelativeModifiedDatesChange = {},
+                    onDateTimeInsertFormatChange = {},
                     onBack = {},
                 )
             }
@@ -94,6 +98,7 @@ class SetupScreenTest {
                     onColorThemeChange = {},
                     onAppearanceChange = {},
                     onRelativeModifiedDatesChange = {},
+                    onDateTimeInsertFormatChange = {},
                     onBack = {},
                 )
             }

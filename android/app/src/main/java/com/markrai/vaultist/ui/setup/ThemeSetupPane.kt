@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -39,13 +37,13 @@ fun ThemeSetupPane(
             Modifier.fillMaxWidth().testTag("theme_toggle_row"),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
-            ThemeOptionButton(
+            SettingsOptionButton(
                 label = "Ruby",
                 selected = colorTheme == AppColorTheme.Ruby,
                 onClick = { onColorThemeChange(AppColorTheme.Ruby) },
                 modifier = Modifier.weight(1f).testTag("theme_ruby"),
             )
-            ThemeOptionButton(
+            SettingsOptionButton(
                 label = "Forest",
                 selected = colorTheme == AppColorTheme.Forest,
                 onClick = { onColorThemeChange(AppColorTheme.Forest) },
@@ -58,36 +56,18 @@ fun ThemeSetupPane(
             Modifier.fillMaxWidth().testTag("appearance_toggle_row"),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
-            ThemeOptionButton(
+            SettingsOptionButton(
                 label = "Light",
                 selected = appearance == AppAppearance.Light,
                 onClick = { onAppearanceChange(AppAppearance.Light) },
                 modifier = Modifier.weight(1f).testTag("appearance_light"),
             )
-            ThemeOptionButton(
+            SettingsOptionButton(
                 label = "Dark",
                 selected = appearance == AppAppearance.Dark,
                 onClick = { onAppearanceChange(AppAppearance.Dark) },
                 modifier = Modifier.weight(1f).testTag("appearance_dark"),
             )
-        }
-    }
-}
-
-@Composable
-private fun ThemeOptionButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    if (selected) {
-        Button(onClick = onClick, modifier = modifier) {
-            Text(label)
-        }
-    } else {
-        OutlinedButton(onClick = onClick, modifier = modifier) {
-            Text(label)
         }
     }
 }

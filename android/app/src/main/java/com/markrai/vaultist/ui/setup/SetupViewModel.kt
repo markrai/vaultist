@@ -6,8 +6,10 @@ import com.markrai.vaultist.BuildConfig
 import com.markrai.vaultist.data.api.normalizeServerUrl
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.AskPreferences
+import com.markrai.vaultist.data.settings.DateTimeInsertPreferences
 import com.markrai.vaultist.data.settings.ModifiedDatePreferences
 import com.markrai.vaultist.data.settings.ThemePreferences
+import com.markrai.vaultist.domain.DateTimeInsertFormat
 import com.markrai.vaultist.domain.ModifiedDateStyle
 import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.ui.theme.AppAppearance
@@ -32,6 +34,7 @@ data class SetupUiState(
     val colorTheme: AppColorTheme = AppColorTheme.Ruby,
     val appearance: AppAppearance = AppAppearance.Light,
     val relativeModifiedDates: Boolean = false,
+    val dateTimeInsertFormat: DateTimeInsertFormat = DateTimeInsertFormat.IsoDateTime,
 )
 
 @HiltViewModel
@@ -40,6 +43,7 @@ class SetupViewModel @Inject constructor(
     private val askPreferences: AskPreferences,
     private val themePreferences: ThemePreferences,
     private val modifiedDatePreferences: ModifiedDatePreferences,
+    private val dateTimeInsertPreferences: DateTimeInsertPreferences,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SetupUiState())
     val state: StateFlow<SetupUiState> = _state
@@ -66,6 +70,11 @@ class SetupViewModel @Inject constructor(
         viewModelScope.launch {
             modifiedDatePreferences.style.collect { style ->
                 _state.update { it.copy(relativeModifiedDates = style == ModifiedDateStyle.Relative) }
+            }
+        }
+        viewModelScope.launch {
+            dateTimeInsertPreferences.format.collect { format ->
+                _state.update { it.copy(dateTimeInsertFormat = format) }
             }
         }
     }
@@ -97,6 +106,12 @@ class SetupViewModel @Inject constructor(
             modifiedDatePreferences.setStyle(
                 if (enabled) ModifiedDateStyle.Relative else ModifiedDateStyle.Absolute,
             )
+        }
+    }
+
+    fun setDateTimeInsertFormat(format: DateTimeInsertFormat) {
+        viewModelScope.launch {
+            dateTimeInsertPreferences.setFormat(format)
         }
     }
 

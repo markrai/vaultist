@@ -7,9 +7,10 @@ import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.di.config.BrowseUiConfig
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
+import com.markrai.vaultist.domain.DateTimeInsertFormat
 import com.markrai.vaultist.domain.IndexState
 import com.markrai.vaultist.domain.SearchPage
-import com.markrai.vaultist.testutil.FakeDateTimeInsertFormatter
+import com.markrai.vaultist.testutil.FakeDateTimeInsertPreferences
 import com.markrai.vaultist.testutil.FakeNoteSharePreparer
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
@@ -59,7 +60,7 @@ class NoteViewModelTest {
         pendingBrowseSync: PendingBrowseSync = PendingBrowseSync(),
         pendingNoteSync: PendingNoteSync = PendingNoteSync(),
         browseUiConfig: BrowseUiConfig = BrowseUiConfig(debounceMs = 50, indexPollDelayMs = 1),
-        dateTimeInsertFormatter: FakeDateTimeInsertFormatter = FakeDateTimeInsertFormatter(),
+        dateTimeInsertPreferences: FakeDateTimeInsertPreferences = FakeDateTimeInsertPreferences(),
     ) = NoteViewModel(
         handle,
         repository,
@@ -68,7 +69,7 @@ class NoteViewModelTest {
         pendingBrowseSync,
         pendingNoteSync,
         browseUiConfig,
-        dateTimeInsertFormatter,
+        dateTimeInsertPreferences,
     )
 
     private fun draftAtEnd(text: String) = NoteEditDraft.atEnd(text)
@@ -333,12 +334,13 @@ class NoteViewModelTest {
         }
         val viewModel = viewModel(
             repository = repository,
-            dateTimeInsertFormatter = FakeDateTimeInsertFormatter("2026-08-06 09:00"),
+            dateTimeInsertPreferences = FakeDateTimeInsertPreferences(DateTimeInsertFormat.IsoDateTime),
         )
         advanceUntilIdle()
         viewModel.enterEdit()
+        val expectedStamp = DateTimeInsertFormat.IsoDateTime.format()
         viewModel.insertDateTime()
-        assertEquals("2026-08-06 09:00# Note", viewModel.state.value.draft.text)
+        assertEquals("$expectedStamp# Note", viewModel.state.value.draft.text)
     }
 
     @Test fun wikiSuggestionsDebounceFilesSearchWhileTypingLink() = runTest(dispatcherRule.dispatcher) {

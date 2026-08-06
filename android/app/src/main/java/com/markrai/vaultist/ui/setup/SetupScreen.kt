@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.R
+import com.markrai.vaultist.domain.DateTimeInsertFormat
 import com.markrai.vaultist.ui.theme.AppAppearance
 import com.markrai.vaultist.ui.theme.AppColorTheme
 import com.markrai.vaultist.ui.theme.Spacing
@@ -43,6 +44,7 @@ fun SetupScreen(onSaved: () -> Unit, onBack: () -> Unit, viewModel: SetupViewMod
         onColorThemeChange = viewModel::setColorTheme,
         onAppearanceChange = viewModel::setAppearance,
         onRelativeModifiedDatesChange = viewModel::setRelativeModifiedDates,
+        onDateTimeInsertFormatChange = viewModel::setDateTimeInsertFormat,
         onBack = onBack,
     )
 }
@@ -57,6 +59,7 @@ fun SetupContent(
     onColorThemeChange: (AppColorTheme) -> Unit,
     onAppearanceChange: (AppAppearance) -> Unit,
     onRelativeModifiedDatesChange: (Boolean) -> Unit,
+    onDateTimeInsertFormatChange: (DateTimeInsertFormat) -> Unit,
     onBack: () -> Unit,
     initialTab: SetupTab = SetupTab.PREFERENCES,
 ) {
@@ -90,6 +93,8 @@ fun SetupContent(
                         modifier = Modifier.weight(1f),
                         relativeModifiedDates = state.relativeModifiedDates,
                         onRelativeModifiedDatesChange = onRelativeModifiedDatesChange,
+                        dateTimeInsertFormat = state.dateTimeInsertFormat,
+                        onDateTimeInsertFormatChange = onDateTimeInsertFormatChange,
                     )
                 }
                 SetupTab.CONNECT -> {

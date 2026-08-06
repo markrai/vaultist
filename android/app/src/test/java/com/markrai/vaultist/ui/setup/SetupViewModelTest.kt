@@ -1,9 +1,11 @@
 package com.markrai.vaultist.ui.setup
 
 import com.markrai.vaultist.testutil.FakeAskPreferences
+import com.markrai.vaultist.testutil.FakeDateTimeInsertPreferences
 import com.markrai.vaultist.testutil.FakeModifiedDatePreferences
 import com.markrai.vaultist.testutil.FakeThemePreferences
 import com.markrai.vaultist.testutil.FakeVaultRepository
+import com.markrai.vaultist.domain.DateTimeInsertFormat
 import com.markrai.vaultist.ui.theme.AppAppearance
 import com.markrai.vaultist.ui.theme.AppColorTheme
 import com.markrai.vaultist.testutil.MainDispatcherRule
@@ -22,7 +24,13 @@ class SetupViewModelTest {
 
     @Test fun validatesTestsAndSavesOnlyTheTestedUrl() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository()
-        val viewModel = SetupViewModel(repository, FakeAskPreferences(), FakeThemePreferences(), FakeModifiedDatePreferences())
+        val viewModel = SetupViewModel(
+            repository,
+            FakeAskPreferences(),
+            FakeThemePreferences(),
+            FakeModifiedDatePreferences(),
+            FakeDateTimeInsertPreferences(),
+        )
         advanceUntilIdle()
         viewModel.updateUrl("https://vega.example.ts.net")
         viewModel.testConnection()
@@ -36,7 +44,13 @@ class SetupViewModelTest {
 
     @Test fun persistsAskThinkingPreference() = runTest(dispatcherRule.dispatcher) {
         val prefs = FakeAskPreferences()
-        val viewModel = SetupViewModel(FakeVaultRepository(), prefs, FakeThemePreferences(), FakeModifiedDatePreferences())
+        val viewModel = SetupViewModel(
+            FakeVaultRepository(),
+            prefs,
+            FakeThemePreferences(),
+            FakeModifiedDatePreferences(),
+            FakeDateTimeInsertPreferences(),
+        )
         advanceUntilIdle()
         assertFalse(viewModel.state.value.enableAskThinking)
         viewModel.setEnableAskThinking(true)
@@ -46,7 +60,13 @@ class SetupViewModelTest {
 
     @Test fun persistsColorThemePreference() = runTest(dispatcherRule.dispatcher) {
         val themePrefs = FakeThemePreferences()
-        val viewModel = SetupViewModel(FakeVaultRepository(), FakeAskPreferences(), themePrefs, FakeModifiedDatePreferences())
+        val viewModel = SetupViewModel(
+            FakeVaultRepository(),
+            FakeAskPreferences(),
+            themePrefs,
+            FakeModifiedDatePreferences(),
+            FakeDateTimeInsertPreferences(),
+        )
         advanceUntilIdle()
         assertEquals(AppColorTheme.Ruby, viewModel.state.value.colorTheme)
         viewModel.setColorTheme(AppColorTheme.Forest)
@@ -56,7 +76,13 @@ class SetupViewModelTest {
 
     @Test fun persistsAppearancePreference() = runTest(dispatcherRule.dispatcher) {
         val themePrefs = FakeThemePreferences()
-        val viewModel = SetupViewModel(FakeVaultRepository(), FakeAskPreferences(), themePrefs, FakeModifiedDatePreferences())
+        val viewModel = SetupViewModel(
+            FakeVaultRepository(),
+            FakeAskPreferences(),
+            themePrefs,
+            FakeModifiedDatePreferences(),
+            FakeDateTimeInsertPreferences(),
+        )
         advanceUntilIdle()
         assertEquals(AppAppearance.Light, viewModel.state.value.appearance)
         viewModel.setAppearance(AppAppearance.Dark)
@@ -66,11 +92,33 @@ class SetupViewModelTest {
 
     @Test fun persistsRelativeModifiedDatesPreference() = runTest(dispatcherRule.dispatcher) {
         val datePrefs = FakeModifiedDatePreferences()
-        val viewModel = SetupViewModel(FakeVaultRepository(), FakeAskPreferences(), FakeThemePreferences(), datePrefs)
+        val viewModel = SetupViewModel(
+            FakeVaultRepository(),
+            FakeAskPreferences(),
+            FakeThemePreferences(),
+            datePrefs,
+            FakeDateTimeInsertPreferences(),
+        )
         advanceUntilIdle()
         assertFalse(viewModel.state.value.relativeModifiedDates)
         viewModel.setRelativeModifiedDates(true)
         advanceUntilIdle()
         assertTrue(viewModel.state.value.relativeModifiedDates)
+    }
+
+    @Test fun persistsDateTimeInsertFormatPreference() = runTest(dispatcherRule.dispatcher) {
+        val dateTimePrefs = FakeDateTimeInsertPreferences()
+        val viewModel = SetupViewModel(
+            FakeVaultRepository(),
+            FakeAskPreferences(),
+            FakeThemePreferences(),
+            FakeModifiedDatePreferences(),
+            dateTimePrefs,
+        )
+        advanceUntilIdle()
+        assertEquals(DateTimeInsertFormat.IsoDateTime, viewModel.state.value.dateTimeInsertFormat)
+        viewModel.setDateTimeInsertFormat(DateTimeInsertFormat.IsoDate)
+        advanceUntilIdle()
+        assertEquals(DateTimeInsertFormat.IsoDate, viewModel.state.value.dateTimeInsertFormat)
     }
 }

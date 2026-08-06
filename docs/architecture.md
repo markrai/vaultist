@@ -73,7 +73,7 @@ Write path:
 4. Return updated `NoteResponse` with new revision computed from written bytes; link resolutions use the current snapshot tables.
 5. Start a full index refresh asynchronously (`StartRefresh`).
 
-`AuthorizeWrite` gates PUT separately from read and refresh. `VaultResponse.readOnly` is `false` when writes are enabled. Android edits through `VaultRepository.updateNote` and a minimal edit UI on `NoteScreen`. The edit toolbar inserts datetime stamps and wiki-link openers; wiki autocomplete reuses existing Files search (`SearchMode.Files` only). Datetime format preferences are deferred.
+`AuthorizeWrite` gates PUT separately from read and refresh. `VaultResponse.readOnly` is `false` when writes are enabled. Android edits through `VaultRepository.updateNote` and a minimal edit UI on `NoteScreen`. The edit toolbar inserts datetime stamps and wiki-link openers; wiki autocomplete reuses existing Files search (`SearchMode.Files` only). Datetime insert format is configured in Settings → Prefs and persisted via `DateTimeInsertPreferences`.
 
 Notes can be deleted with `DELETE /api/v1/notes/{id}` using a required `If-Match` header (same revision ETag as GET/PUT). The server verifies the on-disk revision, removes the `.md` file via `internal/vault`, and starts a full index refresh. Android deletes through `VaultRepository.deleteNote` and a trash icon on `NoteScreen` with confirmation. On success, a one-shot `PendingBrowseSync` signals the browser: when the user returns, search is cleared, the deleted id is excluded from the folder list, and browse reloads once index status leaves `indexing` (same reconcile pattern as create).
 

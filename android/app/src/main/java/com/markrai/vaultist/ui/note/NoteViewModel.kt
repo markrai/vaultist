@@ -4,12 +4,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markrai.vaultist.data.repository.VaultRepository
-import com.markrai.vaultist.data.settings.DateTimeInsertFormatter
+import com.markrai.vaultist.data.settings.DateTimeInsertPreferences
 import com.markrai.vaultist.data.share.NoteSharePreparer
 import com.markrai.vaultist.data.share.SharePayload
 import com.markrai.vaultist.di.config.BrowseUiConfig
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
+import com.markrai.vaultist.domain.DateTimeInsertFormat
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.VaultResult
@@ -59,7 +60,7 @@ class NoteViewModel @Inject constructor(
     private val pendingBrowseSync: PendingBrowseSync,
     private val pendingNoteSync: PendingNoteSync,
     private val browseUiConfig: BrowseUiConfig,
-    private val dateTimeInsertFormatter: DateTimeInsertFormatter,
+    private val dateTimeInsertPreferences: DateTimeInsertPreferences,
 ) : ViewModel() {
     val noteId: String = requireNotNull(savedStateHandle["id"])
     val fragment: String? = savedStateHandle["fragment"]
@@ -68,10 +69,14 @@ class NoteViewModel @Inject constructor(
     private var reconcileJob: Job? = null
     private var wikiSearchJob: Job? = null
     private var readScrollAnchor = ReadScrollAnchor()
+    private var currentDateTimeInsertFormat = DateTimeInsertFormat.IsoDateTime
     private val _state = MutableStateFlow(NoteUiState())
     val state: StateFlow<NoteUiState> = _state
 
     init {
+        viewModelScope.launch {
+            dateTimeInsertPreferences.format.collect { currentDateTimeInsertFormat = it }
+        }
         val seeded = noteOpenSeed.consume(noteId)
         if (seeded != null) {
             applySeeded(seeded)
@@ -147,7 +152,7 @@ class NoteViewModel @Inject constructor(
     fun insertDateTime() {
         val current = _state.value
         if (!current.editing) return
-        val stamp = dateTimeInsertFormatter.formatNow()
+        val stamp = currentDateTimeInsertFormat.format()
         updateDraft(DraftTextEdit.insertAtSelection(current.draft, stamp))
     }
 
