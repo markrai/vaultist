@@ -65,7 +65,7 @@ class NoteWidgetLoaderTest {
     fun loadsBoundNoteWithCanonicalId() = runTest(dispatcherRule.dispatcher) {
         repository.notesById = mapOf("Folder/Note" to sampleNote)
         preferences.setBinding(7, "Folder/Note")
-        val result = loader.load(7)
+        val result = loader.load(7, "Folder/Note")
         assertTrue(result is NoteWidgetLoadResult.Content)
         assertEquals("Folder/Note", (result as NoteWidgetLoadResult.Content).note.id)
         assertEquals(1, repository.getNoteCallCount)

@@ -35,11 +35,14 @@ class NoteWidgetConfigureActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setResult(RESULT_CANCELED)
         appWidgetId = intent?.extras?.getInt(
             AppWidgetManager.EXTRA_APPWIDGET_ID,
             AppWidgetManager.INVALID_APPWIDGET_ID,
         ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
+        setResult(
+            RESULT_CANCELED,
+            Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId),
+        )
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
             finish()
             return
@@ -72,13 +75,16 @@ class NoteWidgetConfigureActivity : ComponentActivity() {
 
     private fun confirmSelection() {
         lifecycleScope.launch {
-            if (!viewModel.confirmBinding()) return@launch
+            val noteId = viewModel.confirmBinding() ?: return@launch
             val widgetId = appWidgetId
+            // Configurable widgets do not get APPWIDGET_UPDATE; the activity must update Glance
+            // state and call update() before finishing so a running session recomposes.
+            val updated = noteWidgetRefresher.refreshWidget(widgetId, noteId)
+            if (!updated) return@launch
             setResult(
                 RESULT_OK,
                 Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId),
             )
-            noteWidgetRefresher.refreshWidget(widgetId)
             finish()
         }
     }

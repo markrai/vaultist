@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -61,7 +62,7 @@ class NoteWidgetConfigureViewModelTest {
         viewModel.initialize(10)
         advanceUntilIdle()
         viewModel.selectNote("notes/test")
-        assertTrue(viewModel.confirmBinding())
+        assertEquals("notes/test", viewModel.confirmBinding())
         assertEquals("notes/test", preferences.getNoteId(10))
     }
 
@@ -69,7 +70,7 @@ class NoteWidgetConfigureViewModelTest {
     fun confirmWithoutSelectionFails() = runTest(dispatcherRule.dispatcher) {
         viewModel.initialize(10)
         advanceUntilIdle()
-        assertFalse(viewModel.confirmBinding())
+        assertNull(viewModel.confirmBinding())
     }
 
     @Test

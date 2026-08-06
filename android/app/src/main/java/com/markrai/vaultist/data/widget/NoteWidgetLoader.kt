@@ -11,8 +11,10 @@ class NoteWidgetLoader @Inject constructor(
     private val repository: VaultRepository,
     private val preferences: NoteWidgetStore,
 ) {
-    suspend fun load(appWidgetId: Int): NoteWidgetLoadResult {
-        val noteId = preferences.getNoteId(appWidgetId) ?: return NoteWidgetLoadResult.Unbound
+    suspend fun load(appWidgetId: Int, boundNoteId: String? = null): NoteWidgetLoadResult {
+        val noteId = boundNoteId?.takeIf { it.isNotBlank() }
+            ?: preferences.getNoteId(appWidgetId)
+            ?: return NoteWidgetLoadResult.Unbound
         val serverUrl = repository.serverUrl.first()
         if (serverUrl.isNullOrBlank()) return NoteWidgetLoadResult.ServerNotConfigured
         return when (val result = repository.getNote(noteId)) {

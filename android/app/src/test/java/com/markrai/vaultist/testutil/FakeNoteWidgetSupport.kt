@@ -27,12 +27,19 @@ class FakeNoteWidgetStore : NoteWidgetStore {
 class FakeNoteWidgetRefresher : NoteWidgetRefresher {
     val refreshedNotes = mutableListOf<String>()
     val refreshedWidgetIds = mutableListOf<Int>()
+    val scheduledRefreshes = mutableListOf<Pair<Int, String>>()
     var clearAllCalls = 0
 
     override suspend fun refreshAll() = Unit
 
-    override suspend fun refreshWidget(appWidgetId: Int) {
+    override fun scheduleRefreshWidget(appWidgetId: Int, noteId: String) {
+        scheduledRefreshes += appWidgetId to noteId
+    }
+
+    override suspend fun refreshWidget(appWidgetId: Int, noteId: String?): Boolean {
         refreshedWidgetIds += appWidgetId
+        noteId?.let { refreshedNotes += it }
+        return true
     }
 
     override suspend fun refreshForNote(noteId: String) {

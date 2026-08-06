@@ -88,17 +88,17 @@ class NoteWidgetConfigureViewModel @Inject constructor(
         _state.update { it.copy(selectedNoteId = noteId) }
     }
 
-    suspend fun confirmBinding(): Boolean {
-        val widgetId = _state.value.appWidgetId ?: return false
-        val noteId = _state.value.selectedNoteId ?: return false
-        if (_state.value.binding) return false
+    suspend fun confirmBinding(): String? {
+        val widgetId = _state.value.appWidgetId ?: return null
+        val noteId = _state.value.selectedNoteId ?: return null
+        if (_state.value.binding) return null
         _state.update { it.copy(binding = true, error = null) }
         return try {
             preferences.setBinding(widgetId, noteId)
-            true
+            noteId
         } catch (_: Exception) {
             _state.update { it.copy(binding = false, error = "Could not save widget settings.") }
-            false
+            null
         }
     }
 
