@@ -10,6 +10,7 @@ import com.markrai.vaultist.domain.SearchPage
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.VaultMetadata
 import com.markrai.vaultist.domain.VaultResult
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -34,8 +35,11 @@ class FakeVaultRepository : VaultRepository {
     override suspend fun saveServer(url: String) { savedUrl = url }
     override suspend fun getVault() = VaultResult.Success(VaultMetadata("Test", 1, 0, 1, false))
     var listNotesResult: VaultResult<BrowsePage>? = null
-    override suspend fun listNotes(folder: String, cursor: String?) =
-        listNotesResult ?: VaultResult.Success(BrowsePage(emptyList(), null, folder))
+    var listNotesDelayMs: Long = 0
+    override suspend fun listNotes(folder: String, cursor: String?): VaultResult<BrowsePage> {
+        if (listNotesDelayMs > 0) delay(listNotesDelayMs)
+        return listNotesResult ?: VaultResult.Success(BrowsePage(emptyList(), null, folder))
+    }
     var updateNoteResult: VaultResult<Note>? = null
     var lastUpdateRevision: String? = null
     var lastUpdateContent: String? = null

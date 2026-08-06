@@ -306,4 +306,32 @@ class BrowserViewModelTest {
         advanceUntilIdle()
         assertEquals(BrowseSortMode.ModifiedDesc, viewModel.state.value.sortMode)
     }
+
+    @Test
+    fun delayedSortPreferenceRestoreAppliesChronologicalOrder() = runTest(dispatcherRule.dispatcher) {
+        // Preference restore lands after browse starts but before listNotes returns —
+        // the race that used to leave alphabetical order after a cold start.
+        val sortPreferences = FakeBrowseSortPreferences(
+            initialSortMode = BrowseSortMode.ModifiedDesc,
+            restoreDelayMs = 10L,
+        )
+        val repository = FakeVaultRepository().apply {
+            listNotesDelayMs = 50L
+            listNotesResult = VaultResult.Success(
+                BrowsePage(
+                    listOf(
+                        BrowseItem(BrowseKind.Note, "Alpha", "Alpha.md", "Alpha", "Alpha.md", null, "2026-01-01T00:00:00Z"),
+                        BrowseItem(BrowseKind.Note, "Zulu", "Zulu.md", "Zulu", "Zulu.md", null, "2026-01-03T00:00:00Z"),
+                    ),
+                    null,
+                    "",
+                ),
+            )
+        }
+        val viewModel = viewModel(repository, sortPreferences)
+        advanceUntilIdle()
+
+        assertEquals(BrowseSortMode.ModifiedDesc, viewModel.state.value.sortMode)
+        assertEquals(listOf("Zulu", "Alpha"), viewModel.state.value.items.map { it.id })
+    }
 }

@@ -154,14 +154,13 @@ class BrowserViewModel @Inject constructor(
             if (current.isSearchResults) {
                 when (val result = repository.searchNotes(current.query.trim(), current.searchMode, cursor)) {
                     is VaultResult.Success -> {
-                        val merged = sortBrowseItems(
-                            current.items + result.value.items,
-                            current.sortMode,
-                        )
                         _state.update {
                             it.copy(
                                 loadingMore = false,
-                                items = merged,
+                                items = sortBrowseItems(
+                                    it.items + result.value.items,
+                                    it.sortMode,
+                                ),
                                 nextCursor = result.value.nextCursor,
                             )
                         }
@@ -171,14 +170,13 @@ class BrowserViewModel @Inject constructor(
             } else {
                 when (val result = repository.listNotes(current.folder, cursor)) {
                     is VaultResult.Success -> {
-                        val merged = sortBrowseItems(
-                            current.items + result.value.items,
-                            current.sortMode,
-                        )
                         _state.update {
                             it.copy(
                                 loadingMore = false,
-                                items = merged,
+                                items = sortBrowseItems(
+                                    it.items + result.value.items,
+                                    it.sortMode,
+                                ),
                                 nextCursor = result.value.nextCursor,
                             )
                         }
@@ -349,7 +347,6 @@ class BrowserViewModel @Inject constructor(
             if (clearPendingDeletes) {
                 pendingDeletedNoteIds.clear()
             }
-            val sortMode = _state.value.sortMode
             _state.update {
                 it.copy(
                     loading = true,
@@ -377,7 +374,7 @@ class BrowserViewModel @Inject constructor(
                                     loading = false,
                                     refreshing = false,
                                     vault = (vault as? VaultResult.Success)?.value ?: it.vault,
-                                    items = sortBrowseItems(items, sortMode),
+                                    items = sortBrowseItems(items, it.sortMode),
                                     nextCursor = null,
                                 )
                             }
