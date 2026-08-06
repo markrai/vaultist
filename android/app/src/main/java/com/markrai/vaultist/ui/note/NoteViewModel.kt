@@ -7,6 +7,7 @@ import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.DateTimeInsertPreferences
 import com.markrai.vaultist.data.share.NoteSharePreparer
 import com.markrai.vaultist.data.share.SharePayload
+import com.markrai.vaultist.data.widget.NoteWidgetRefresher
 import com.markrai.vaultist.di.config.BrowseUiConfig
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
@@ -59,6 +60,7 @@ class NoteViewModel @Inject constructor(
     noteOpenSeed: NoteOpenSeed,
     private val pendingBrowseSync: PendingBrowseSync,
     private val pendingNoteSync: PendingNoteSync,
+    private val noteWidgetRefresh: NoteWidgetRefresher,
     private val browseUiConfig: BrowseUiConfig,
     private val dateTimeInsertPreferences: DateTimeInsertPreferences,
 ) : ViewModel() {
@@ -203,6 +205,7 @@ class NoteViewModel @Inject constructor(
                         )
                     }
                     reconcileLinks()
+                    noteWidgetRefresh.refreshForNote(noteId)
                 }
                 is VaultResult.Failure -> {
                     val conflict = result.error is com.markrai.vaultist.domain.VaultError.Api &&
@@ -275,6 +278,7 @@ class NoteViewModel @Inject constructor(
             when (val result = repository.deleteNote(noteId, note.revision)) {
                 is VaultResult.Success -> {
                     pendingBrowseSync.offerAfterDelete(noteId)
+                    noteWidgetRefresh.refreshForNote(noteId)
                     _state.update { it.copy(deleting = false, noteDeleted = true) }
                 }
                 is VaultResult.Failure -> {

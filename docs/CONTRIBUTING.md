@@ -16,6 +16,7 @@ Short expectations for keeping the tree maintainable. See [architecture.md](arch
 | Vault I/O on Android | `VaultRepository` / `data/api` | OkHttp or JSON parsing in Composables |
 | Ask orchestration | `data/ask`, `data/genai`, `ui/ask` | New Ask product logic in `BrowserViewModel` / `BrowserScreen` |
 | Create-note orchestration | `ui/create` (`CreateNoteViewModel`) | Create logic in `BrowserViewModel` / `BrowserScreen` |
+| Home-screen widgets | `ui/widget`, `data/widget` | Widget logic in `BrowserViewModel` / `BrowserScreen` / `NoteScreen`; OkHttp in Glance UI |
 
 Prefer a new package or ViewModel over extending `BrowserViewModel`, `BrowserScreen`, `internal/api/api.go`, or `internal/index/index.go` when a second concern appears.
 

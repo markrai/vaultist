@@ -4,6 +4,7 @@ import com.markrai.vaultist.testutil.FakeAskPreferences
 import com.markrai.vaultist.testutil.FakeDateTimeInsertPreferences
 import com.markrai.vaultist.testutil.FakeModifiedDatePreferences
 import com.markrai.vaultist.testutil.FakeThemePreferences
+import com.markrai.vaultist.testutil.FakeNoteWidgetRefresher
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.domain.DateTimeInsertFormat
 import com.markrai.vaultist.ui.theme.AppAppearance
@@ -17,20 +18,28 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class SetupViewModelTest {
     @get:Rule val dispatcherRule = MainDispatcherRule()
 
+    private fun viewModel(repository: FakeVaultRepository = FakeVaultRepository()) = SetupViewModel(
+        repository,
+        FakeAskPreferences(),
+        FakeThemePreferences(),
+        FakeModifiedDatePreferences(),
+        FakeDateTimeInsertPreferences(),
+        FakeNoteWidgetRefresher(),
+    )
+
     @Test fun validatesTestsAndSavesOnlyTheTestedUrl() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository()
-        val viewModel = SetupViewModel(
-            repository,
-            FakeAskPreferences(),
-            FakeThemePreferences(),
-            FakeModifiedDatePreferences(),
-            FakeDateTimeInsertPreferences(),
-        )
+        val viewModel = viewModel(repository)
         advanceUntilIdle()
         viewModel.updateUrl("https://vega.example.ts.net")
         viewModel.testConnection()
@@ -50,6 +59,7 @@ class SetupViewModelTest {
             FakeThemePreferences(),
             FakeModifiedDatePreferences(),
             FakeDateTimeInsertPreferences(),
+            FakeNoteWidgetRefresher(),
         )
         advanceUntilIdle()
         assertFalse(viewModel.state.value.enableAskThinking)
@@ -66,6 +76,7 @@ class SetupViewModelTest {
             themePrefs,
             FakeModifiedDatePreferences(),
             FakeDateTimeInsertPreferences(),
+            FakeNoteWidgetRefresher(),
         )
         advanceUntilIdle()
         assertEquals(AppColorTheme.Ruby, viewModel.state.value.colorTheme)
@@ -82,6 +93,7 @@ class SetupViewModelTest {
             themePrefs,
             FakeModifiedDatePreferences(),
             FakeDateTimeInsertPreferences(),
+            FakeNoteWidgetRefresher(),
         )
         advanceUntilIdle()
         assertEquals(AppAppearance.Light, viewModel.state.value.appearance)
@@ -98,6 +110,7 @@ class SetupViewModelTest {
             FakeThemePreferences(),
             datePrefs,
             FakeDateTimeInsertPreferences(),
+            FakeNoteWidgetRefresher(),
         )
         advanceUntilIdle()
         assertFalse(viewModel.state.value.relativeModifiedDates)
@@ -114,6 +127,7 @@ class SetupViewModelTest {
             FakeThemePreferences(),
             FakeModifiedDatePreferences(),
             dateTimePrefs,
+            FakeNoteWidgetRefresher(),
         )
         advanceUntilIdle()
         assertEquals(DateTimeInsertFormat.IsoDateTime, viewModel.state.value.dateTimeInsertFormat)

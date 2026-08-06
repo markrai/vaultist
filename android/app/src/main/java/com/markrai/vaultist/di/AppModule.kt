@@ -16,6 +16,10 @@ import com.markrai.vaultist.data.settings.ModifiedDatePreferences
 import com.markrai.vaultist.data.settings.ServerSettings
 import com.markrai.vaultist.data.settings.ServerUrlSettings
 import com.markrai.vaultist.data.settings.ThemePreferences
+import com.markrai.vaultist.data.widget.NoteWidgetPreferences
+import com.markrai.vaultist.data.widget.NoteWidgetRefresh
+import com.markrai.vaultist.data.widget.NoteWidgetRefresher
+import com.markrai.vaultist.data.widget.NoteWidgetStore
 import com.markrai.vaultist.di.config.NetworkConfig
 import dagger.Binds
 import dagger.Module
@@ -59,6 +63,14 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindServerUrlSettings(settings: ServerSettings): ServerUrlSettings
+
+    @Binds
+    @Singleton
+    abstract fun bindNoteWidgetStore(preferences: NoteWidgetPreferences): NoteWidgetStore
+
+    @Binds
+    @Singleton
+    abstract fun bindNoteWidgetRefresher(refresh: NoteWidgetRefresh): NoteWidgetRefresher
 }
 
 @Module

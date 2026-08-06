@@ -20,6 +20,7 @@ import com.markrai.vaultist.ui.components.VaultistSplashLogo
 import com.markrai.vaultist.ui.image.ImageViewerScreen
 import com.markrai.vaultist.ui.note.NoteScreen
 import com.markrai.vaultist.ui.setup.SetupScreen
+import com.markrai.vaultist.ui.widget.OpenNoteFromWidget
 
 private const val GateRoute = "gate"
 private const val SetupRoute = "setup"
@@ -29,7 +30,17 @@ private const val BrowserRoute = "browser"
 fun VaultistNavigation(
     navController: NavHostController = rememberNavController(),
     rootViewModel: RootViewModel = hiltViewModel(),
+    openNoteFromWidget: OpenNoteFromWidget,
 ) {
+    val configuration by rootViewModel.configuration.collectAsStateWithLifecycle()
+    val pendingWidgetNoteId by openNoteFromWidget.pending.collectAsStateWithLifecycle()
+
+    LaunchedEffect(configuration, pendingWidgetNoteId) {
+        if (configuration != ConfigurationState.Configured || pendingWidgetNoteId == null) return@LaunchedEffect
+        val noteId = openNoteFromWidget.consume() ?: return@LaunchedEffect
+        navController.navigate(noteRoute(noteId))
+    }
+
     NavHost(navController = navController, startDestination = GateRoute) {
         composable(GateRoute) {
             val configuration by rootViewModel.configuration.collectAsStateWithLifecycle()

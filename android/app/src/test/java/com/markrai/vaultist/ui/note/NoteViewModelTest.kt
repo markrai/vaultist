@@ -13,6 +13,7 @@ import com.markrai.vaultist.domain.SearchPage
 import com.markrai.vaultist.testutil.FakeDateTimeInsertPreferences
 import com.markrai.vaultist.testutil.FakeNoteSharePreparer
 import com.markrai.vaultist.testutil.FakeVaultRepository
+import com.markrai.vaultist.testutil.FakeNoteWidgetRefresher
 import com.markrai.vaultist.testutil.MainDispatcherRule
 import com.markrai.vaultist.ui.browser.PendingBrowseSync
 import com.markrai.vaultist.ui.note.edit.NoteEditDraft
@@ -59,6 +60,7 @@ class NoteViewModelTest {
         noteOpenSeed: NoteOpenSeed = NoteOpenSeed(),
         pendingBrowseSync: PendingBrowseSync = PendingBrowseSync(),
         pendingNoteSync: PendingNoteSync = PendingNoteSync(),
+        noteWidgetRefresh: com.markrai.vaultist.data.widget.NoteWidgetRefresher = FakeNoteWidgetRefresher(),
         browseUiConfig: BrowseUiConfig = BrowseUiConfig(debounceMs = 50, indexPollDelayMs = 1),
         dateTimeInsertPreferences: FakeDateTimeInsertPreferences = FakeDateTimeInsertPreferences(),
     ) = NoteViewModel(
@@ -68,6 +70,7 @@ class NoteViewModelTest {
         noteOpenSeed,
         pendingBrowseSync,
         pendingNoteSync,
+        noteWidgetRefresh,
         browseUiConfig,
         dateTimeInsertPreferences,
     )

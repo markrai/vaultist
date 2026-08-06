@@ -61,6 +61,14 @@ Ask preferences (`enable_ask_thinking`) and browse display preferences (`browse_
 
 Ask never mounts the vault filesystem. Host reachability, index readiness, and Tailscale HTTPS remain prerequisites for retrieval even though generation runs on the device.
 
+### Home-screen note widget
+
+The first widget lives under `ui/widget` (Glance UI, configuration Activity, markdown mapping) and `data/widget` (per-instance note bindings, loader, refresh orchestration). Each widget instance binds to one note ID chosen in a configuration Activity (search + root note list via `VaultRepository`).
+
+Glance loads note content through a Hilt `WidgetEntryPoint` that exposes `NoteWidgetLoader` only at the widget boundary. The loader returns domain `Note` values or typed widget failures; `WidgetMarkdownMapper` maps `MarkdownDocumentParser` blocks into widget-specific `WidgetBlock` rows rendered in a Glance `LazyColumn` (headings, paragraphs, lists, quotes, code — no images or in-widget wiki navigation). Tap opens `MainActivity` with a one-shot `OpenNoteFromWidget` event consumed once the app is configured.
+
+Widget bindings use a dedicated DataStore file (`vaultist_widget_preferences`). Updates are app-driven (configuration, note save/delete, server URL change) with `updatePeriodMillis = 0` — no periodic network polling in v1. Deleting a widget instance removes its binding.
+
 ## Editing
 
 Note bodies can be replaced with `PUT /api/v1/notes/{id}` using a required `If-Match` header set to the note's content revision (`sha256:…` ETag from GET). The request body is `{ "content": "..." }` (full Markdown replace, max 32 MiB). A stale revision returns `409` with `revision_conflict` and `{ expected, actual }` details.

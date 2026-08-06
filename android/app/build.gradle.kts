@@ -65,6 +65,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.svg)
     implementation(libs.mlkit.genai.prompt)
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

@@ -1,5 +1,6 @@
 package com.markrai.vaultist
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,6 +22,8 @@ import com.markrai.vaultist.ui.navigation.VaultistNavigation
 import com.markrai.vaultist.ui.theme.AppAppearance
 import com.markrai.vaultist.ui.theme.AppColorTheme
 import com.markrai.vaultist.ui.theme.VaultistTheme
+import com.markrai.vaultist.ui.widget.OpenNoteFromWidget
+import com.markrai.vaultist.ui.widget.WidgetIntents
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -28,10 +31,12 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject lateinit var themePreferences: ThemePreferences
     @Inject lateinit var modifiedDatePreferences: ModifiedDatePreferences
+    @Inject lateinit var openNoteFromWidget: OpenNoteFromWidget
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        handleWidgetIntent(intent)
         enableEdgeToEdge()
         setContent {
             val theme by themePreferences.colorTheme.collectAsStateWithLifecycle(
@@ -52,10 +57,22 @@ class MainActivity : ComponentActivity() {
                         color = MaterialTheme.colors.background,
                         modifier = Modifier.fillMaxSize().systemBarsPadding(),
                     ) {
-                        VaultistNavigation()
+                        VaultistNavigation(openNoteFromWidget = openNoteFromWidget)
                     }
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleWidgetIntent(intent)
+    }
+
+    private fun handleWidgetIntent(intent: Intent?) {
+        val noteId = WidgetIntents.extractNoteId(intent) ?: return
+        openNoteFromWidget.offer(noteId)
+        intent?.removeExtra(WidgetIntents.EXTRA_NOTE_ID)
     }
 }

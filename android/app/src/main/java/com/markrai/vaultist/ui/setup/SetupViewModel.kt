@@ -6,6 +6,7 @@ import com.markrai.vaultist.BuildConfig
 import com.markrai.vaultist.data.api.normalizeServerUrl
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.AskPreferences
+import com.markrai.vaultist.data.widget.NoteWidgetRefresher
 import com.markrai.vaultist.data.settings.DateTimeInsertPreferences
 import com.markrai.vaultist.data.settings.ModifiedDatePreferences
 import com.markrai.vaultist.data.settings.ThemePreferences
@@ -44,6 +45,7 @@ class SetupViewModel @Inject constructor(
     private val themePreferences: ThemePreferences,
     private val modifiedDatePreferences: ModifiedDatePreferences,
     private val dateTimeInsertPreferences: DateTimeInsertPreferences,
+    private val noteWidgetRefresh: NoteWidgetRefresher,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SetupUiState())
     val state: StateFlow<SetupUiState> = _state
@@ -140,6 +142,7 @@ class SetupViewModel @Inject constructor(
         if (!current.valid || current.testedUrl != current.url) return
         viewModelScope.launch {
             repository.saveServer(current.url)
+            noteWidgetRefresh.clearAllAndRefresh()
             _state.update { it.copy(saved = true) }
         }
     }
