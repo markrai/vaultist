@@ -52,7 +52,6 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import com.markrai.vaultist.domain.LinkCandidate
 import com.markrai.vaultist.domain.LinkResolution
@@ -114,7 +113,7 @@ fun MarkdownRenderer(
             itemsIndexed(blocks, key = { index, block -> "${block.sourceLine}:$index" }) { _, block ->
                 when (block) {
                     is MarkdownBlock.Heading -> InlineText(
-                        block.text, note.links, headingStyle(block.level), onOpenNote, onMissing, onAmbiguous,
+                        block.text, note.links, MarkdownTypography.heading(block.level), onOpenNote, onMissing, onAmbiguous,
                         onClearSelection = clearSelection,
                         modifier = Modifier.padding(top = if (block.level <= 2) Spacing.md else Spacing.sm),
                     )
@@ -124,11 +123,11 @@ fun MarkdownRenderer(
                     is MarkdownBlock.ListItem -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         Text(
                             if (block.ordered) "${block.number ?: 1}." else "•",
-                            style = MaterialTheme.typography.body1,
+                            style = MarkdownTypography.body(),
                             modifier = Modifier.clearSelectionOnTap(clearSelection),
                         )
                         InlineText(
-                            block.text, note.links, MaterialTheme.typography.body1, onOpenNote, onMissing, onAmbiguous,
+                            block.text, note.links, MarkdownTypography.body(), onOpenNote, onMissing, onAmbiguous,
                             onClearSelection = clearSelection,
                             modifier = Modifier.weight(1f),
                         )
@@ -136,7 +135,7 @@ fun MarkdownRenderer(
                     is MarkdownBlock.Quote -> Row {
                         Box(Modifier.padding(end = Spacing.sm).background(MaterialTheme.colors.primary).heightIn(min = 24.dp).padding(horizontal = 2.dp))
                         InlineText(
-                            block.text, note.links, MaterialTheme.typography.body1.copy(fontStyle = FontStyle.Italic),
+                            block.text, note.links, MarkdownTypography.quote(),
                             onOpenNote, onMissing, onAmbiguous,
                             onClearSelection = clearSelection,
                             modifier = Modifier.weight(1f),
@@ -188,7 +187,7 @@ private fun ParagraphBlock(
         val displayText = removeImageSyntax(text, note.links)
         if (displayText.isNotBlank()) {
             InlineText(
-                displayText, note.links, MaterialTheme.typography.body1, onOpenNote, onMissing, onAmbiguous,
+                displayText, note.links, MarkdownTypography.body(), onOpenNote, onMissing, onAmbiguous,
                 onClearSelection = onClearSelection,
             )
         }
@@ -237,12 +236,12 @@ fun InlineMarkdownText(
     onMissing: (String, Boolean) -> Unit,
     onAmbiguous: (String, List<LinkCandidate>) -> Unit,
     modifier: Modifier = Modifier,
-    style: TextStyle = MaterialTheme.typography.body1,
+    style: TextStyle? = null,
 ) {
     InlineText(
         text = text,
         links = links,
-        style = style,
+        style = style ?: MarkdownTypography.body(),
         onOpenNote = onOpenNote,
         onMissing = onMissing,
         onAmbiguous = onAmbiguous,
@@ -387,11 +386,6 @@ private fun Modifier.clearSelectionOnUnhandledTap(onClearSelection: () -> Unit):
         }
     }
 }
-
-private fun headingStyle(level: Int): TextStyle = TextStyle(
-    fontSize = when (level) { 1 -> 30.sp; 2 -> 24.sp; 3 -> 21.sp; else -> 18.sp },
-    fontWeight = FontWeight.Bold,
-)
 
 internal fun annotatedInline(
     text: String,
