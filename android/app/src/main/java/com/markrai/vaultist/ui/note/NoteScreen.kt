@@ -158,22 +158,24 @@ fun NoteScreen(
                                 }
                             }
                         }
-                        IconButton(onClick = { onBacklinks(viewModel.noteId) }) {
-                            Icon(Icons.Default.Link, contentDescription = "Backlinks")
-                        }
-                        IconButton(
-                            onClick = viewModel::share,
-                            enabled = state.note != null && !state.loading && !state.sharing,
-                        ) {
-                            Icon(Icons.Default.ArrowCircleRight, contentDescription = "Share note")
-                        }
-                        if (state.canEdit) {
+                        if (!state.editing) {
+                            IconButton(onClick = { onBacklinks(viewModel.noteId) }) {
+                                Icon(Icons.Default.Link, contentDescription = "Backlinks")
+                            }
                             IconButton(
-                                onClick = viewModel::requestDelete,
-                                enabled = state.note != null && !state.loading && !state.deleting &&
-                                    !state.editing && !state.saving && !state.sharing,
+                                onClick = viewModel::share,
+                                enabled = state.note != null && !state.loading && !state.sharing,
                             ) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete note")
+                                Icon(Icons.Default.ArrowCircleRight, contentDescription = "Share note")
+                            }
+                            if (state.canEdit) {
+                                IconButton(
+                                    onClick = viewModel::requestDelete,
+                                    enabled = state.note != null && !state.loading && !state.deleting &&
+                                        !state.saving && !state.sharing,
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete note")
+                                }
                             }
                         }
                     },
