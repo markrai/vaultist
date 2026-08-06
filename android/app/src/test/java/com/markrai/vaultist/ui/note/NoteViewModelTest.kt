@@ -5,12 +5,18 @@ import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.VaultError
 import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.di.config.BrowseUiConfig
+import com.markrai.vaultist.domain.BrowseItem
+import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.IndexState
+import com.markrai.vaultist.domain.SearchPage
+import com.markrai.vaultist.testutil.FakeDateTimeInsertFormatter
 import com.markrai.vaultist.testutil.FakeNoteSharePreparer
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
 import com.markrai.vaultist.ui.browser.PendingBrowseSync
+import com.markrai.vaultist.ui.note.edit.NoteEditDraft
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -52,8 +58,20 @@ class NoteViewModelTest {
         noteOpenSeed: NoteOpenSeed = NoteOpenSeed(),
         pendingBrowseSync: PendingBrowseSync = PendingBrowseSync(),
         pendingNoteSync: PendingNoteSync = PendingNoteSync(),
-        browseUiConfig: BrowseUiConfig = BrowseUiConfig(indexPollDelayMs = 1),
-    ) = NoteViewModel(handle, repository, sharePreparer, noteOpenSeed, pendingBrowseSync, pendingNoteSync, browseUiConfig)
+        browseUiConfig: BrowseUiConfig = BrowseUiConfig(debounceMs = 50, indexPollDelayMs = 1),
+        dateTimeInsertFormatter: FakeDateTimeInsertFormatter = FakeDateTimeInsertFormatter(),
+    ) = NoteViewModel(
+        handle,
+        repository,
+        sharePreparer,
+        noteOpenSeed,
+        pendingBrowseSync,
+        pendingNoteSync,
+        browseUiConfig,
+        dateTimeInsertFormatter,
+    )
+
+    private fun draftAtEnd(text: String) = NoteEditDraft.atEnd(text)
 
     @Test fun exposesNoteAndHeadingFragmentState() = runTest(dispatcherRule.dispatcher) {
         val repository = FakeVaultRepository().apply {
@@ -81,7 +99,7 @@ class NoteViewModelTest {
         val viewModel = viewModel(repository = repository)
         advanceUntilIdle()
         viewModel.enterEdit()
-        viewModel.updateDraft("# Updated")
+        viewModel.updateDraft(draftAtEnd("# Updated"))
         viewModel.save()
         advanceUntilIdle()
         assertFalse(viewModel.state.value.editing)
@@ -144,7 +162,7 @@ class NoteViewModelTest {
         val viewModel = viewModel(repository = repository, sharePreparer = sharePreparer)
         advanceUntilIdle()
         viewModel.enterEdit()
-        viewModel.updateDraft("# Draft")
+        viewModel.updateDraft(draftAtEnd("# Draft"))
 
         viewModel.share()
         advanceUntilIdle()
@@ -223,8 +241,23 @@ class NoteViewModelTest {
         assertNull(viewModel.state.value.error)
         assertEquals("Folder/Note", viewModel.state.value.note?.id)
         assertTrue(viewModel.state.value.editing)
-        assertEquals("# Note", viewModel.state.value.draftContent)
+        assertEquals("# Note", viewModel.state.value.draft.text)
+        assertEquals(0, viewModel.state.value.draft.selectionStart)
         assertEquals("sha256:abc", viewModel.state.value.baseRevision)
+    }
+
+    @Test fun enterEditUsesReadScrollAnchor() = runTest(dispatcherRule.dispatcher) {
+        val content = "line one\nline two\nline three"
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote.copy(content = content))
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.onReadScrollChanged(2, 120)
+        viewModel.enterEdit()
+        assertEquals(9, viewModel.state.value.draft.selectionStart)
+        assertEquals(120, viewModel.state.value.editorPartialScrollOffsetPx)
+        assertEquals(content, viewModel.state.value.draft.text)
     }
 
     @Test fun onReturnedToScreenReloadsNoteAfterIndexReady() = runTest(dispatcherRule.dispatcher) {
@@ -275,10 +308,63 @@ class NoteViewModelTest {
         val viewModel = viewModel(repository = repository)
         advanceUntilIdle()
         viewModel.enterEdit()
-        viewModel.updateDraft("# Saved")
+        viewModel.updateDraft(draftAtEnd("# Saved"))
         viewModel.save()
         repository.notesById = mapOf("Folder/Note" to fresh)
         advanceUntilIdle()
         assertEquals("# Saved resolved", viewModel.state.value.note?.content)
+    }
+
+    @Test fun insertWikiLinkStartPlacesCursorAfterOpener() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.enterEdit()
+        viewModel.insertWikiLinkStart()
+        assertEquals("[[# Note", viewModel.state.value.draft.text)
+        assertEquals(2, viewModel.state.value.draft.selectionStart)
+    }
+
+    @Test fun insertDateTimeInsertsFormattedStampAtCursor() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+        }
+        val viewModel = viewModel(
+            repository = repository,
+            dateTimeInsertFormatter = FakeDateTimeInsertFormatter("2026-08-06 09:00"),
+        )
+        advanceUntilIdle()
+        viewModel.enterEdit()
+        viewModel.insertDateTime()
+        assertEquals("2026-08-06 09:00# Note", viewModel.state.value.draft.text)
+    }
+
+    @Test fun wikiSuggestionsDebounceFilesSearchWhileTypingLink() = runTest(dispatcherRule.dispatcher) {
+        val hit = BrowseItem(BrowseKind.Note, "Folder/Other", "Other.md", "Other", "Folder/Other.md", null)
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+            filesSearchResult = VaultResult.Success(SearchPage(listOf(hit), null, "oth"))
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.enterEdit()
+        viewModel.updateDraft(NoteEditDraft("See [[Oth", 9, 9))
+        advanceTimeBy(50)
+        advanceUntilIdle()
+        assertEquals(listOf("Folder/Other"), viewModel.state.value.wikiSuggestions.map { it.id })
+    }
+
+    @Test fun applyWikiSuggestionCompletesOpenWikiLink() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.enterEdit()
+        viewModel.updateDraft(NoteEditDraft("See [[Oth", 9, 9))
+        viewModel.applyWikiSuggestion("Folder/Other")
+        assertEquals("See [[Folder/Other]]", viewModel.state.value.draft.text)
     }
 }

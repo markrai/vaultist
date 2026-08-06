@@ -4,12 +4,19 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markrai.vaultist.data.repository.VaultRepository
+import com.markrai.vaultist.data.settings.DateTimeInsertFormatter
 import com.markrai.vaultist.data.share.NoteSharePreparer
 import com.markrai.vaultist.data.share.SharePayload
 import com.markrai.vaultist.di.config.BrowseUiConfig
+import com.markrai.vaultist.domain.BrowseItem
+import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.Note
+import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.ui.browser.PendingBrowseSync
+import com.markrai.vaultist.ui.note.edit.DraftTextEdit
+import com.markrai.vaultist.ui.note.edit.NoteEditDraft
+import com.markrai.vaultist.ui.note.edit.WikiLinkDraft
 import com.markrai.vaultist.ui.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -26,7 +33,10 @@ data class NoteUiState(
     val error: String? = null,
     val canEdit: Boolean = false,
     val editing: Boolean = false,
-    val draftContent: String = "",
+    val draft: NoteEditDraft = NoteEditDraft("", 0, 0),
+    val editorFocused: Boolean = false,
+    val wikiSuggestions: List<BrowseItem> = emptyList(),
+    val wikiSearching: Boolean = false,
     val baseRevision: String? = null,
     val saving: Boolean = false,
     val conflict: Boolean = false,
@@ -36,6 +46,8 @@ data class NoteUiState(
     val showDeleteDialog: Boolean = false,
     val deleting: Boolean = false,
     val noteDeleted: Boolean = false,
+    /** Pixels into the first visible read block to restore when entering edit. */
+    val editorPartialScrollOffsetPx: Int = 0,
 )
 
 @HiltViewModel
@@ -47,12 +59,15 @@ class NoteViewModel @Inject constructor(
     private val pendingBrowseSync: PendingBrowseSync,
     private val pendingNoteSync: PendingNoteSync,
     private val browseUiConfig: BrowseUiConfig,
+    private val dateTimeInsertFormatter: DateTimeInsertFormatter,
 ) : ViewModel() {
     val noteId: String = requireNotNull(savedStateHandle["id"])
     val fragment: String? = savedStateHandle["fragment"]
     private val openInEdit: Boolean = savedStateHandle.get<String>("edit") == "true"
     private var autoEditPending = openInEdit
     private var reconcileJob: Job? = null
+    private var wikiSearchJob: Job? = null
+    private var readScrollAnchor = ReadScrollAnchor()
     private val _state = MutableStateFlow(NoteUiState())
     val state: StateFlow<NoteUiState> = _state
 
@@ -74,12 +89,25 @@ class NoteViewModel @Inject constructor(
         reconcileLinks()
     }
 
+    fun onReadScrollChanged(sourceLine: Int, partialScrollOffsetPx: Int) {
+        if (_state.value.editing) return
+        readScrollAnchor = ReadScrollAnchor(
+            sourceLine = sourceLine.coerceAtLeast(1),
+            partialScrollOffsetPx = partialScrollOffsetPx.coerceAtLeast(0),
+        )
+    }
+
     fun enterEdit() {
         val note = _state.value.note ?: return
+        val cursor = ReadScrollMapping.characterOffsetAtLine(note.content, readScrollAnchor.sourceLine)
         _state.update {
             it.copy(
                 editing = true,
-                draftContent = note.content,
+                draft = NoteEditDraft(note.content, cursor, cursor),
+                editorPartialScrollOffsetPx = readScrollAnchor.partialScrollOffsetPx,
+                editorFocused = false,
+                wikiSuggestions = emptyList(),
+                wikiSearching = false,
                 baseRevision = note.revision,
                 error = null,
                 conflict = false,
@@ -88,10 +116,14 @@ class NoteViewModel @Inject constructor(
     }
 
     fun cancelEdit() {
+        wikiSearchJob?.cancel()
         _state.update {
             it.copy(
                 editing = false,
-                draftContent = "",
+                draft = NoteEditDraft("", 0, 0),
+                editorFocused = false,
+                wikiSuggestions = emptyList(),
+                wikiSearching = false,
                 baseRevision = null,
                 saving = false,
                 error = null,
@@ -100,8 +132,43 @@ class NoteViewModel @Inject constructor(
         }
     }
 
-    fun updateDraft(content: String) {
-        _state.update { it.copy(draftContent = content) }
+    fun updateDraft(draft: NoteEditDraft) {
+        _state.update { it.copy(draft = draft) }
+        refreshWikiSuggestions(draft)
+    }
+
+    fun onEditorFocusChanged(focused: Boolean) {
+        _state.update { it.copy(editorFocused = focused) }
+        if (!focused) {
+            dismissWikiSuggestions()
+        }
+    }
+
+    fun insertDateTime() {
+        val current = _state.value
+        if (!current.editing) return
+        val stamp = dateTimeInsertFormatter.formatNow()
+        updateDraft(DraftTextEdit.insertAtSelection(current.draft, stamp))
+    }
+
+    fun insertWikiLinkStart() {
+        val current = _state.value
+        if (!current.editing) return
+        updateDraft(DraftTextEdit.insertAtSelection(current.draft, "[["))
+    }
+
+    fun applyWikiSuggestion(noteId: String) {
+        val current = _state.value
+        if (!current.editing) return
+        val range = WikiLinkDraft.openRange(current.draft.text, current.draft.selectionStart) ?: return
+        updateDraft(
+            DraftTextEdit.replaceRange(current.draft, range, "[[$noteId]]"),
+        )
+    }
+
+    fun dismissWikiSuggestions() {
+        wikiSearchJob?.cancel()
+        _state.update { it.copy(wikiSuggestions = emptyList(), wikiSearching = false) }
     }
 
     fun save() {
@@ -113,13 +180,17 @@ class NoteViewModel @Inject constructor(
         if (_state.value.saving) return
         viewModelScope.launch {
             _state.update { it.copy(saving = true, error = null, conflict = false) }
-            when (val result = repository.updateNote(noteId, revision, _state.value.draftContent)) {
+            when (val result = repository.updateNote(noteId, revision, _state.value.draft.text)) {
                 is VaultResult.Success -> {
+                    wikiSearchJob?.cancel()
                     _state.update {
                         it.copy(
                             saving = false,
                             editing = false,
-                            draftContent = "",
+                            draft = NoteEditDraft("", 0, 0),
+                            editorFocused = false,
+                            wikiSuggestions = emptyList(),
+                            wikiSearching = false,
                             baseRevision = null,
                             note = result.value,
                             error = null,
@@ -154,7 +225,7 @@ class NoteViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(sharing = true, shareError = null) }
             try {
-                val content = if (_state.value.editing) _state.value.draftContent else note.content
+                val content = if (_state.value.editing) _state.value.draft.text else note.content
                 val payload = sharePreparer.prepare(
                     noteId = note.id,
                     filename = note.filename,
@@ -218,6 +289,31 @@ class NoteViewModel @Inject constructor(
 
     fun consumeNoteDeleted() {
         _state.update { it.copy(noteDeleted = false) }
+    }
+
+    private fun refreshWikiSuggestions(draft: NoteEditDraft) {
+        val query = WikiLinkDraft.queryAtCursor(draft.text, draft.selectionStart)
+        if (query.isNullOrBlank()) {
+            dismissWikiSuggestions()
+            return
+        }
+        wikiSearchJob?.cancel()
+        wikiSearchJob = viewModelScope.launch {
+            _state.update { it.copy(wikiSearching = true) }
+            delay(browseUiConfig.debounceMs)
+            when (val result = repository.searchNotes(query.trim(), SearchMode.Files)) {
+                is VaultResult.Success -> {
+                    val suggestions = result.value.items
+                        .filter { it.kind == BrowseKind.Note }
+                        .distinctBy { it.id }
+                        .take(WIKI_SUGGESTION_LIMIT)
+                    _state.update { it.copy(wikiSuggestions = suggestions, wikiSearching = false) }
+                }
+                is VaultResult.Failure -> {
+                    _state.update { it.copy(wikiSuggestions = emptyList(), wikiSearching = false) }
+                }
+            }
+        }
     }
 
     private fun applySeeded(note: Note) {
@@ -288,5 +384,9 @@ class NoteViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private companion object {
+        const val WIKI_SUGGESTION_LIMIT = 8
     }
 }

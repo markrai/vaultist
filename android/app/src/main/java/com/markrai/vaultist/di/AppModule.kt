@@ -10,6 +10,8 @@ import com.markrai.vaultist.data.settings.DataStoreBrowseSortPreferences
 import com.markrai.vaultist.data.settings.DataStoreBrowseViewPreferences
 import com.markrai.vaultist.data.settings.DataStoreModifiedDatePreferences
 import com.markrai.vaultist.data.settings.DataStoreThemePreferences
+import com.markrai.vaultist.data.settings.DateTimeInsertFormatter
+import com.markrai.vaultist.data.settings.DefaultDateTimeInsertFormatter
 import com.markrai.vaultist.data.settings.ModifiedDatePreferences
 import com.markrai.vaultist.data.settings.ServerSettings
 import com.markrai.vaultist.data.settings.ServerUrlSettings
@@ -49,6 +51,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindModifiedDatePreferences(preferences: DataStoreModifiedDatePreferences): ModifiedDatePreferences
+
+    @Binds
+    @Singleton
+    abstract fun bindDateTimeInsertFormatter(formatter: DefaultDateTimeInsertFormatter): DateTimeInsertFormatter
 
     @Binds
     @Singleton

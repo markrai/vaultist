@@ -6,15 +6,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.SnackbarHost
 import androidx.compose.material.SnackbarHostState
@@ -48,6 +45,7 @@ import com.markrai.vaultist.domain.LinkCandidate
 import com.markrai.vaultist.ui.components.ErrorPanel
 import com.markrai.vaultist.ui.create.CreateNoteViewModel
 import com.markrai.vaultist.ui.markdown.MarkdownRenderer
+import com.markrai.vaultist.ui.note.edit.NoteEditor
 import com.markrai.vaultist.ui.share.ShareNoteEffect
 import com.markrai.vaultist.ui.theme.Spacing
 
@@ -184,28 +182,22 @@ fun NoteScreen(
         },
     ) { padding ->
         when {
-            state.editing -> Column(
-                Modifier
-                    .padding(padding)
-                    .fillMaxSize(),
-            ) {
-                OutlinedTextField(
-                    value = state.draftContent,
-                    onValueChange = viewModel::updateDraft,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    enabled = !state.saving,
-                )
-                if (state.error != null && !state.conflict) {
-                    ErrorPanel(
-                        message = state.error.orEmpty(),
-                        modifier = Modifier.padding(Spacing.md),
-                        onRetry = viewModel::save,
-                    )
-                }
-            }
+            state.editing -> NoteEditor(
+                draft = state.draft,
+                editorFocused = state.editorFocused,
+                wikiSuggestions = state.wikiSuggestions,
+                wikiSearching = state.wikiSearching,
+                saving = state.saving,
+                error = state.error?.takeIf { !state.conflict },
+                initialPartialScrollOffsetPx = state.editorPartialScrollOffsetPx,
+                onDraftChange = viewModel::updateDraft,
+                onEditorFocusChanged = viewModel::onEditorFocusChanged,
+                onInsertDateTime = viewModel::insertDateTime,
+                onInsertWikiLink = viewModel::insertWikiLinkStart,
+                onWikiSuggestionSelected = viewModel::applyWikiSuggestion,
+                onRetrySave = viewModel::save,
+                modifier = Modifier.padding(padding),
+            )
             state.loading -> Box(
                 Modifier.padding(padding).fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -223,6 +215,7 @@ fun NoteScreen(
                 onMissing = { target, isAsset -> missingLink = MissingLinkDialog(target, isAsset) },
                 onAmbiguous = { target, candidates -> ambiguous = AmbiguousDialog(target, candidates) },
                 onOpenImage = onOpenImage,
+                onReadScrollChanged = viewModel::onReadScrollChanged,
                 modifier = Modifier.padding(padding),
             )
         }

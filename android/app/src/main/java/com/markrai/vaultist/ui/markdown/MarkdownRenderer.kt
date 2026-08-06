@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -78,10 +79,12 @@ fun MarkdownRenderer(
     onMissing: (String, Boolean) -> Unit,
     onAmbiguous: (String, List<LinkCandidate>) -> Unit,
     onOpenImage: (String) -> Unit,
+    onReadScrollChanged: (sourceLine: Int, partialScrollOffsetPx: Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val blocks = remember(note.id, note.revision) { MarkdownDocumentParser.parse(note.content) }
     val listState = rememberLazyListState()
+    val onReadScrollChangedState = rememberUpdatedState(onReadScrollChanged)
     val focusManager = LocalFocusManager.current
     val view = LocalView.current
     val clearSelection = remember(focusManager, view) {
@@ -100,6 +103,14 @@ fun MarkdownRenderer(
             else -> blocks.indexOfFirst { it is MarkdownBlock.Heading && headingSlug(it.text) == headingSlug(fragment) }
         }
         if (target >= 0) listState.scrollToItem(target)
+    }
+    LaunchedEffect(listState, blocks) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, partialScrollOffsetPx) ->
+            val sourceLine = blocks.getOrNull(index)?.sourceLine ?: 1
+            onReadScrollChangedState.value(sourceLine, partialScrollOffsetPx)
+        }
     }
     SelectionContainer(modifier = modifier) {
         LazyColumn(
