@@ -264,6 +264,52 @@ class NoteViewModelTest {
         assertEquals(content, viewModel.state.value.draft.text)
     }
 
+    @Test fun loadRefreshesWidgetOnInitialLoad() = runTest(dispatcherRule.dispatcher) {
+        val widgetRefresh = FakeNoteWidgetRefresher()
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+        }
+        viewModel(repository = repository, noteWidgetRefresh = widgetRefresh)
+        advanceUntilIdle()
+        assertEquals(listOf("Folder/Note"), widgetRefresh.refreshedNotes)
+    }
+
+    @Test fun loadSkipsWidgetRefreshWhenNoteUnchanged() = runTest(dispatcherRule.dispatcher) {
+        val widgetRefresh = FakeNoteWidgetRefresher()
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+            indexStatusResults = listOf(VaultResult.Success(IndexState("ready", 1, 1, 0, 0)))
+        }
+        val viewModel = viewModel(repository = repository, noteWidgetRefresh = widgetRefresh)
+        advanceUntilIdle()
+        assertEquals(1, widgetRefresh.refreshedNotes.size)
+
+        viewModel.onReturnedToScreen()
+        advanceUntilIdle()
+        assertEquals(1, widgetRefresh.refreshedNotes.size)
+    }
+
+    @Test fun loadRefreshesWidgetWhenContentChanges() = runTest(dispatcherRule.dispatcher) {
+        val widgetRefresh = FakeNoteWidgetRefresher()
+        val stale = sampleNote
+        val fresh = sampleNote.copy(content = "# Updated from Obsidian")
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(stale)
+            indexStatusResults = listOf(
+                VaultResult.Success(IndexState("indexing", 1, 1, 0, 0)),
+                VaultResult.Success(IndexState("ready", 2, 2, 0, 0)),
+            )
+        }
+        val viewModel = viewModel(repository = repository, noteWidgetRefresh = widgetRefresh)
+        advanceUntilIdle()
+        assertEquals(listOf("Folder/Note"), widgetRefresh.refreshedNotes)
+
+        repository.notesById = mapOf("Folder/Note" to fresh)
+        viewModel.onReturnedToScreen()
+        advanceUntilIdle()
+        assertEquals(listOf("Folder/Note", "Folder/Note"), widgetRefresh.refreshedNotes)
+    }
+
     @Test fun onReturnedToScreenReloadsNoteAfterIndexReady() = runTest(dispatcherRule.dispatcher) {
         val stale = sampleNote
         val fresh = sampleNote.copy(content = "# Fresh links")
@@ -298,6 +344,24 @@ class NoteViewModelTest {
         viewModel.onReturnedToScreen()
         advanceUntilIdle()
         assertEquals(callsAfterLoad, repository.getNoteCallCount)
+    }
+
+    @Test fun silentReloadKeepsRevisionWhenContentUnchanged() = runTest(dispatcherRule.dispatcher) {
+        val saved = sampleNote.copy(content = "# Saved", revision = "sha256:put")
+        val staleGet = sampleNote.copy(content = "# Saved", revision = "sha256:snapshot")
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+            updateNoteResult = VaultResult.Success(saved)
+            indexStatusResults = listOf(VaultResult.Success(IndexState("ready", 1, 1, 0, 0)))
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.enterEdit()
+        viewModel.updateDraft(draftAtEnd("# Saved"))
+        viewModel.save()
+        repository.notesById = mapOf("Folder/Note" to staleGet)
+        advanceUntilIdle()
+        assertEquals("sha256:put", viewModel.state.value.note?.revision)
     }
 
     @Test fun saveReconcilesLinksAfterIndexReady() = runTest(dispatcherRule.dispatcher) {

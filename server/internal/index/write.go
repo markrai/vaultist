@@ -33,7 +33,7 @@ func (e *RevisionConflictError) Error() string {
 	return fmt.Sprintf("revision conflict: expected %s actual %s", e.Expected, e.Actual)
 }
 
-func contentRevision(content []byte) string {
+func ContentRevision(content []byte) string {
 	hash := sha256.Sum256(content)
 	return "sha256:" + hex.EncodeToString(hash[:])
 }
@@ -76,7 +76,7 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 		}
 		return nil, fmt.Errorf("note could not be read")
 	}
-	actualRevision := contentRevision(current)
+	actualRevision := ContentRevision(current)
 	if actualRevision != expectedRevision {
 		return nil, &RevisionConflictError{Expected: expectedRevision, Actual: actualRevision}
 	}
@@ -96,7 +96,7 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 	note := &model.Note{
 		ID: noteID, Path: relativePath, Filename: path.Base(relativePath),
 		ModifiedAt: info.ModTime().UTC(), Size: info.Size(),
-		Revision: contentRevision(content),
+		Revision: ContentRevision(content),
 	}
 	parsed := m.parser.Parse(content, strings.TrimSuffix(path.Base(relativePath), path.Ext(relativePath)))
 	note.Title = parsed.Title
@@ -154,7 +154,7 @@ func (m *Manager) CreateNote(ctx context.Context, id string, content []byte) (*m
 	note := &model.Note{
 		ID: noteID, Path: relativePath, Filename: path.Base(relativePath),
 		ModifiedAt: info.ModTime().UTC(), Size: info.Size(),
-		Revision: contentRevision(content),
+		Revision: ContentRevision(content),
 	}
 	parsed := m.parser.Parse(content, strings.TrimSuffix(path.Base(relativePath), path.Ext(relativePath)))
 	note.Title = parsed.Title
@@ -194,7 +194,7 @@ func (m *Manager) DeleteNote(ctx context.Context, id, ifMatch string) error {
 		}
 		return fmt.Errorf("note could not be read")
 	}
-	actualRevision := contentRevision(current)
+	actualRevision := ContentRevision(current)
 	if actualRevision != expectedRevision {
 		return &RevisionConflictError{Expected: expectedRevision, Actual: actualRevision}
 	}

@@ -360,6 +360,17 @@ class NoteViewModel @Inject constructor(
         }
     }
 
+    private fun mergeLoadedNote(previous: Note?, loaded: Note, silentReload: Boolean): Note {
+        if (silentReload &&
+            previous != null &&
+            previous.content == loaded.content &&
+            previous.revision != loaded.revision
+        ) {
+            return loaded.copy(revision = previous.revision)
+        }
+        return loaded
+    }
+
     private fun load(showLoading: Boolean = true) {
         viewModelScope.launch {
             if (showLoading) {
@@ -369,7 +380,8 @@ class NoteViewModel @Inject constructor(
             val canEdit = vault is VaultResult.Success && !vault.value.readOnly
             when (val result = repository.getNote(noteId)) {
                 is VaultResult.Success -> {
-                    val note = result.value
+                    val note = mergeLoadedNote(_state.value.note, result.value, silentReload = !showLoading)
+                    val previous = _state.value.note
                     _state.update {
                         it.copy(
                             loading = false,
@@ -378,6 +390,12 @@ class NoteViewModel @Inject constructor(
                             error = null,
                             baseRevision = if (it.editing) it.baseRevision else null,
                         )
+                    }
+                    if (previous == null ||
+                        previous.content != note.content ||
+                        previous.revision != note.revision
+                    ) {
+                        noteWidgetRefresh.refreshForNote(noteId)
                     }
                     if (autoEditPending && canEdit) {
                         autoEditPending = false

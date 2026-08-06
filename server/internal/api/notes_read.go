@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"path"
 	"strings"
+
+	"github.com/markrai/vaultist/server/internal/index"
 )
 
 func (h *Handler) noteRoute(writer http.ResponseWriter, request *http.Request) {
@@ -31,10 +33,6 @@ func (h *Handler) noteRoute(writer http.ResponseWriter, request *http.Request) {
 		writeJSON(writer, http.StatusOK, map[string]any{"noteId": id, "items": orEmpty(snapshot.Backlinks[id])})
 		return
 	}
-	if request.Header.Get("If-None-Match") == quoteETag(note.Revision) {
-		writer.WriteHeader(http.StatusNotModified)
-		return
-	}
 	_, file, openErr := snapshot.OpenNote(id)
 	if openErr != nil {
 		writeError(writer, http.StatusInternalServerError, "note_read_failed", "Note content could not be read", nil)
@@ -46,11 +44,16 @@ func (h *Handler) noteRoute(writer http.ResponseWriter, request *http.Request) {
 		writeError(writer, http.StatusInternalServerError, "note_read_failed", "Note content could not be read", nil)
 		return
 	}
-	writer.Header().Set("ETag", quoteETag(note.Revision))
+	revision := index.ContentRevision(content)
+	if request.Header.Get("If-None-Match") == quoteETag(revision) {
+		writer.WriteHeader(http.StatusNotModified)
+		return
+	}
+	writer.Header().Set("ETag", quoteETag(revision))
 	writeJSON(writer, http.StatusOK, map[string]any{
 		"id": note.ID, "path": note.Path, "filename": note.Filename, "title": note.Title,
 		"aliases": orEmpty(note.Aliases), "headings": orEmpty(note.Headings), "links": orEmpty(note.Links),
 		"attachments": orEmpty(note.Attachments), "modifiedAt": note.ModifiedAt, "size": note.Size,
-		"revision": note.Revision, "content": string(content), "error": note.Error,
+		"revision": revision, "content": string(content), "error": note.Error,
 	})
 }

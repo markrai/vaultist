@@ -23,7 +23,7 @@ func TestWriteNoteContentUpdatesFileAndRevision(t *testing.T) {
 	if updated.Revision == note.Revision {
 		t.Fatal("expected revision to change")
 	}
-	if updated.Revision != contentRevision([]byte("# Note\nupdated")) {
+	if updated.Revision != ContentRevision([]byte("# Note\nupdated")) {
 		t.Fatalf("revision = %q", updated.Revision)
 	}
 	onDisk, err := os.ReadFile(filepath.Join(root, "Folder", "Note.md"))
@@ -41,7 +41,7 @@ func TestWriteNoteContentAllowsUnindexedOnDiskNote(t *testing.T) {
 	manager := newTestManager(t, root)
 	content := []byte("draft body")
 	writeFile(t, root, "Folder/Unindexed.md", string(content))
-	revision := contentRevision(content)
+	revision := ContentRevision(content)
 
 	updated, err := manager.WriteNoteContent(context.Background(), "Folder/Unindexed", revision, []byte("saved body"))
 	if err != nil {
@@ -50,7 +50,7 @@ func TestWriteNoteContentAllowsUnindexedOnDiskNote(t *testing.T) {
 	if updated.ID != "Folder/Unindexed" {
 		t.Fatalf("id = %q", updated.ID)
 	}
-	if updated.Revision != contentRevision([]byte("saved body")) {
+	if updated.Revision != ContentRevision([]byte("saved body")) {
 		t.Fatalf("revision = %q", updated.Revision)
 	}
 	onDisk, err := os.ReadFile(filepath.Join(root, "Folder", "Unindexed.md"))
@@ -68,7 +68,7 @@ func TestDeleteNoteAllowsUnindexedOnDiskNote(t *testing.T) {
 	manager := newTestManager(t, root)
 	content := []byte("to delete")
 	writeFile(t, root, "Folder/Unindexed.md", string(content))
-	revision := contentRevision(content)
+	revision := ContentRevision(content)
 
 	if err := manager.DeleteNote(context.Background(), "Folder/Unindexed", revision); err != nil {
 		t.Fatal(err)
@@ -165,7 +165,7 @@ func TestCreateNoteWritesFileAndReturnsMetadata(t *testing.T) {
 	if created.ID != "Folder/New Note" {
 		t.Fatalf("id = %q", created.ID)
 	}
-	if created.Revision != contentRevision(content) {
+	if created.Revision != ContentRevision(content) {
 		t.Fatalf("revision = %q", created.Revision)
 	}
 	onDisk, err := os.ReadFile(filepath.Join(root, "Folder", "New Note.md"))

@@ -33,7 +33,7 @@ The stable Go interface is `internal/search.Search(ctx, snapshot, Request{Query,
 
 ## HTTP and caching
 
-All routes live below `/api/v1`. Lists/searches have bounded limits and stable numeric cursors. Notes return quoted content-revision ETags and honor `If-None-Match`. Assets use weak metadata ETags and `http.ServeContent`, which supplies streaming and byte ranges. Responses are private-cache scoped.
+All routes live below `/api/v1`. Lists/searches have bounded limits and stable numeric cursors. Note GET responses return quoted content-revision ETags and `revision` computed from the on-disk bytes served in the body (so conditional GET and edit `If-Match` stay aligned even when the index snapshot lags); indexed metadata such as title and link resolutions still come from the snapshot. Assets use weak metadata ETags and `http.ServeContent`, which supplies streaming and byte ranges. Responses are private-cache scoped.
 
 Stable note IDs are normalized relative Markdown paths without `.md`; asset IDs are normalized relative paths. IDs may contain slash segments, Unicode, and spaces. They are URL encoded by Android and validated again by the server.
 
@@ -67,7 +67,7 @@ The first widget lives under `ui/widget` (Glance UI, configuration Activity, mar
 
 Glance loads note content through a Hilt `WidgetEntryPoint` that exposes `NoteWidgetLoader` only at the widget boundary. The loader returns domain `Note` values or typed widget failures; `WidgetMarkdownMapper` maps `MarkdownDocumentParser` blocks into widget-specific `WidgetBlock` rows rendered in a Glance `LazyColumn` (headings, paragraphs, lists, quotes, code — no images or in-widget wiki navigation). Tap opens `MainActivity` with a one-shot `OpenNoteFromWidget` event consumed once the app is configured.
 
-Widget bindings use a dedicated DataStore file (`vaultist_widget_preferences`). Updates are app-driven (configuration, note save/delete, server URL change) with `updatePeriodMillis = 0` — no periodic network polling in v1. Deleting a widget instance removes its binding.
+Widget bindings use a dedicated DataStore file (`vaultist_widget_preferences`). Updates are app-driven (configuration, note save/delete, note open/reload when content or revision changes, server URL change) with `updatePeriodMillis = 0` — no periodic network polling in v1. Deleting a widget instance removes its binding.
 
 ## Editing
 
