@@ -6,10 +6,12 @@ import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.BrowsePage
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.BrowseSortMode
+import com.markrai.vaultist.domain.BrowseViewMode
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.SearchPage
 import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.testutil.FakeBrowseSortPreferences
+import com.markrai.vaultist.testutil.FakeBrowseViewPreferences
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,7 +32,14 @@ class BrowserViewModelTest {
     private fun viewModel(
         repository: FakeVaultRepository = FakeVaultRepository(),
         sortPreferences: FakeBrowseSortPreferences = FakeBrowseSortPreferences(),
-    ) = BrowserViewModel(repository, BrowseUiConfig(), PendingBrowseSync(), sortPreferences)
+        viewPreferences: FakeBrowseViewPreferences = FakeBrowseViewPreferences(),
+    ) = BrowserViewModel(
+        repository,
+        BrowseUiConfig(),
+        PendingBrowseSync(),
+        sortPreferences,
+        viewPreferences,
+    )
 
     @Test
     fun filesSearchDebouncesAndPopulatesResults() = runTest(dispatcherRule.dispatcher) {
@@ -185,7 +194,13 @@ class BrowserViewModelTest {
                 ),
             )
         }
-        val viewModel = BrowserViewModel(repository, BrowseUiConfig(), sync, FakeBrowseSortPreferences())
+        val viewModel = BrowserViewModel(
+            repository,
+            BrowseUiConfig(),
+            sync,
+            FakeBrowseSortPreferences(),
+            FakeBrowseViewPreferences(),
+        )
         advanceUntilIdle()
         sync.offerAfterDelete("Gone")
         viewModel.onReturnedToBrowse()
@@ -298,6 +313,7 @@ class BrowserViewModelTest {
             BrowseUiConfig(indexPollDelayMs = 1),
             PendingBrowseSync(),
             sortPreferences,
+            FakeBrowseViewPreferences(),
         )
         advanceUntilIdle()
         assertEquals(BrowseSortMode.ModifiedDesc, viewModel.state.value.sortMode)
@@ -333,5 +349,29 @@ class BrowserViewModelTest {
 
         assertEquals(BrowseSortMode.ModifiedDesc, viewModel.state.value.sortMode)
         assertEquals(listOf("Zulu", "Alpha"), viewModel.state.value.items.map { it.id })
+    }
+
+    @Test
+    fun toggleViewModeSwitchesStackedAndGridAndPersists() = runTest(dispatcherRule.dispatcher) {
+        val viewPreferences = FakeBrowseViewPreferences()
+        val viewModel = viewModel(viewPreferences = viewPreferences)
+        advanceUntilIdle()
+        assertEquals(BrowseViewMode.Stacked, viewModel.state.value.viewMode)
+
+        viewModel.toggleViewMode()
+        advanceUntilIdle()
+        assertEquals(BrowseViewMode.Grid, viewModel.state.value.viewMode)
+
+        viewModel.toggleViewMode()
+        advanceUntilIdle()
+        assertEquals(BrowseViewMode.Stacked, viewModel.state.value.viewMode)
+    }
+
+    @Test
+    fun restoredGridViewModeIsAppliedOnStartup() = runTest(dispatcherRule.dispatcher) {
+        val viewPreferences = FakeBrowseViewPreferences(BrowseViewMode.Grid)
+        val viewModel = viewModel(viewPreferences = viewPreferences)
+        advanceUntilIdle()
+        assertEquals(BrowseViewMode.Grid, viewModel.state.value.viewMode)
     }
 }

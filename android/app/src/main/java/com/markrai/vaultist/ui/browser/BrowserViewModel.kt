@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markrai.vaultist.data.repository.VaultRepository
 import com.markrai.vaultist.data.settings.BrowseSortPreferences
+import com.markrai.vaultist.data.settings.BrowseViewPreferences
 import com.markrai.vaultist.di.config.BrowseUiConfig
 import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.BrowsePage
 import com.markrai.vaultist.domain.BrowseSortMode
+import com.markrai.vaultist.domain.BrowseViewMode
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.SearchPage
@@ -36,6 +38,7 @@ data class BrowserUiState(
     val query: String = "",
     val searchMode: SearchMode = SearchMode.Files,
     val sortMode: BrowseSortMode = BrowseSortMode.Alphabetical,
+    val viewMode: BrowseViewMode = BrowseViewMode.Stacked,
     val searching: Boolean = false,
     val isSearchResults: Boolean = false,
     val searched: Boolean = false,
@@ -48,6 +51,7 @@ class BrowserViewModel @Inject constructor(
     private val browseUiConfig: BrowseUiConfig,
     private val pendingBrowseSync: PendingBrowseSync,
     private val browseSortPreferences: BrowseSortPreferences,
+    private val browseViewPreferences: BrowseViewPreferences,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BrowserUiState())
     val state: StateFlow<BrowserUiState> = _state
@@ -57,15 +61,28 @@ class BrowserViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val mode = browseSortPreferences.sortMode.first()
+            val sortMode = browseSortPreferences.sortMode.first()
+            val viewMode = browseViewPreferences.viewMode.first()
             _state.update { current ->
                 current.copy(
-                    sortMode = mode,
-                    items = sortBrowseItems(current.items, mode),
+                    sortMode = sortMode,
+                    viewMode = viewMode,
+                    items = sortBrowseItems(current.items, sortMode),
                 )
             }
         }
         loadBrowse("")
+    }
+
+    fun toggleViewMode() {
+        viewModelScope.launch {
+            val next = when (_state.value.viewMode) {
+                BrowseViewMode.Stacked -> BrowseViewMode.Grid
+                BrowseViewMode.Grid -> BrowseViewMode.Stacked
+            }
+            browseViewPreferences.setViewMode(next)
+            _state.update { it.copy(viewMode = next) }
+        }
     }
 
     fun toggleSortMode() {

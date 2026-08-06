@@ -57,7 +57,7 @@ Retrieval uses the existing host API only: the Ask engine analyzes the question,
 
 **Host retrieval contract (v1):** For each extracted subject term, Ask calls `GET /search?q={term}&mode=files` and `GET /search?q={term}&mode=content` (default `limit=100` from the Android client). It expects `SearchResponse.items` as note browse items with `kind=note`, `id`, `path`, `title`, and `name`. Hit **rank** is the zero-based index in `items`; fusion scoring is client-side, not server-side. Candidate note bodies come from `GET /notes/{id}`. Search result order must remain stable path order from the server; Ask does not depend on snippets or server ranking metadata.
 
-Ask preferences (`enable_ask_thinking`) and browse display preferences (`modified_date_style`: absolute calendar dates vs relative phrasing on note cards) are stored separately from server URL settings, all in the same DataStore file. On-device Ask availability is gated through an injectable `OnDeviceAskEnabled` seam (currently backed by `BuildConfig.ENABLE_ON_DEVICE_ASK`).
+Ask preferences (`enable_ask_thinking`) and browse display preferences (`browse_sort_mode`, `browse_view_mode`, `modified_date_style`: sort order, stacked vs grid card layout, and absolute vs relative modified dates on note cards) are stored separately from server URL settings, all in the same DataStore file. On-device Ask availability is gated through an injectable `OnDeviceAskEnabled` seam (currently backed by `BuildConfig.ENABLE_ON_DEVICE_ASK`).
 
 Ask never mounts the vault filesystem. Host reachability, index readiness, and Tailscale HTTPS remain prerequisites for retrieval even though generation runs on the device.
 

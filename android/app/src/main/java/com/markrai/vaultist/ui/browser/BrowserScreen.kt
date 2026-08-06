@@ -6,17 +6,26 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.Card
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -30,9 +39,11 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SortByAlpha
+import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -43,14 +54,17 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.R
+import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowseKind
 import com.markrai.vaultist.domain.BrowseSortMode
+import com.markrai.vaultist.domain.BrowseViewMode
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.ui.ask.AskHint
 import com.markrai.vaultist.ui.ask.AskResultsPane
@@ -64,6 +78,9 @@ import com.markrai.vaultist.ui.theme.VaultistThemeColors
 
 private val ModeButtonWidth = 104.dp
 private val SearchControlHeight = 56.dp
+// Matches NoteResultCard with caption + title (grid cells share one row height).
+private val BrowseGridTileMinHeight = 76.dp
+private val BrowseGridDateRowHeight = 16.dp
 
 @Composable
 fun BrowserScreen(
@@ -114,6 +131,18 @@ fun BrowserScreen(
             },
             actions = {
                 if (state.searchMode != SearchMode.Ask) {
+                    IconButton(onClick = viewModel::toggleViewMode) {
+                        when (state.viewMode) {
+                            BrowseViewMode.Stacked -> Icon(
+                                Icons.Default.GridView,
+                                contentDescription = "Grid view",
+                            )
+                            BrowseViewMode.Grid -> Icon(
+                                Icons.Default.ViewAgenda,
+                                contentDescription = "Stacked view",
+                            )
+                        }
+                    }
                     IconButton(onClick = viewModel::toggleSortMode) {
                         when (state.sortMode) {
                             BrowseSortMode.Alphabetical -> Icon(
@@ -319,56 +348,213 @@ private fun ResultsPane(
             Modifier.padding(Spacing.md),
             onRetry,
         )
-        else -> LazyColumn(
-            Modifier.fillMaxSize().padding(horizontal = Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-        ) {
-            if (state.searching) {
-                item {
-                    Box(Modifier.fillMaxWidth().padding(Spacing.sm), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-            }
-            if (!state.isSearchResults && state.folder.isNotEmpty()) item {
-                Text(
-                    "..",
-                    Modifier.fillMaxWidth().clickable(onClick = onUp).padding(vertical = Spacing.md),
-                    color = MaterialTheme.colors.primary,
+        state.viewMode == BrowseViewMode.Grid -> BrowseResultsGrid(
+            state = state,
+            onOpenFolder = onOpenFolder,
+            onOpenNote = onOpenNote,
+            onUp = onUp,
+            onLoadMore = onLoadMore,
+        )
+        else -> BrowseResultsStack(
+            state = state,
+            onOpenFolder = onOpenFolder,
+            onOpenNote = onOpenNote,
+            onUp = onUp,
+            onLoadMore = onLoadMore,
+        )
+    }
+}
+
+@Composable
+private fun BrowseResultsStack(
+    state: BrowserUiState,
+    onOpenFolder: (String) -> Unit,
+    onOpenNote: (String) -> Unit,
+    onUp: () -> Unit,
+    onLoadMore: () -> Unit,
+) {
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        browseResultsChrome(state, onUp, onLoadMore)
+        items(state.items, key = { "${it.kind}:${it.path}" }) { item ->
+            BrowseItemStacked(
+                item = item,
+                onOpenFolder = onOpenFolder,
+                onOpenNote = onOpenNote,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BrowseResultsGrid(
+    state: BrowserUiState,
+    onOpenFolder: (String) -> Unit,
+    onOpenNote: (String) -> Unit,
+    onUp: () -> Unit,
+    onLoadMore: () -> Unit,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize().padding(horizontal = Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        browseResultsChrome(state, onUp, onLoadMore)
+        items(state.items, key = { "${it.kind}:${it.path}" }) { item ->
+            if (item.kind == BrowseKind.Folder) {
+                BrowseFolderTile(item, onOpenFolder)
+            } else {
+                NoteResultCard(
+                    item,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = BrowseGridTileMinHeight),
+                    onClick = { item.id?.let(onOpenNote) },
                 )
             }
-            items(state.items, key = { "${it.kind}:${it.path}" }) { item ->
-                if (item.kind == BrowseKind.Folder) {
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onOpenFolder(item.path) }.padding(vertical = Spacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                    ) {
-                        Icon(Icons.Default.Folder, null, tint = MaterialTheme.colors.primary)
-                        Text(item.name)
-                    }
-                } else {
-                    NoteResultCard(item, onClick = { item.id?.let(onOpenNote) })
-                }
+        }
+    }
+}
+
+private fun LazyListScope.browseResultsChrome(
+    state: BrowserUiState,
+    onUp: () -> Unit,
+    onLoadMore: () -> Unit,
+) {
+    if (state.searching) {
+        item {
+            Box(Modifier.fillMaxWidth().padding(Spacing.sm), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-            if (state.items.isEmpty() && !state.searching && !state.loading) {
-                item {
-                    Text(
-                        when {
-                            state.isSearchResults && state.searched -> "No matching notes."
-                            else -> "This folder has no Markdown notes."
-                        },
-                        Modifier.padding(vertical = Spacing.lg),
-                    )
-                }
+        }
+    }
+    if (!state.isSearchResults && state.folder.isNotEmpty()) item {
+        Text(
+            "..",
+            Modifier.fillMaxWidth().clickable(onClick = onUp).padding(vertical = Spacing.md),
+            color = MaterialTheme.colors.primary,
+        )
+    }
+    if (state.items.isEmpty() && !state.searching && !state.loading) {
+        item {
+            Text(
+                when {
+                    state.isSearchResults && state.searched -> "No matching notes."
+                    else -> "This folder has no Markdown notes."
+                },
+                Modifier.padding(vertical = Spacing.lg),
+            )
+        }
+    }
+    state.error?.let { item { ErrorPanel(it) } }
+    if (state.nextCursor != null) {
+        item {
+            Button(onClick = onLoadMore, enabled = !state.loadingMore) {
+                Text(if (state.loadingMore) "Loading…" else "Load more")
             }
-            state.error?.let { item { ErrorPanel(it) } }
-            if (state.nextCursor != null) {
-                item {
-                    Button(onClick = onLoadMore, enabled = !state.loadingMore) {
-                        Text(if (state.loadingMore) "Loading…" else "Load more")
-                    }
-                }
+        }
+    }
+}
+
+private fun LazyGridScope.browseResultsChrome(
+    state: BrowserUiState,
+    onUp: () -> Unit,
+    onLoadMore: () -> Unit,
+) {
+    if (state.searching) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Box(Modifier.fillMaxWidth().padding(Spacing.sm), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+    }
+    if (!state.isSearchResults && state.folder.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
+        Text(
+            "..",
+            Modifier.fillMaxWidth().clickable(onClick = onUp).padding(vertical = Spacing.md),
+            color = MaterialTheme.colors.primary,
+        )
+    }
+    if (state.items.isEmpty() && !state.searching && !state.loading) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Text(
+                when {
+                    state.isSearchResults && state.searched -> "No matching notes."
+                    else -> "This folder has no Markdown notes."
+                },
+                Modifier.padding(vertical = Spacing.lg),
+            )
+        }
+    }
+    state.error?.let {
+        item(span = { GridItemSpan(maxLineSpan) }) { ErrorPanel(it) }
+    }
+    if (state.nextCursor != null) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Button(onClick = onLoadMore, enabled = !state.loadingMore) {
+                Text(if (state.loadingMore) "Loading…" else "Load more")
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrowseItemStacked(
+    item: BrowseItem,
+    onOpenFolder: (String) -> Unit,
+    onOpenNote: (String) -> Unit,
+) {
+    if (item.kind == BrowseKind.Folder) {
+        BrowseFolderRow(item, onOpenFolder)
+    } else {
+        NoteResultCard(item, onClick = { item.id?.let(onOpenNote) })
+    }
+}
+
+@Composable
+private fun BrowseFolderRow(
+    item: BrowseItem,
+    onOpenFolder: (String) -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().clickable { onOpenFolder(item.path) }.padding(vertical = Spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        Icon(Icons.Default.Folder, null, tint = MaterialTheme.colors.primary)
+        Text(item.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun BrowseFolderTile(
+    item: BrowseItem,
+    onOpenFolder: (String) -> Unit,
+) {
+    Card(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = BrowseGridTileMinHeight)
+            .clickable { onOpenFolder(item.path) },
+        elevation = Spacing.xs,
+    ) {
+        Column(
+            Modifier.padding(Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Spacer(Modifier.height(BrowseGridDateRowHeight))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                Icon(Icons.Default.Folder, null, tint = MaterialTheme.colors.primary)
+                Text(
+                    item.name,
+                    style = MaterialTheme.typography.subtitle1,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
