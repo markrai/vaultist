@@ -30,6 +30,7 @@ class SetupScreenTest {
                     onAppearanceChange = {},
                     onRelativeModifiedDatesChange = {},
                     onBack = {},
+                    initialTab = SetupTab.CONNECT,
                 )
             }
         }
@@ -38,5 +39,67 @@ class SetupScreenTest {
         composeRule.onNodeWithTag("test_connection").assertIsEnabled().performClick()
         composeRule.onNodeWithTag("save_server").assertIsNotEnabled()
         assertEquals(1, testClicks)
+    }
+
+    @Test fun showsPreferencesByDefault() {
+        composeRule.setContent {
+            VaultistTheme {
+                SetupContent(
+                    state = SetupUiState(),
+                    onUrlChange = {},
+                    onTest = {},
+                    onSave = {},
+                    onEnableAskThinkingChange = {},
+                    onColorThemeChange = {},
+                    onAppearanceChange = {},
+                    onRelativeModifiedDatesChange = {},
+                    onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithTag("relative_modified_dates_toggle").assertExists()
+        composeRule.onNodeWithTag("ask_thinking_toggle").assertDoesNotExist()
+        composeRule.onNodeWithTag("server_url").assertDoesNotExist()
+    }
+
+    @Test fun askControlsVisibleOnAskTab() {
+        composeRule.setContent {
+            VaultistTheme {
+                SetupContent(
+                    state = SetupUiState(),
+                    onUrlChange = {},
+                    onTest = {},
+                    onSave = {},
+                    onEnableAskThinkingChange = {},
+                    onColorThemeChange = {},
+                    onAppearanceChange = {},
+                    onRelativeModifiedDatesChange = {},
+                    onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithTag("setup_tab_ask").performClick()
+        composeRule.onNodeWithTag("ask_thinking_toggle").assertExists()
+    }
+
+    @Test fun themeControlsVisibleOnThemeTab() {
+        composeRule.setContent {
+            VaultistTheme {
+                SetupContent(
+                    state = SetupUiState(),
+                    onUrlChange = {},
+                    onTest = {},
+                    onSave = {},
+                    onEnableAskThinkingChange = {},
+                    onColorThemeChange = {},
+                    onAppearanceChange = {},
+                    onRelativeModifiedDatesChange = {},
+                    onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithTag("setup_tab_theme").performClick()
+        composeRule.onNodeWithTag("theme_ruby").assertExists()
+        composeRule.onNodeWithTag("appearance_dark").assertExists()
     }
 }

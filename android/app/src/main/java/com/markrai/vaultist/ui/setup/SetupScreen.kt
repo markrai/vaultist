@@ -1,34 +1,28 @@
 package com.markrai.vaultist.ui.setup
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.Button
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
-import androidx.compose.material.Switch
+import androidx.compose.material.Tab
+import androidx.compose.material.TabRow
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.markrai.vaultist.R
@@ -64,131 +58,109 @@ fun SetupContent(
     onAppearanceChange: (AppAppearance) -> Unit,
     onRelativeModifiedDatesChange: (Boolean) -> Unit,
     onBack: () -> Unit,
+    initialTab: SetupTab = SetupTab.PREFERENCES,
 ) {
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.setup_server_title)) }, navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }) }) { padding ->
+    var selectedTab by remember { mutableStateOf(initialTab) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_title)) },
+                navigationIcon = {
+                    TextButton(onClick = onBack) {
+                        Text("Back")
+                    }
+                },
+            )
+        },
+    ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                .padding(padding),
         ) {
-            Text("Enter the HTTPS address exposed by Tailscale Serve. The Android emulator development default is 10.0.2.2, not localhost.")
-            OutlinedTextField(
-                value = state.url,
-                onValueChange = onUrlChange,
-                label = { Text("Server URL") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-                keyboardActions = KeyboardActions(onGo = { onTest() }),
-                modifier = Modifier.fillMaxWidth().testTag("server_url"),
+            SetupTabBar(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
             )
-            state.message?.let { Text(it, color = if (state.valid) MaterialTheme.colors.primary else MaterialTheme.colors.error) }
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Button(onClick = onTest, enabled = !state.testing, modifier = Modifier.testTag("test_connection")) {
-                    if (state.testing) CircularProgressIndicator(Modifier.padding(end = Spacing.sm))
-                    Text("Test connection")
-                }
-                Button(onClick = onSave, enabled = state.valid && !state.testing, modifier = Modifier.testTag("save_server")) { Text("Save") }
-            }
-            Text(stringResource(R.string.setup_url_storage_note), style = MaterialTheme.typography.caption)
-
-            Text("Theme", style = MaterialTheme.typography.subtitle1)
-            Row(
-                Modifier.fillMaxWidth().testTag("theme_toggle_row"),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-            ) {
-                ThemeOptionButton(
-                    label = "Ruby",
-                    selected = state.colorTheme == AppColorTheme.Ruby,
-                    onClick = { onColorThemeChange(AppColorTheme.Ruby) },
-                    modifier = Modifier.weight(1f).testTag("theme_ruby"),
-                )
-                ThemeOptionButton(
-                    label = "Forest",
-                    selected = state.colorTheme == AppColorTheme.Forest,
-                    onClick = { onColorThemeChange(AppColorTheme.Forest) },
-                    modifier = Modifier.weight(1f).testTag("theme_forest"),
-                )
-            }
-
-            Text("Appearance", style = MaterialTheme.typography.subtitle1)
-            Row(
-                Modifier.fillMaxWidth().testTag("appearance_toggle_row"),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-            ) {
-                ThemeOptionButton(
-                    label = "Light",
-                    selected = state.appearance == AppAppearance.Light,
-                    onClick = { onAppearanceChange(AppAppearance.Light) },
-                    modifier = Modifier.weight(1f).testTag("appearance_light"),
-                )
-                ThemeOptionButton(
-                    label = "Dark",
-                    selected = state.appearance == AppAppearance.Dark,
-                    onClick = { onAppearanceChange(AppAppearance.Dark) },
-                    modifier = Modifier.weight(1f).testTag("appearance_dark"),
-                )
-            }
-
-            Text("Browse", style = MaterialTheme.typography.subtitle1)
-            Row(
-                Modifier.fillMaxWidth().testTag("relative_modified_dates_row"),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f).padding(end = Spacing.sm)) {
-                    Text("Relative dates")
-                    Text(
-                        "Show modified times as \"3 days ago\" instead of calendar dates.",
-                        style = MaterialTheme.typography.caption,
+            Spacer(Modifier.height(Spacing.md))
+            when (selectedTab) {
+                SetupTab.PREFERENCES -> {
+                    PreferencesSetupPane(
+                        modifier = Modifier.weight(1f),
+                        relativeModifiedDates = state.relativeModifiedDates,
+                        onRelativeModifiedDatesChange = onRelativeModifiedDatesChange,
                     )
                 }
-                Switch(
-                    checked = state.relativeModifiedDates,
-                    onCheckedChange = onRelativeModifiedDatesChange,
-                    modifier = Modifier.testTag("relative_modified_dates_toggle"),
-                )
-            }
-
-            Text("Ask", style = MaterialTheme.typography.subtitle1)
-            Row(
-                Modifier.fillMaxWidth().testTag("ask_thinking_row"),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f).padding(end = Spacing.sm)) {
-                    Text("Extended thinking")
-                    Text(
-                        "Lets on-device Ask reason longer before answering. Slower; off by default.",
-                        style = MaterialTheme.typography.caption,
+                SetupTab.CONNECT -> {
+                    ConnectSetupPane(
+                        modifier = Modifier.weight(1f),
+                        state = state,
+                        onUrlChange = onUrlChange,
+                        onTest = onTest,
+                        onSave = onSave,
                     )
                 }
-                Switch(
-                    checked = state.enableAskThinking,
-                    onCheckedChange = onEnableAskThinkingChange,
-                    modifier = Modifier.testTag("ask_thinking_toggle"),
-                )
+                SetupTab.THEME -> {
+                    ThemeSetupPane(
+                        modifier = Modifier.weight(1f),
+                        colorTheme = state.colorTheme,
+                        appearance = state.appearance,
+                        onColorThemeChange = onColorThemeChange,
+                        onAppearanceChange = onAppearanceChange,
+                    )
+                }
+                SetupTab.ASK -> {
+                    AskSetupPane(
+                        modifier = Modifier.weight(1f),
+                        enableAskThinking = state.enableAskThinking,
+                        onEnableAskThinkingChange = onEnableAskThinkingChange,
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ThemeOptionButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
+fun SetupTabBar(
+    selectedTab: SetupTab,
+    onTabSelected: (SetupTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (selected) {
-        Button(onClick = onClick, modifier = modifier) {
-            Text(label)
-        }
-    } else {
-        OutlinedButton(onClick = onClick, modifier = modifier) {
-            Text(label)
+    TabRow(
+        selectedTabIndex = selectedTab.ordinal,
+        modifier = modifier,
+        backgroundColor = MaterialTheme.colors.surface,
+        contentColor = MaterialTheme.colors.primary,
+    ) {
+        SetupTab.entries.forEach { tab ->
+            Tab(
+                selected = selectedTab == tab,
+                onClick = { onTabSelected(tab) },
+                modifier = Modifier.testTag("setup_tab_${tab.name.lowercase()}"),
+                text = {
+                    SetupTabLabel(
+                        text = tab.label,
+                        selected = selectedTab == tab,
+                    )
+                },
+            )
         }
     }
+}
+
+@Composable
+private fun SetupTabLabel(
+    text: String,
+    selected: Boolean,
+) {
+    Text(
+        text = text,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        softWrap = false,
+        style = MaterialTheme.typography.caption.copy(fontSize = 11.sp, lineHeight = 13.sp),
+        color = if (selected) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+    )
 }
