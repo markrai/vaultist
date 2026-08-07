@@ -29,8 +29,11 @@ class FakeNoteWidgetRefresher : NoteWidgetRefresher {
     val refreshedWidgetIds = mutableListOf<Int>()
     val scheduledRefreshes = mutableListOf<Pair<Int, String>>()
     var clearAllCalls = 0
+    var refreshAllCalls = 0
 
-    override suspend fun refreshAll() = Unit
+    override suspend fun refreshAll() {
+        refreshAllCalls++
+    }
 
     override fun scheduleRefreshWidget(appWidgetId: Int, noteId: String) {
         scheduledRefreshes += appWidgetId to noteId

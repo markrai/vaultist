@@ -1,5 +1,6 @@
 package com.markrai.vaultist.ui.widget
 
+import com.markrai.vaultist.data.settings.ThemePreferences
 import com.markrai.vaultist.data.widget.NoteWidgetLoader
 import com.markrai.vaultist.data.widget.NoteWidgetStore
 import com.markrai.vaultist.di.config.NoteWidgetConfig
@@ -13,4 +14,5 @@ interface WidgetEntryPoint {
     fun noteWidgetLoader(): NoteWidgetLoader
     fun noteWidgetStore(): NoteWidgetStore
     fun noteWidgetConfig(): NoteWidgetConfig
+    fun themePreferences(): ThemePreferences
 }

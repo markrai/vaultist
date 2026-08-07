@@ -18,6 +18,7 @@ import androidx.glance.currentState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import com.markrai.vaultist.data.widget.NoteWidgetLoadResult
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.flow.first
 
 class NoteWidget : GlanceAppWidget() {
     override val stateDefinition = PreferencesGlanceStateDefinition
@@ -28,6 +29,7 @@ class NoteWidget : GlanceAppWidget() {
         val entryPoint = EntryPointAccessors.fromApplication(appContext, WidgetEntryPoint::class.java)
         val loader = entryPoint.noteWidgetLoader()
         val config = entryPoint.noteWidgetConfig()
+        val colorizedHeadings = entryPoint.themePreferences().colorizedHeadings.first()
         val seededNoteId = getAppWidgetState(appContext, PreferencesGlanceStateDefinition, id)
             .let { prefs -> prefs[WidgetNoteState.noteIdKey] }
 
@@ -63,6 +65,7 @@ class NoteWidget : GlanceAppWidget() {
                     content = content,
                     noteId = noteId,
                     appWidgetId = appWidgetId,
+                    colorizedHeadings = colorizedHeadings,
                 )
             }
         }

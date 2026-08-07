@@ -27,6 +27,7 @@ fun NoteWidgetRoot(
     content: NoteWidgetContent?,
     noteId: String?,
     appWidgetId: Int,
+    colorizedHeadings: Boolean,
 ) {
     val context = LocalContext.current
     val openAction = noteId?.let {
@@ -60,7 +61,7 @@ fun NoteWidgetRoot(
                     )
                     LazyColumn(modifier = GlanceModifier.defaultWeight()) {
                         items(widgetContent.blocks, itemId = { it.stableId }) { block ->
-                            WidgetBlockRow(block)
+                            WidgetBlockRow(block, colorizedHeadings)
                         }
                     }
                 }
@@ -81,13 +82,17 @@ private fun WidgetStatusText(message: String) {
 }
 
 @Composable
-private fun WidgetBlockRow(block: WidgetBlock) {
+private fun WidgetBlockRow(block: WidgetBlock, colorizedHeadings: Boolean) {
     when (block) {
         is WidgetBlock.Heading -> Text(
             text = block.text,
             modifier = GlanceModifier.padding(top = 6.dp, bottom = 2.dp),
             style = TextStyle(
-                color = GlanceTheme.colors.onBackground,
+                color = widgetHeadingTextColor(
+                    level = block.level,
+                    colorizedHeadings = colorizedHeadings,
+                    defaultColor = GlanceTheme.colors.onBackground,
+                ),
                 fontSize = headingSize(block.level),
                 fontWeight = FontWeight.Medium,
             ),

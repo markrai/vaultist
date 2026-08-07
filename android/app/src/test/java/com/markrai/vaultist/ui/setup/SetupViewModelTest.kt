@@ -104,19 +104,21 @@ class SetupViewModelTest {
 
     @Test fun persistsColorizedHeadingsPreference() = runTest(dispatcherRule.dispatcher) {
         val themePrefs = FakeThemePreferences()
+        val widgetRefresh = FakeNoteWidgetRefresher()
         val viewModel = SetupViewModel(
             FakeVaultRepository(),
             FakeAskPreferences(),
             themePrefs,
             FakeModifiedDatePreferences(),
             FakeDateTimeInsertPreferences(),
-            FakeNoteWidgetRefresher(),
+            widgetRefresh,
         )
         advanceUntilIdle()
         assertFalse(viewModel.state.value.colorizedHeadings)
         viewModel.setColorizedHeadings(true)
         advanceUntilIdle()
         assertTrue(viewModel.state.value.colorizedHeadings)
+        assertEquals(1, widgetRefresh.refreshAllCalls)
     }
 
     @Test fun persistsRelativeModifiedDatesPreference() = runTest(dispatcherRule.dispatcher) {

@@ -112,6 +112,7 @@ class SetupViewModel @Inject constructor(
     fun setColorizedHeadings(enabled: Boolean) {
         viewModelScope.launch {
             themePreferences.setColorizedHeadings(enabled)
+            noteWidgetRefresh.refreshAll()
         }
     }
 
