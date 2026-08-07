@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -23,9 +25,12 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.Card
 import androidx.compose.material.Checkbox
 import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.LocalMinimumInteractiveComponentEnforcement
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +71,8 @@ private const val NoteTag = "note"
 private const val UrlTag = "url"
 private const val MissingTag = "missing"
 private const val AmbiguousTag = "ambiguous"
+private val ListMarkerWidth = 28.dp
+private val TaskCheckboxSize = 20.dp
 
 /** Trailing punctuation often adjacent to bare URLs in prose. */
 private val BareUrlTrailingTrim = charArrayOf('.', ',', ';', ':', '!', '?', ')', ']', '\'', '"', '…')
@@ -81,9 +88,12 @@ fun MarkdownRenderer(
     onAmbiguous: (String, List<LinkCandidate>) -> Unit,
     onOpenImage: (String) -> Unit,
     onReadScrollChanged: (sourceLine: Int, partialScrollOffsetPx: Int) -> Unit = { _, _ -> },
+    canToggleTasks: Boolean = false,
+    onTaskToggle: (sourceLine: Int) -> Unit = {},
+    taskToggleInFlightLine: Int? = null,
     modifier: Modifier = Modifier,
 ) {
-    val blocks = remember(note.id, note.revision) { MarkdownDocumentParser.parse(note.content) }
+    val blocks = remember(note.id, note.revision, note.content) { MarkdownDocumentParser.parse(note.content) }
     val listState = rememberLazyListState()
     val onReadScrollChangedState = rememberUpdatedState(onReadScrollChanged)
     val focusManager = LocalFocusManager.current
@@ -137,26 +147,17 @@ fun MarkdownRenderer(
                     is MarkdownBlock.Paragraph -> ParagraphBlock(
                         block.text, note, assetUrl, onOpenNote, onMissing, onAmbiguous, onOpenImage, clearSelection,
                     )
-                    is MarkdownBlock.ListItem -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        when (block.checked) {
-                            null -> Text(
-                                if (block.ordered) "${block.number ?: 1}." else "•",
-                                style = MarkdownTypography.body(),
-                                modifier = Modifier.clearSelectionOnTap(clearSelection),
-                            )
-                            else -> Checkbox(
-                                checked = block.checked,
-                                onCheckedChange = null,
-                                enabled = false,
-                                modifier = Modifier.clearSelectionOnTap(clearSelection),
-                            )
-                        }
-                        InlineText(
-                            block.text, note.links, MarkdownTypography.body(), onOpenNote, onMissing, onAmbiguous,
-                            onClearSelection = clearSelection,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
+                    is MarkdownBlock.ListItem -> MarkdownListItemRow(
+                        block = block,
+                        links = note.links,
+                        canToggleTasks = canToggleTasks,
+                        taskToggleInFlight = taskToggleInFlightLine != null,
+                        onTaskToggle = onTaskToggle,
+                        onOpenNote = onOpenNote,
+                        onMissing = onMissing,
+                        onAmbiguous = onAmbiguous,
+                        onClearSelection = clearSelection,
+                    )
                     is MarkdownBlock.Quote -> Row {
                         Box(Modifier.padding(end = Spacing.sm).background(MaterialTheme.colors.primary).heightIn(min = 24.dp).padding(horizontal = 2.dp))
                         InlineText(
@@ -313,6 +314,62 @@ internal fun linksForBacklinkContext(
         cursor = end + 2
     }
     return links
+}
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+private fun MarkdownListItemRow(
+    block: MarkdownBlock.ListItem,
+    links: List<NoteLink>,
+    canToggleTasks: Boolean,
+    taskToggleInFlight: Boolean,
+    onTaskToggle: (sourceLine: Int) -> Unit,
+    onOpenNote: (String, String?) -> Unit,
+    onMissing: (String, Boolean) -> Unit,
+    onAmbiguous: (String, List<LinkCandidate>) -> Unit,
+    onClearSelection: () -> Unit,
+) {
+    val bodyStyle = MarkdownTypography.body()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(ListMarkerWidth)
+                .heightIn(min = TaskCheckboxSize),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            when (block.checked) {
+                null -> Text(
+                    if (block.ordered) "${block.number ?: 1}." else "•",
+                    style = bodyStyle,
+                    modifier = Modifier.clearSelectionOnTap(onClearSelection),
+                )
+                else -> CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
+                    Checkbox(
+                        checked = block.checked,
+                        onCheckedChange = { onTaskToggle(block.sourceLine) },
+                        enabled = canToggleTasks && !taskToggleInFlight,
+                        modifier = Modifier
+                            .size(TaskCheckboxSize)
+                            .clearSelectionOnTap(onClearSelection),
+                    )
+                }
+            }
+        }
+        InlineText(
+            block.text,
+            links,
+            bodyStyle,
+            onOpenNote,
+            onMissing,
+            onAmbiguous,
+            onClearSelection = onClearSelection,
+            modifier = Modifier.weight(1f),
+        )
+    }
 }
 
 @Composable

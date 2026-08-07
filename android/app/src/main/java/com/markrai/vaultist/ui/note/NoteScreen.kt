@@ -216,10 +216,13 @@ fun NoteScreen(
                 onAmbiguous = { target, candidates -> ambiguous = AmbiguousDialog(target, candidates) },
                 onOpenImage = onOpenImage,
                 onReadScrollChanged = viewModel::onReadScrollChanged,
+                canToggleTasks = state.canEdit && !state.editing,
+                onTaskToggle = viewModel::toggleTask,
+                taskToggleInFlightLine = state.taskToggleSourceLine,
                 modifier = Modifier.padding(padding),
             )
         }
-        if (state.saving || state.deleting) {
+        if ((state.saving && state.editing) || state.deleting) {
             Box(
                 Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,

@@ -61,6 +61,7 @@ flowchart LR
 | Return to browse | `onReturnedToBrowse` drains pending mutations and applies them. **Reconcile** (poll index + reload browse) only when there were **deletes** — not upsert-only returns. | `BrowserViewModel` |
 | Create → editor | `NoteOpenSeed` seeds the editor from the create `201` body; `includeCreatedNote` adds a pending upsert. Do not reconcile browse when navigating into the new note. | `BrowserScreen`, `CreateNoteViewModel` |
 | Note reload | Silent reload after save/resume must not downgrade `revision` when content is unchanged (`mergeLoadedNote`). | `NoteViewModel` |
+| Read-mode task toggle | Tapping a GFM task checkbox in read view flips the source line and PUTs immediately via `NoteViewModel.toggleTask` (not full edit mode). | `NoteViewModel`, `TaskLineToggle` |
 | Widget | Refresh bound widgets when note content or revision changes on load/save/delete (app-driven; no periodic polling). | `NoteViewModel`, `NoteWidgetRefresh` |
 
 Manual browse refresh clears pending mutations once the server list is authoritative again.

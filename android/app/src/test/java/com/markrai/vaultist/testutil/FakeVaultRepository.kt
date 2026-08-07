@@ -31,9 +31,11 @@ class FakeVaultRepository : VaultRepository {
     var backlinksResult: VaultResult<List<Backlink>> = VaultResult.Success(emptyList())
     var savedUrl: String? = null
 
+    var vaultReadOnly: Boolean = false
+
     override suspend fun testServer(url: String) = testResult
     override suspend fun saveServer(url: String) { savedUrl = url }
-    override suspend fun getVault() = VaultResult.Success(VaultMetadata("Test", 1, 0, 1, false))
+    override suspend fun getVault() = VaultResult.Success(VaultMetadata("Test", 1, 0, 1, vaultReadOnly))
     var listNotesResult: VaultResult<BrowsePage>? = null
     var listNotesDelayMs: Long = 0
     override suspend fun listNotes(folder: String, cursor: String?): VaultResult<BrowsePage> {
@@ -41,6 +43,7 @@ class FakeVaultRepository : VaultRepository {
         return listNotesResult ?: VaultResult.Success(BrowsePage(emptyList(), null, folder))
     }
     var updateNoteResult: VaultResult<Note>? = null
+    var updateNoteDelayMs: Long = 0
     var lastUpdateRevision: String? = null
     var lastUpdateContent: String? = null
     var deleteNoteResult: VaultResult<Unit>? = null
@@ -106,6 +109,7 @@ class FakeVaultRepository : VaultRepository {
     }
 
     override suspend fun updateNote(id: String, revision: String, content: String): VaultResult<Note> {
+        if (updateNoteDelayMs > 0) delay(updateNoteDelayMs)
         lastUpdateRevision = revision
         lastUpdateContent = content
         return updateNoteResult ?: notesById[id]?.let {

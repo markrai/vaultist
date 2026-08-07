@@ -21,6 +21,7 @@ import com.markrai.vaultist.ui.note.edit.NoteEditDraft
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -458,5 +459,99 @@ class NoteViewModelTest {
         viewModel.updateDraft(NoteEditDraft("See [[Oth", 9, 9))
         viewModel.applyWikiSuggestion("Folder/Other")
         assertEquals("See [[Folder/Other]]", viewModel.state.value.draft.text)
+    }
+
+    private fun taskNote(content: String = "# Title\n- [ ] Task") = sampleNote.copy(content = content)
+
+    @Test fun toggleTaskSavesFlippedContent() = runTest(dispatcherRule.dispatcher) {
+        val pendingBrowseSync = PendingBrowseSync()
+        val widgetRefresh = FakeNoteWidgetRefresher()
+        val note = taskNote()
+        val updated = note.copy(content = "# Title\n- [x] Task", revision = "sha256:new")
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(note)
+            updateNoteResult = VaultResult.Success(updated)
+            indexStatusResults = List(30) {
+                VaultResult.Success(IndexState("indexing", 1, 1, 0, 0))
+            }
+        }
+        val viewModel = viewModel(
+            repository = repository,
+            pendingBrowseSync = pendingBrowseSync,
+            noteWidgetRefresh = widgetRefresh,
+        )
+        advanceUntilIdle()
+        viewModel.toggleTask(2)
+        advanceUntilIdle()
+
+        assertEquals("# Title\n- [x] Task", viewModel.state.value.note?.content)
+        assertEquals("sha256:abc", repository.lastUpdateRevision)
+        assertEquals("# Title\n- [x] Task", repository.lastUpdateContent)
+        assertNull(viewModel.state.value.taskToggleSourceLine)
+        val upsert = pendingBrowseSync.drain().single() as BrowseMutation.UpsertNote
+        assertEquals("# Title\n- [x] Task", upsert.note.content)
+        assertTrue(widgetRefresh.refreshedNotes.contains("Folder/Note"))
+    }
+
+    @Test fun toggleTaskNoOpWhenNotEditable() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            vaultReadOnly = true
+            noteResult = VaultResult.Success(taskNote())
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        assertFalse(viewModel.state.value.canEdit)
+
+        viewModel.toggleTask(2)
+        advanceUntilIdle()
+
+        assertEquals("# Title\n- [ ] Task", viewModel.state.value.note?.content)
+        assertNull(repository.lastUpdateContent)
+    }
+
+    @Test fun toggleTaskNoOpWhileEditing() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(taskNote())
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.enterEdit()
+        viewModel.toggleTask(2)
+        advanceUntilIdle()
+
+        assertNull(repository.lastUpdateContent)
+    }
+
+    @Test fun toggleTaskRevertsOnRevisionConflict() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(taskNote())
+            updateNoteResult = VaultResult.Failure(VaultError.Api("revision_conflict", "conflict"))
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.toggleTask(2)
+        advanceUntilIdle()
+
+        assertEquals("# Title\n- [ ] Task", viewModel.state.value.note?.content)
+        assertTrue(viewModel.state.value.conflict)
+    }
+
+    @Test fun toggleTaskIgnoresSecondTapWhileInFlight() = runTest(dispatcherRule.dispatcher) {
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(taskNote("# Title\n- [ ] One\n- [ ] Two"))
+            updateNoteDelayMs = 1_000
+        }
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.toggleTask(2)
+        runCurrent()
+        assertEquals(2, viewModel.state.value.taskToggleSourceLine)
+
+        viewModel.toggleTask(3)
+        assertEquals(2, viewModel.state.value.taskToggleSourceLine)
+        assertEquals("# Title\n- [x] One\n- [ ] Two", viewModel.state.value.note?.content)
+
+        advanceUntilIdle()
+        assertNull(viewModel.state.value.taskToggleSourceLine)
     }
 }

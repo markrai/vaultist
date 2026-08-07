@@ -49,6 +49,8 @@ data class NoteUiState(
     val showDeleteDialog: Boolean = false,
     val deleting: Boolean = false,
     val noteDeleted: Boolean = false,
+    /** Source line of an in-flight read-mode task toggle; null when idle. */
+    val taskToggleSourceLine: Int? = null,
     /** Pixels into the first visible read block to restore when entering edit. */
     val editorPartialScrollOffsetPx: Int = 0,
 )
@@ -177,6 +179,54 @@ class NoteViewModel @Inject constructor(
     fun dismissWikiSuggestions() {
         wikiSearchJob?.cancel()
         _state.update { it.copy(wikiSuggestions = emptyList(), wikiSearching = false) }
+    }
+
+    fun toggleTask(sourceLine: Int) {
+        val current = _state.value
+        val note = current.note ?: return
+        if (!current.canEdit || current.editing || current.saving || current.deleting) return
+        if (current.taskToggleSourceLine != null) return
+        val revision = note.revision
+        if (revision.isBlank()) return
+        val newContent = toggleTaskLine(note.content, sourceLine) ?: return
+        val previousContent = note.content
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    taskToggleSourceLine = sourceLine,
+                    error = null,
+                    conflict = false,
+                    note = note.copy(content = newContent),
+                )
+            }
+            when (val result = repository.updateNote(noteId, revision, newContent)) {
+                is VaultResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            taskToggleSourceLine = null,
+                            note = result.value,
+                            error = null,
+                            conflict = false,
+                        )
+                    }
+                    reconcileLinks()
+                    pendingBrowseSync.offer(BrowseMutation.UpsertNote(result.value))
+                    noteWidgetRefresh.refreshForNote(noteId)
+                }
+                is VaultResult.Failure -> {
+                    val conflict = result.error is com.markrai.vaultist.domain.VaultError.Api &&
+                        (result.error as com.markrai.vaultist.domain.VaultError.Api).code == "revision_conflict"
+                    _state.update {
+                        it.copy(
+                            taskToggleSourceLine = null,
+                            note = note.copy(content = previousContent),
+                            error = result.error.userMessage(),
+                            conflict = conflict,
+                        )
+                    }
+                }
+            }
+        }
     }
 
     fun save() {
@@ -348,7 +398,9 @@ class NoteViewModel @Inject constructor(
 
     private fun reconcileLinks() {
         val current = _state.value
-        if (current.editing || current.loading || current.saving || current.deleting || current.note == null) return
+        if (current.editing || current.loading || current.saving || current.deleting ||
+            current.taskToggleSourceLine != null || current.note == null
+        ) return
         reconcileJob?.cancel()
         reconcileJob = viewModelScope.launch {
             repeat(browseUiConfig.indexPollAttempts) {
