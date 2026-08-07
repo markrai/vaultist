@@ -23,6 +23,63 @@ Note resolution tries exact case-sensitive paths, unique case-insensitive paths,
 
 Asset resolution tries the current note directory, Markdown Vault root, configured attachment folder, and bare filename lookup. It never rescans during a request. Only PNG, JPEG, WebP, GIF, and SVG are indexed for serving in this release.
 
+## Stale index, writes, and client sync
+
+Vault writes (create, save, delete, external edits) land on disk **before** the published snapshot catches up. Full reindex is asynchronous. Clients must not assume browse/search/note GET all reflect the same generation immediately after a write.
+
+### Server invariants
+
+| Concern | Rule | Owner |
+|---------|------|--------|
+| Refresh scheduling | `StartRefresh` **coalesces** when a refresh is already running (`pendingRefresh` → follow-up reindex after the current one finishes). Never drop a write-triggered refresh. | `internal/index/manager.go` |
+| Note GET body + revision | `GET /notes/{id}` serves bytes from disk; `revision` and ETag are `sha256:` of those bytes (not snapshot metadata alone). | `internal/index/read.go`, `internal/api/notes_read.go` |
+| Unindexed note GET | If the `.md` file exists but the note is not in the snapshot yet, GET still succeeds via `GetNoteForRead` (same on-disk seam as create/write). | `internal/index/read.go` |
+| Note PUT | `If-Match` compares **on-disk** hash at write time, not snapshot alone. Resolve path via snapshot or on-disk file. | `internal/index/write.go` |
+| Browse / search lists | Folder browse and search use the **snapshot only** until the next completed refresh. | `internal/api/browse.go`, `internal/search` |
+
+Concurrent create-then-save often starts two refreshes; coalescing ensures the index eventually includes the latest disk state.
+
+### Android: mutation-aware browse cache
+
+Browse is not a passive mirror of `GET /notes`. After writes, the client keeps a **durable pending layer** until the server list catches up.
+
+```mermaid
+flowchart LR
+  write[Create save delete folder write]
+  bus[PendingBrowseSync offer]
+  maps[BrowserViewModel pending upserts and tombstones]
+  loadBrowse[loadBrowse server list plus merge]
+  open[Open note GET]
+  write --> bus --> maps --> loadBrowse
+  maps --> open
+```
+
+| Step | Rule | Owner |
+|------|------|--------|
+| Emit mutations | Every write path offers `BrowseMutation` (`UpsertNote`, `UpsertFolder`, `DeleteNote`) via `PendingBrowseSync`. | `CreateNoteViewModel`, `NoteViewModel`, callers |
+| Merge on load | `loadBrowse` filters delete tombstones, then **merges** pending upserts for the current folder. Never replace the list from the server alone after a write. | `BrowserViewModel` |
+| Return to browse | `onReturnedToBrowse` drains pending mutations and applies them. **Reconcile** (poll index + reload browse) only when there were **deletes** — not upsert-only returns. | `BrowserViewModel` |
+| Create → editor | `NoteOpenSeed` seeds the editor from the create `201` body; `includeCreatedNote` adds a pending upsert. Do not reconcile browse when navigating into the new note. | `BrowserScreen`, `CreateNoteViewModel` |
+| Note reload | Silent reload after save/resume must not downgrade `revision` when content is unchanged (`mergeLoadedNote`). | `NoteViewModel` |
+| Widget | Refresh bound widgets when note content or revision changes on load/save/delete (app-driven; no periodic polling). | `NoteViewModel`, `NoteWidgetRefresh` |
+
+Manual browse refresh clears pending mutations once the server list is authoritative again.
+
+### Anti-patterns (regressions to avoid)
+
+- Showing a note in browse from a pending upsert while `GET /notes/{id}` requires a snapshot entry → “Note was not found” when opening.
+- Optimistic browse insert **without** durable pending merge → note disappears after `loadBrowse` against a stale snapshot.
+- Calling `reconcileAfterMutation` on every return from the note screen → unnecessary list clear/spinner; can wipe optimistic rows before merge runs.
+- Ignoring `ErrRefreshActive` on the server without coalescing → index stays stale after create-then-save.
+
+### Out of scope here
+
+- Search and Ask hit lists remain snapshot-only until refresh completes (pending upserts do not inject into search results).
+- No widget periodic network polling in v1.
+- No incremental single-note reindex (full `StartRefresh` only).
+
+See [Editing](#editing) for HTTP endpoints and UI entry points.
+
 ## Search
 
 Search runs against the current immutable snapshot only; results reflect the last completed index generation until the next refresh.
@@ -83,11 +140,11 @@ Write path:
 
 `AuthorizeWrite` gates PUT separately from read and refresh. `VaultResponse.readOnly` is `false` when writes are enabled. Android edits through `VaultRepository.updateNote` and a minimal edit UI on `NoteScreen`. The edit toolbar inserts datetime stamps and wiki-link openers; wiki autocomplete reuses existing Files search (`SearchMode.Files` only). Datetime insert format is configured in Settings → Prefs and persisted via `DateTimeInsertPreferences`.
 
-Notes can be deleted with `DELETE /api/v1/notes/{id}` using a required `If-Match` header (same revision ETag as GET/PUT). The server verifies the on-disk revision, removes the `.md` file via `internal/vault`, and starts a full index refresh (concurrent refresh requests coalesce into a follow-up reindex). Android deletes through `VaultRepository.deleteNote` and a trash icon on `NoteScreen` with confirmation. On success, `PendingBrowseSync` offers a delete mutation; when the user returns to browse, the browser drains pending mutations, applies local tombstones, merges any pending upserts, and reloads once index status leaves `indexing`.
+Notes can be deleted with `DELETE /api/v1/notes/{id}` using a required `If-Match` header (same revision ETag as GET/PUT). The server verifies the on-disk revision, removes the `.md` file via `internal/vault`, and starts a full index refresh. Android deletes through `VaultRepository.deleteNote` and a trash icon on `NoteScreen` with confirmation. On success, `PendingBrowseSync` offers a delete mutation (see [Stale index, writes, and client sync](#stale-index-writes-and-client-sync)).
 
-Notes can be created with `POST /api/v1/notes` and body `{ "id": "...", "content": "..." }` (no `If-Match`). The server validates the note ID via `internal/vault`, rejects conflicts when the note exists in the snapshot or on disk (`409` / `note_exists`), writes atomically, returns `201` + `NoteResponse`, and starts a full index refresh (coalesced when one is already running). Android creates through `VaultRepository.createNote`, orchestrated by `CreateNoteViewModel` on the browser route (title dialog → note in current folder) and from `NoteScreen` when the user confirms create on a missing note link (not missing assets). The create `201` body seeds `NoteViewModel` via a one-shot `NoteOpenSeed` so the editor opens without an immediate `GET` against the still-stale snapshot. Create, save, and folder create each offer upsert mutations through `PendingBrowseSync`; `BrowserViewModel` keeps durable pending upsert maps and merges them into every folder reload until the server list includes the item (same tombstone/merge pattern as delete). Missing-link placement uses `noteIdFromMissingLink`; on `note_exists`, the client opens the existing note. Open notes silently reload from `GET` after save and on screen resume once the index is ready, so wiki-link resolutions catch up after async reindex. The browse top bar shows `+` when `readOnly` is false.
+Notes can be created with `POST /api/v1/notes` and body `{ "id": "...", "content": "..." }` (no `If-Match`). The server validates the note ID via `internal/vault`, rejects conflicts when the note exists in the snapshot or on disk (`409` / `note_exists`), writes atomically, returns `201` + `NoteResponse`, and starts a full index refresh. Android creates through `VaultRepository.createNote`, orchestrated by `CreateNoteViewModel` on the browser route (title dialog → note in current folder) and from `NoteScreen` when the user confirms create on a missing note link (not missing assets). The create `201` body seeds `NoteViewModel` via a one-shot `NoteOpenSeed`. Create, save, and folder create each offer upsert mutations through `PendingBrowseSync`. Missing-link placement uses `noteIdFromMissingLink`; on `note_exists`, the client opens the existing note. Open notes silently reload from `GET` after save and on screen resume once the index is ready, so wiki-link resolutions catch up after async reindex. The browse top bar shows `+` when `readOnly` is false.
 
-Folders can be created with `POST /api/v1/folders` and body `{ "path": "..." }`. The server validates the vault-relative path, rejects conflicts when the directory already exists or a note occupies the same name (`409` / `folder_exists`), creates the directory via `internal/vault`, returns `201` + a browse-shaped folder item, and starts a full index refresh. The index records non-hidden directories during vault walk so empty folders appear in browse; browse merges note-derived child folders with indexed directories. Android creates through `VaultRepository.createFolder` from the browser `+` dialog (Note/Folder tabs; default Note). Folder create offers an upsert mutation and inserts the folder optimistically until the index catches up (no note editor open).
+Folders can be created with `POST /api/v1/folders` and body `{ "path": "..." }`. The server validates the vault-relative path, rejects conflicts when the directory already exists or a note occupies the same name (`409` / `folder_exists`), creates the directory via `internal/vault`, returns `201` + a browse-shaped folder item, and starts a full index refresh. The index records non-hidden directories during vault walk so empty folders appear in browse; browse merges note-derived child folders with indexed directories. Android creates through `VaultRepository.createFolder` from the browser `+` dialog (Note/Folder tabs; default Note). Folder create offers an upsert mutation (no note editor open).
 
 Note share on `NoteScreen` exports the loaded note body (or edit draft) to a cache `.md` file and opens the Android share chooser via `FileProvider`. The vault filesystem is never mounted on the device.
 

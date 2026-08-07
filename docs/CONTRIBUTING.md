@@ -16,6 +16,9 @@ Short expectations for keeping the tree maintainable. See [architecture.md](arch
 | Vault I/O on Android | `VaultRepository` / `data/api` | OkHttp or JSON parsing in Composables |
 | Ask orchestration | `data/ask`, `data/genai`, `ui/ask` | New Ask product logic in `BrowserViewModel` / `BrowserScreen` |
 | Create-note orchestration | `ui/create` (`CreateNoteViewModel`) | Create logic in `BrowserViewModel` / `BrowserScreen` |
+| Browse sync after writes | `ui/browser` (`PendingBrowseSync`, `BrowserViewModel` merge/reconcile) | Ad hoc optimistic inserts without pending merge; reconcile on every note return |
+| Note GET before index catch-up | `server/internal/index` (`GetNoteForRead`), `server/internal/api/notes_read.go` | Requiring snapshot membership for readable on-disk notes |
+| Index refresh coalescing | `server/internal/index/manager.go` | Dropping `StartRefresh` while indexing without scheduling follow-up |
 | Home-screen widgets | `ui/widget`, `data/widget` | Widget logic in `BrowserViewModel` / `BrowserScreen` / `NoteScreen`; OkHttp in Glance UI |
 
 Prefer a new package or ViewModel over extending `BrowserViewModel`, `BrowserScreen`, `internal/api/api.go`, or `internal/index/index.go` when a second concern appears.
@@ -46,6 +49,15 @@ When changing request or response JSON:
 For write endpoints, also extend handler tests (`api_write_test.go`) and Android MockWebServer repository tests.
 
 PRs that change handlers or DTOs without updating OpenAPI should not merge.
+
+### Write / browse sync checklist
+
+When changing create, save, delete, folder create, browse return paths, or note GET/refresh behavior, read [Stale index, writes, and client sync](architecture.md#stale-index-writes-and-client-sync) and verify:
+
+1. **Server:** write paths call coalescing `StartRefresh`; `GetNoteForRead` serves unindexed on-disk notes; GET `revision` matches disk bytes.
+2. **Android:** every write offers `BrowseMutation` via `PendingBrowseSync`; `loadBrowse` merges pending upserts/tombstones.
+3. **Android:** `onReturnedToBrowse` reconciles browse **only for deletes**, not upsert-only returns from the note screen.
+4. **Tests:** `go test ./internal/index/... ./internal/api/...` and `BrowserViewModelTest`, `NoteViewModelTest`, `CreateNoteViewModelTest`.
 
 ## Markdown dialect
 
