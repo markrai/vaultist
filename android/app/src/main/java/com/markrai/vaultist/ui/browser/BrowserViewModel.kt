@@ -123,7 +123,9 @@ class BrowserViewModel @Inject constructor(
             loadBrowse(_state.value.folder)
         }
         upserts.forEach { applyBrowseMutation(it) }
-        reconcileAfterMutation()
+        if (deletes.isNotEmpty()) {
+            reconcileAfterMutation()
+        }
     }
 
     fun openFolder(folder: String) {

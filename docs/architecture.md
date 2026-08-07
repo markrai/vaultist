@@ -33,7 +33,7 @@ The stable Go interface is `internal/search.Search(ctx, snapshot, Request{Query,
 
 ## HTTP and caching
 
-All routes live below `/api/v1`. Lists/searches have bounded limits and stable numeric cursors. Note GET responses return quoted content-revision ETags and `revision` computed from the on-disk bytes served in the body (so conditional GET and edit `If-Match` stay aligned even when the index snapshot lags); indexed metadata such as title and link resolutions still come from the snapshot. Assets use weak metadata ETags and `http.ServeContent`, which supplies streaming and byte ranges. Responses are private-cache scoped.
+All routes live below `/api/v1`. Lists/searches have bounded limits and stable numeric cursors. Note GET responses return quoted content-revision ETags and `revision` computed from the on-disk bytes served in the body (so conditional GET and edit `If-Match` stay aligned even when the index snapshot lags). Indexed notes use snapshot metadata for title and link resolutions; notes on disk before the index catches up are readable via GET once the `.md` file exists (same on-disk seam as create/write). Assets use weak metadata ETags and `http.ServeContent`, which supplies streaming and byte ranges. Responses are private-cache scoped.
 
 Stable note IDs are normalized relative Markdown paths without `.md`; asset IDs are normalized relative paths. IDs may contain slash segments, Unicode, and spaces. They are URL encoded by Android and validated again by the server.
 

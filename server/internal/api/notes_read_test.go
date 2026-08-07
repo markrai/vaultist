@@ -46,3 +46,24 @@ func TestGetNoteRevisionMatchesOnDiskContentWhenSnapshotStale(t *testing.T) {
 		t.Fatal("expected revision to reflect on-disk content, not stale snapshot metadata")
 	}
 }
+
+func TestGetNoteServesOnDiskNoteBeforeIndexCatchUp(t *testing.T) {
+	manager, server := contractFixtureWithManager(t)
+	defer server.Close()
+
+	writeFile(t, manager.Root(), "Folder/NewNote.md", "# NewNote\nbody before reindex")
+	payload, status := fetchResponse(t, http.MethodGet, server.URL+"/api/v1/notes/Folder/NewNote", nil)
+	if status != http.StatusOK {
+		t.Fatalf("status = %d body=%s", status, payload)
+	}
+	var response map[string]any
+	if err := json.Unmarshal(payload, &response); err != nil {
+		t.Fatal(err)
+	}
+	if response["content"] != "# NewNote\nbody before reindex" {
+		t.Fatalf("content = %#v", response["content"])
+	}
+	if response["revision"] != index.ContentRevision([]byte("# NewNote\nbody before reindex")) {
+		t.Fatalf("revision = %#v", response["revision"])
+	}
+}

@@ -102,7 +102,6 @@ fun BrowserScreen(
         createState.pendingOpenNote?.let { note ->
             createNoteViewModel.consumeOpenRequest()
             viewModel.includeCreatedNote(note)
-            viewModel.reconcileAfterMutation()
             onOpenNote(note.id, true)
         }
     }
@@ -111,7 +110,6 @@ fun BrowserScreen(
         createState.pendingCreatedFolder?.let { folder ->
             createNoteViewModel.consumeCreatedFolderRequest()
             viewModel.includeCreatedFolder(folder)
-            viewModel.reconcileAfterMutation()
         }
     }
 

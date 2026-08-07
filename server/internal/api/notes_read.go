@@ -1,7 +1,7 @@
 package api
 
 import (
-	"io"
+	"errors"
 	"net/http"
 	"path"
 	"strings"
@@ -24,23 +24,22 @@ func (h *Handler) noteRoute(writer http.ResponseWriter, request *http.Request) {
 	if !ok {
 		return
 	}
-	note, exists := snapshot.Notes[id]
-	if !exists {
+	if backlinks {
+		items := snapshot.Backlinks[id]
+		if len(items) == 0 {
+			if _, _, err := h.manager.GetNoteForRead(id); errors.Is(err, index.ErrNotFound) {
+				writeError(writer, http.StatusNotFound, "note_not_found", "Note was not found", nil)
+				return
+			}
+		}
+		writeJSON(writer, http.StatusOK, map[string]any{"noteId": id, "items": orEmpty(items)})
+		return
+	}
+	note, content, err := h.manager.GetNoteForRead(id)
+	if errors.Is(err, index.ErrNotFound) {
 		writeError(writer, http.StatusNotFound, "note_not_found", "Note was not found", nil)
 		return
-	}
-	if backlinks {
-		writeJSON(writer, http.StatusOK, map[string]any{"noteId": id, "items": orEmpty(snapshot.Backlinks[id])})
-		return
-	}
-	_, file, openErr := snapshot.OpenNote(id)
-	if openErr != nil {
-		writeError(writer, http.StatusInternalServerError, "note_read_failed", "Note content could not be read", nil)
-		return
-	}
-	defer file.Close()
-	content, readErr := io.ReadAll(io.LimitReader(file, 32<<20+1))
-	if readErr != nil || len(content) > 32<<20 {
+	} else if err != nil {
 		writeError(writer, http.StatusInternalServerError, "note_read_failed", "Note content could not be read", nil)
 		return
 	}
