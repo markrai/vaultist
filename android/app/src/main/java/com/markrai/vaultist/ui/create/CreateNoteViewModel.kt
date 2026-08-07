@@ -11,6 +11,8 @@ import com.markrai.vaultist.domain.noteIdFromMissingLink
 import com.markrai.vaultist.domain.noteIdFromTitle
 import com.markrai.vaultist.ui.note.NoteOpenSeed
 import com.markrai.vaultist.ui.note.PendingNoteSync
+import com.markrai.vaultist.ui.browser.BrowseMutation
+import com.markrai.vaultist.ui.browser.PendingBrowseSync
 import com.markrai.vaultist.ui.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -39,6 +41,7 @@ class CreateNoteViewModel @Inject constructor(
     private val repository: VaultRepository,
     private val noteOpenSeed: NoteOpenSeed,
     private val pendingNoteSync: PendingNoteSync,
+    private val pendingBrowseSync: PendingBrowseSync,
 ) : ViewModel() {
     private val _state = MutableStateFlow(CreateNoteUiState())
     val state: StateFlow<CreateNoteUiState> = _state
@@ -80,6 +83,7 @@ class CreateNoteViewModel @Inject constructor(
             _state.update { it.copy(creating = true, error = null) }
             when (val result = repository.createNote(id, content)) {
                 is VaultResult.Success -> {
+                    pendingBrowseSync.offer(BrowseMutation.UpsertNote(result.value))
                     noteOpenSeed.offer(result.value)
                     _state.update { CreateNoteUiState(pendingOpenNote = result.value) }
                 }
@@ -95,6 +99,7 @@ class CreateNoteViewModel @Inject constructor(
             _state.update { it.copy(creating = true, error = null) }
             when (val result = repository.createFolder(path)) {
                 is VaultResult.Success -> {
+                    pendingBrowseSync.offer(BrowseMutation.UpsertFolder(result.value))
                     _state.update { CreateNoteUiState(pendingCreatedFolder = result.value) }
                 }
                 is VaultResult.Failure -> _state.update {
@@ -125,6 +130,7 @@ class CreateNoteViewModel @Inject constructor(
             when (val result = repository.createNote(id, "")) {
                 is VaultResult.Success -> {
                     pendingNoteSync.offerReload(sourceNoteId)
+                    pendingBrowseSync.offer(BrowseMutation.UpsertNote(result.value))
                     noteOpenSeed.offer(result.value)
                     _state.update { CreateNoteUiState(pendingOpenNote = result.value) }
                 }
@@ -135,6 +141,7 @@ class CreateNoteViewModel @Inject constructor(
                         when (val existing = repository.getNote(id)) {
                             is VaultResult.Success -> {
                                 pendingNoteSync.offerReload(sourceNoteId)
+                                pendingBrowseSync.offer(BrowseMutation.UpsertNote(existing.value))
                                 noteOpenSeed.offer(existing.value)
                                 _state.update { CreateNoteUiState(pendingOpenNote = existing.value) }
                             }

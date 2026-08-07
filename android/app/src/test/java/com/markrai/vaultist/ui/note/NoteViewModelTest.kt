@@ -15,6 +15,7 @@ import com.markrai.vaultist.testutil.FakeNoteSharePreparer
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.FakeNoteWidgetRefresher
 import com.markrai.vaultist.testutil.MainDispatcherRule
+import com.markrai.vaultist.ui.browser.BrowseMutation
 import com.markrai.vaultist.ui.browser.PendingBrowseSync
 import com.markrai.vaultist.ui.note.edit.NoteEditDraft
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -90,6 +91,28 @@ class NoteViewModelTest {
         assertEquals("Folder/Note", viewModel.state.value.note?.id)
         assertEquals("Part", viewModel.fragment)
         assertEquals("https://vega.example.ts.net/api/v1/assets/image.png", viewModel.assetUrl("image.png"))
+    }
+
+    @Test fun saveOffersBrowseUpsert() = runTest(dispatcherRule.dispatcher) {
+        val pendingBrowseSync = PendingBrowseSync()
+        val updated = sampleNote.copy(content = "# Updated", revision = "sha256:new", modifiedAt = "2026-01-02T00:00:00Z")
+        val repository = FakeVaultRepository().apply {
+            noteResult = VaultResult.Success(sampleNote)
+            updateNoteResult = VaultResult.Success(updated)
+            indexStatusResults = listOf(VaultResult.Success(IndexState("ready", 1, 1, 0, 0)))
+        }
+        val viewModel = viewModel(repository = repository, pendingBrowseSync = pendingBrowseSync)
+        advanceUntilIdle()
+        viewModel.enterEdit()
+        viewModel.updateDraft(draftAtEnd("# Updated"))
+        viewModel.save()
+        advanceUntilIdle()
+
+        val drained = pendingBrowseSync.drain()
+        assertEquals(1, drained.size)
+        val upsert = drained.single() as BrowseMutation.UpsertNote
+        assertEquals("# Updated", upsert.note.content)
+        assertEquals("2026-01-02T00:00:00Z", upsert.note.modifiedAt)
     }
 
     @Test fun saveUpdatesNoteWhenWriteSucceeds() = runTest(dispatcherRule.dispatcher) {
@@ -213,7 +236,7 @@ class NoteViewModelTest {
         advanceUntilIdle()
         assertTrue(viewModel.state.value.noteDeleted)
         assertEquals("sha256:abc", repository.lastDeleteRevision)
-        assertEquals("Folder/Note", pendingBrowseSync.consumeAfterDelete())
+        assertEquals("Folder/Note", (pendingBrowseSync.drain().single() as BrowseMutation.DeleteNote).noteId)
     }
 
     @Test fun confirmDeleteSurfacesRevisionConflict() = runTest(dispatcherRule.dispatcher) {

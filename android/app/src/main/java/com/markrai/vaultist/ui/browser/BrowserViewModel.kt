@@ -58,6 +58,8 @@ class BrowserViewModel @Inject constructor(
 
     private var filesSearchJob: Job? = null
     private val pendingDeletedNoteIds = mutableSetOf<String>()
+    private val pendingUpsertNotes = mutableMapOf<String, Note>()
+    private val pendingUpsertFolders = mutableMapOf<String, BrowseItem>()
 
     init {
         viewModelScope.launch {
@@ -102,7 +104,26 @@ class BrowserViewModel @Inject constructor(
     }
 
     fun onReturnedToBrowse() {
-        pendingBrowseSync.consumeAfterDelete()?.let { afterNoteDeleted(it) }
+        val mutations = pendingBrowseSync.drain()
+        if (mutations.isEmpty()) return
+        val deletes = mutations.filterIsInstance<BrowseMutation.DeleteNote>()
+        val upserts = mutations.filter { it !is BrowseMutation.DeleteNote }
+        if (deletes.isNotEmpty()) {
+            filesSearchJob?.cancel()
+            _state.update {
+                it.copy(
+                    query = "",
+                    searching = false,
+                    searched = false,
+                    isSearchResults = false,
+                    error = null,
+                )
+            }
+            deletes.forEach { applyDeleteMutation(it.noteId) }
+            loadBrowse(_state.value.folder)
+        }
+        upserts.forEach { applyBrowseMutation(it) }
+        reconcileAfterMutation()
     }
 
     fun openFolder(folder: String) {
@@ -234,7 +255,7 @@ class BrowserViewModel @Inject constructor(
                             if (_state.value.isSearchResults) {
                                 runSearch(reset = true, refreshing = true)
                             } else {
-                                loadBrowse(_state.value.folder, refreshing = true, clearPendingDeletes = true)
+                                loadBrowse(_state.value.folder, refreshing = true, clearPendingMutations = true)
                             }
                             return@launch
                         }
@@ -245,28 +266,8 @@ class BrowserViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Shows a just-created note in the current folder before the index catches up.
-     * Browse-only; create orchestration stays in [com.markrai.vaultist.ui.create.CreateNoteViewModel].
-     */
     fun includeCreatedNote(note: Note) {
-        val current = _state.value
-        if (current.isSearchResults || current.searchMode == SearchMode.Ask) return
-        val parent = note.id.substringBeforeLast('/', missingDelimiterValue = "")
-        if (parent != current.folder) return
-        if (current.items.any { it.id == note.id }) return
-        val item = BrowseItem(
-            kind = BrowseKind.Note,
-            id = note.id,
-            name = note.filename,
-            title = note.title,
-            path = note.path,
-            error = note.error?.takeIf { it.isNotBlank() },
-            modifiedAt = note.modifiedAt.takeIf { it.isNotBlank() },
-        )
-        _state.update { state ->
-            state.copy(items = sortBrowseItems(state.items + item, state.sortMode))
-        }
+        applyBrowseMutation(BrowseMutation.UpsertNote(note))
     }
 
     /**
@@ -274,15 +275,7 @@ class BrowserViewModel @Inject constructor(
      * Browse-only; create orchestration stays in [com.markrai.vaultist.ui.create.CreateNoteViewModel].
      */
     fun includeCreatedFolder(folder: BrowseItem) {
-        val current = _state.value
-        if (current.isSearchResults || current.searchMode == SearchMode.Ask) return
-        if (folder.kind != BrowseKind.Folder) return
-        val parent = folder.path.substringBeforeLast('/', missingDelimiterValue = "")
-        if (parent != current.folder) return
-        if (current.items.any { it.kind == BrowseKind.Folder && it.path == folder.path }) return
-        _state.update { state ->
-            state.copy(items = sortBrowseItems(state.items + folder, state.sortMode))
-        }
+        applyBrowseMutation(BrowseMutation.UpsertFolder(folder))
     }
 
     /** Wait for a write-triggered reindex, then reload browse from the server. */
@@ -302,14 +295,10 @@ class BrowserViewModel @Inject constructor(
         }
     }
 
-    /**
-     * After a note is deleted: leave search, drop the note from the current list,
-     * then reload the folder once the delete-triggered reindex finishes.
-     */
     fun afterNoteDeleted(noteId: String) {
         if (_state.value.searchMode == SearchMode.Ask) return
         filesSearchJob?.cancel()
-        pendingDeletedNoteIds.add(noteId)
+        applyDeleteMutation(noteId)
         _state.update {
             it.copy(
                 query = "",
@@ -317,11 +306,97 @@ class BrowserViewModel @Inject constructor(
                 searched = false,
                 isSearchResults = false,
                 error = null,
-                items = it.items.filter { item -> item.id !in pendingDeletedNoteIds },
             )
         }
         loadBrowse(_state.value.folder)
         reconcileAfterMutation()
+    }
+
+    private fun applyDeleteMutation(noteId: String) {
+        pendingDeletedNoteIds.add(noteId)
+        pendingUpsertNotes.remove(noteId)
+        _state.update {
+            it.copy(items = it.items.filter { item -> item.id !in pendingDeletedNoteIds })
+        }
+    }
+
+    private fun applyBrowseMutation(mutation: BrowseMutation) {
+        when (mutation) {
+            is BrowseMutation.UpsertNote -> {
+                pendingUpsertNotes[mutation.note.id] = mutation.note
+                pendingDeletedNoteIds.remove(mutation.note.id)
+                mergeUpsertNoteIntoCurrentItems(mutation.note)
+            }
+            is BrowseMutation.UpsertFolder -> {
+                pendingUpsertFolders[mutation.folder.path] = mutation.folder
+                mergeUpsertFolderIntoCurrentItems(mutation.folder)
+            }
+            is BrowseMutation.DeleteNote -> applyDeleteMutation(mutation.noteId)
+        }
+    }
+
+    private fun mergeUpsertNoteIntoCurrentItems(note: Note) {
+        val current = _state.value
+        if (current.isSearchResults || current.searchMode == SearchMode.Ask) return
+        val parent = note.id.substringBeforeLast('/', missingDelimiterValue = "")
+        if (parent != current.folder || note.id in pendingDeletedNoteIds) return
+        val item = noteToBrowseItem(note)
+        _state.update { state ->
+            val withoutExisting = state.items.filterNot { it.id == note.id }
+            state.copy(items = sortBrowseItems(withoutExisting + item, state.sortMode))
+        }
+    }
+
+    private fun mergeUpsertFolderIntoCurrentItems(folder: BrowseItem) {
+        val current = _state.value
+        if (current.isSearchResults || current.searchMode == SearchMode.Ask) return
+        if (folder.kind != BrowseKind.Folder) return
+        val parent = folder.path.substringBeforeLast('/', missingDelimiterValue = "")
+        if (parent != current.folder) return
+        _state.update { state ->
+            val withoutExisting = state.items.filterNot {
+                it.kind == BrowseKind.Folder && it.path == folder.path
+            }
+            state.copy(items = sortBrowseItems(withoutExisting + folder, state.sortMode))
+        }
+    }
+
+    private fun noteToBrowseItem(note: Note) = BrowseItem(
+        kind = BrowseKind.Note,
+        id = note.id,
+        name = note.filename,
+        title = note.title,
+        path = note.path,
+        error = note.error?.takeIf { it.isNotBlank() },
+        modifiedAt = note.modifiedAt.takeIf { it.isNotBlank() },
+    )
+
+    private fun mergePendingUpserts(folder: String, serverItems: List<BrowseItem>): List<BrowseItem> {
+        val serverNoteIds = serverItems.filter { it.kind == BrowseKind.Note }.mapNotNull { it.id }.toSet()
+        val serverFolderPaths = serverItems
+            .filter { it.kind == BrowseKind.Folder }
+            .map { it.path }
+            .toSet()
+        pendingUpsertNotes.keys.toList().forEach { id ->
+            if (id in serverNoteIds) pendingUpsertNotes.remove(id)
+        }
+        pendingUpsertFolders.keys.toList().forEach { path ->
+            if (path in serverFolderPaths) pendingUpsertFolders.remove(path)
+        }
+        val merged = serverItems.toMutableList()
+        pendingUpsertNotes.values.forEach { note ->
+            val parent = note.id.substringBeforeLast('/', missingDelimiterValue = "")
+            if (parent == folder && note.id !in pendingDeletedNoteIds && note.id !in serverNoteIds) {
+                merged.add(noteToBrowseItem(note))
+            }
+        }
+        pendingUpsertFolders.values.forEach { folderItem ->
+            val parent = folderItem.path.substringBeforeLast('/', missingDelimiterValue = "")
+            if (parent == folder && folderItem.path !in serverFolderPaths) {
+                merged.add(folderItem)
+            }
+        }
+        return merged
     }
 
     private fun onFilesQueryChanged(query: String) {
@@ -390,11 +465,13 @@ class BrowserViewModel @Inject constructor(
         folder: String,
         refreshing: Boolean = false,
         keepQuery: Boolean = false,
-        clearPendingDeletes: Boolean = false,
+        clearPendingMutations: Boolean = false,
     ) {
         viewModelScope.launch {
-            if (clearPendingDeletes) {
+            if (clearPendingMutations) {
                 pendingDeletedNoteIds.clear()
+                pendingUpsertNotes.clear()
+                pendingUpsertFolders.clear()
             }
             _state.update {
                 it.copy(
@@ -415,9 +492,10 @@ class BrowserViewModel @Inject constructor(
                 is VaultResult.Success -> {
                     when (val allItems = fetchAllBrowseItems(folder, firstPage.value)) {
                         is VaultResult.Success -> {
-                            val items = allItems.value.filter { item ->
+                            val filtered = allItems.value.filter { item ->
                                 item.id !in pendingDeletedNoteIds
                             }
+                            val items = mergePendingUpserts(folder, filtered)
                             _state.update {
                                 it.copy(
                                     loading = false,

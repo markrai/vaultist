@@ -1,23 +1,56 @@
 package com.markrai.vaultist.ui.browser
 
+import com.markrai.vaultist.domain.BrowseItem
+import com.markrai.vaultist.domain.Note
 import javax.inject.Inject
 import javax.inject.Singleton
 
+sealed interface BrowseMutation {
+    data class UpsertNote(val note: Note) : BrowseMutation
+    data class UpsertFolder(val folder: BrowseItem) : BrowseMutation
+    data class DeleteNote(val noteId: String) : BrowseMutation
+}
+
 /**
- * One-shot signal so note delete can clear/reload browse when returning from [com.markrai.vaultist.ui.note.NoteScreen].
+ * Cross-screen browse mutations (create, save, delete) consumed when returning to browse.
  */
 @Singleton
 class PendingBrowseSync @Inject constructor() {
     private val lock = Any()
-    private var deletedNoteId: String? = null
+    private val pending = mutableListOf<BrowseMutation>()
 
-    fun offerAfterDelete(noteId: String) {
-        synchronized(lock) { deletedNoteId = noteId }
+    fun offer(mutation: BrowseMutation) {
+        synchronized(lock) {
+            when (mutation) {
+                is BrowseMutation.UpsertNote -> {
+                    pending.removeAll {
+                        (it is BrowseMutation.DeleteNote && it.noteId == mutation.note.id) ||
+                            (it is BrowseMutation.UpsertNote && it.note.id == mutation.note.id)
+                    }
+                    pending.add(mutation)
+                }
+                is BrowseMutation.UpsertFolder -> {
+                    pending.removeAll {
+                        it is BrowseMutation.UpsertFolder && it.folder.path == mutation.folder.path
+                    }
+                    pending.add(mutation)
+                }
+                is BrowseMutation.DeleteNote -> {
+                    pending.removeAll {
+                        (it is BrowseMutation.UpsertNote && it.note.id == mutation.noteId) ||
+                            (it is BrowseMutation.DeleteNote && it.noteId == mutation.noteId)
+                    }
+                    pending.add(mutation)
+                }
+            }
+        }
     }
 
-    fun consumeAfterDelete(): String? = synchronized(lock) {
-        val id = deletedNoteId
-        deletedNoteId = null
-        id
+    fun drain(): List<BrowseMutation> = synchronized(lock) {
+        pending.toList().also { pending.clear() }
+    }
+
+    fun offerAfterDelete(noteId: String) {
+        offer(BrowseMutation.DeleteNote(noteId))
     }
 }

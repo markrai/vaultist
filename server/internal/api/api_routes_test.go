@@ -78,8 +78,8 @@ func TestRefreshConflictWhileIndexing(t *testing.T) {
 	}
 	defer response.Body.Close()
 	data, _ := io.ReadAll(response.Body)
-	if response.StatusCode != http.StatusConflict || !strings.Contains(string(data), "index_refresh_running") {
-		t.Fatalf("refresh conflict = %d %s", response.StatusCode, data)
+	if response.StatusCode != http.StatusAccepted || !strings.Contains(string(data), "indexing") {
+		t.Fatalf("refresh coalesce = %d %s", response.StatusCode, data)
 	}
 }
 

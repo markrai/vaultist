@@ -4,6 +4,7 @@ import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.testutil.MainDispatcherRule
+import com.markrai.vaultist.ui.browser.PendingBrowseSync
 import com.markrai.vaultist.ui.note.NoteOpenSeed
 import com.markrai.vaultist.ui.note.PendingNoteSync
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,8 +29,43 @@ class CreateNoteViewModelTest {
     private val repository = FakeVaultRepository()
     private val noteOpenSeed = NoteOpenSeed()
     private val pendingNoteSync = PendingNoteSync()
+    private val pendingBrowseSync = PendingBrowseSync()
 
-    private fun viewModel() = CreateNoteViewModel(repository, noteOpenSeed, pendingNoteSync)
+    private fun viewModel() = CreateNoteViewModel(
+        repository,
+        noteOpenSeed,
+        pendingNoteSync,
+        pendingBrowseSync,
+    )
+
+    @Test
+    fun submitCreatesNoteOffersBrowseUpsert() = runTest {
+        val viewModel = viewModel()
+        viewModel.openDialog()
+        viewModel.updateTitle("My Note")
+        viewModel.submit("Folder")
+        advanceUntilIdle()
+
+        val drained = pendingBrowseSync.drain()
+        assertEquals(1, drained.size)
+        val upsert = drained.single() as com.markrai.vaultist.ui.browser.BrowseMutation.UpsertNote
+        assertEquals("Folder/My Note", upsert.note.id)
+    }
+
+    @Test
+    fun submitCreatesFolderOffersBrowseUpsert() = runTest {
+        val viewModel = viewModel()
+        viewModel.openDialog()
+        viewModel.updateMode(CreateItemMode.Folder)
+        viewModel.updateTitle("Ideas")
+        viewModel.submit("Folder")
+        advanceUntilIdle()
+
+        val drained = pendingBrowseSync.drain()
+        assertEquals(1, drained.size)
+        val upsert = drained.single() as com.markrai.vaultist.ui.browser.BrowseMutation.UpsertFolder
+        assertEquals("Folder/Ideas", upsert.folder.path)
+    }
 
     @Test
     fun submitCreatesNoteSeedsOpenAndEmitsPendingNote() = runTest {

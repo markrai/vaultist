@@ -80,11 +80,10 @@ func TestResponsesMatchOpenAPISchemas(t *testing.T) {
 	defer serverWithManager.Close()
 	release := holdActiveRefresh(t, manager)
 	defer release()
-	conflictBody, conflictStatus := fetchResponse(t, http.MethodPost, serverWithManager.URL+"/api/v1/index/refresh", strings.NewReader(""))
-	if conflictStatus != http.StatusConflict {
-		t.Fatalf("refresh conflict status = %d body=%s", conflictStatus, conflictBody)
+	coalesceBody, coalesceStatus := fetchResponse(t, http.MethodPost, serverWithManager.URL+"/api/v1/index/refresh", strings.NewReader(""))
+	if coalesceStatus != http.StatusAccepted {
+		t.Fatalf("refresh coalesce status = %d body=%s", coalesceStatus, coalesceBody)
 	}
-	validateSchema(t, document, "ErrorResponse", conflictBody)
 
 	denied := httptest.NewServer(NewHandler(manager, denyAuthorizer{}))
 	defer denied.Close()

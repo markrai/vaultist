@@ -132,6 +132,84 @@ class BrowserViewModelTest {
         assertEquals("Notes/Idea", viewModel.state.value.items.single().id)
     }
 
+    @Test fun createUpsertSurvivesStaleLoadBrowse() = runTest(dispatcherRule.dispatcher) {
+        val existing = BrowseItem(BrowseKind.Note, "Folder/Old", "Old.md", "Old", "Folder/Old.md", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(BrowsePage(listOf(existing), null, "Folder"))
+        }
+        val viewModel = viewModel(repository)
+        viewModel.openFolder("Folder")
+        advanceUntilIdle()
+
+        viewModel.includeCreatedNote(
+            Note(
+                id = "Folder/New",
+                path = "Folder/New.md",
+                filename = "New.md",
+                title = "New",
+                aliases = emptyList(),
+                headings = emptyList(),
+                links = emptyList(),
+                attachments = emptyList(),
+                modifiedAt = "2026-01-02T00:00:00Z",
+                size = 1L,
+                revision = "sha256:created",
+                content = "# New\n\n",
+                error = null,
+            ),
+        )
+        assertEquals(listOf("Folder/New", "Folder/Old"), viewModel.state.value.items.map { it.id })
+
+        viewModel.retry()
+        advanceUntilIdle()
+        assertEquals(listOf("Folder/New", "Folder/Old"), viewModel.state.value.items.map { it.id })
+    }
+
+    @Test fun onReturnedToBrowseAppliesPendingUpsert() = runTest(dispatcherRule.dispatcher) {
+        val sync = PendingBrowseSync()
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(
+                BrowsePage(
+                    listOf(BrowseItem(BrowseKind.Note, "Folder/Old", "Old.md", "Old", "Folder/Old.md", null)),
+                    null,
+                    "Folder",
+                ),
+            )
+        }
+        val viewModel = BrowserViewModel(
+            repository,
+            BrowseUiConfig(),
+            sync,
+            FakeBrowseSortPreferences(),
+            FakeBrowseViewPreferences(),
+        )
+        viewModel.openFolder("Folder")
+        advanceUntilIdle()
+
+        sync.offer(
+            BrowseMutation.UpsertNote(
+                Note(
+                    id = "Folder/Saved",
+                    path = "Folder/Saved.md",
+                    filename = "Saved.md",
+                    title = "Saved",
+                    aliases = emptyList(),
+                    headings = emptyList(),
+                    links = emptyList(),
+                    attachments = emptyList(),
+                    modifiedAt = "2026-01-03T00:00:00Z",
+                    size = 1L,
+                    revision = "sha256:saved",
+                    content = "# Saved",
+                    error = null,
+                ),
+            ),
+        )
+        viewModel.onReturnedToBrowse()
+        advanceUntilIdle()
+        assertEquals(listOf("Folder/Old", "Folder/Saved"), viewModel.state.value.items.map { it.id })
+    }
+
     @Test
     fun includeCreatedNoteInsertsIntoCurrentFolder() = runTest(dispatcherRule.dispatcher) {
         val existing = BrowseItem(BrowseKind.Note, "Folder/Old", "Old.md", "Old", "Folder/Old.md", null)

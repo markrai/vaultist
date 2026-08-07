@@ -31,6 +31,7 @@ type Manager struct {
 	cancel    context.CancelFunc
 	log       *slog.Logger
 	refreshHook func()
+	pendingRefresh bool
 }
 
 func NewManager(root, vaultName string) (*Manager, error) {
@@ -79,8 +80,9 @@ func (m *Manager) SetRefreshHook(hook func()) {
 func (m *Manager) StartRefresh(parent context.Context) error {
 	m.mu.Lock()
 	if m.state.State == "indexing" {
+		m.pendingRefresh = true
 		m.mu.Unlock()
-		return ErrRefreshActive
+		return nil
 	}
 	ctx, cancel := context.WithCancel(parent)
 	m.cancel = cancel
@@ -99,15 +101,17 @@ func (m *Manager) StartRefresh(parent context.Context) error {
 func (m *Manager) Refresh(ctx context.Context) error {
 	m.mu.Lock()
 	if m.state.State == "indexing" {
+		m.pendingRefresh = true
 		m.mu.Unlock()
-		return ErrRefreshActive
+		return nil
 	}
 	m.state.State = "indexing"
 	m.state.StartedAt = time.Now().UTC()
 	startedAt := m.state.StartedAt
 	m.mu.Unlock()
 	m.logger().Info("index_refresh_start")
-	return m.refresh(ctx, startedAt)
+	err := m.refresh(ctx, startedAt)
+	return err
 }
 
 func (m *Manager) logger() *slog.Logger {
@@ -141,7 +145,6 @@ func (m *Manager) refresh(ctx context.Context, startedAt time.Time) error {
 	now := time.Now().UTC()
 	duration := now.Sub(startedAt).Milliseconds()
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.cancel = nil
 	if err != nil {
 		if previous == nil {
@@ -150,10 +153,18 @@ func (m *Manager) refresh(ctx context.Context, startedAt time.Time) error {
 			m.state.State = "ready"
 		}
 		m.state.FinishedAt = now
+		needsFollowUp := m.pendingRefresh
+		if needsFollowUp {
+			m.pendingRefresh = false
+		}
+		m.mu.Unlock()
 		m.logger().Info("index_refresh_fail",
 			"duration_ms", duration,
 			"error_code", classifyRefreshError(err),
 		)
+		if needsFollowUp {
+			_ = m.StartRefresh(context.Background())
+		}
 		return err
 	}
 	m.snapshot.Store(next)
@@ -168,6 +179,11 @@ func (m *Manager) refresh(ctx context.Context, startedAt time.Time) error {
 		FinishedAt: now, NoteCount: len(next.Notes), AssetCount: len(next.Assets),
 		ErrorCount: errorCount,
 	}
+	needsFollowUp := m.pendingRefresh
+	if needsFollowUp {
+		m.pendingRefresh = false
+	}
+	m.mu.Unlock()
 	m.logger().Info("index_refresh_complete",
 		"generation", generation,
 		"note_count", len(next.Notes),
@@ -175,5 +191,8 @@ func (m *Manager) refresh(ctx context.Context, startedAt time.Time) error {
 		"error_count", errorCount,
 		"duration_ms", duration,
 	)
+	if needsFollowUp {
+		_ = m.StartRefresh(context.Background())
+	}
 	return nil
 }

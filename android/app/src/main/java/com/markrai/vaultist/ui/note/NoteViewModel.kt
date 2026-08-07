@@ -15,6 +15,7 @@ import com.markrai.vaultist.domain.DateTimeInsertFormat
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.domain.VaultResult
+import com.markrai.vaultist.ui.browser.BrowseMutation
 import com.markrai.vaultist.ui.browser.PendingBrowseSync
 import com.markrai.vaultist.ui.note.edit.DraftTextEdit
 import com.markrai.vaultist.ui.note.edit.NoteEditDraft
@@ -205,6 +206,7 @@ class NoteViewModel @Inject constructor(
                         )
                     }
                     reconcileLinks()
+                    pendingBrowseSync.offer(BrowseMutation.UpsertNote(result.value))
                     noteWidgetRefresh.refreshForNote(noteId)
                 }
                 is VaultResult.Failure -> {
