@@ -172,6 +172,20 @@ class DefaultVaultRepositoryTest {
     }
 
     @Test
+    fun createFolderMapsSuccessAndConflict() = runTest {
+        server.enqueue(MockResponse().setResponseCode(201).setBody(ApiFixtures.FOLDER))
+        val created = repository.createFolder("Projects")
+        assertTrue(created is VaultResult.Success)
+        assertEquals("POST", server.takeRequest().method)
+        assertEquals("Projects", (created as VaultResult.Success).value.path)
+
+        server.enqueue(MockResponse().setResponseCode(409).setBody(ApiFixtures.folderExistsError()))
+        val conflict = repository.createFolder("Projects")
+        assertTrue(conflict is VaultResult.Failure)
+        assertEquals("folder_exists", ((conflict as VaultResult.Failure).error as VaultError.Api).code)
+    }
+
+    @Test
     fun searchNotesParsesSearchPage() = runTest {
         server.enqueue(MockResponse().setBody(ApiFixtures.SEARCH))
         val result = repository.searchNotes("other", SearchMode.Files, null)

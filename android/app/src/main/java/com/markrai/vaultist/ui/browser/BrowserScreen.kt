@@ -105,6 +105,14 @@ fun BrowserScreen(
         }
     }
 
+    LaunchedEffect(createState.pendingCreatedFolder) {
+        createState.pendingCreatedFolder?.let { folder ->
+            createNoteViewModel.consumeCreatedFolderRequest()
+            viewModel.includeCreatedFolder(folder)
+            viewModel.reconcileAfterMutation()
+        }
+    }
+
     val openNoteForBrowse: (String) -> Unit = { id -> onOpenNote(id, false) }
 
     DisposableEffect(lifecycleOwner) {
@@ -217,9 +225,11 @@ fun BrowserScreen(
     if (createState.dialogVisible) {
         CreateNoteDialog(
             folder = state.folder,
+            mode = createState.mode,
             title = createState.title,
             creating = createState.creating,
             error = createState.error,
+            onModeChange = createNoteViewModel::updateMode,
             onTitleChange = createNoteViewModel::updateTitle,
             onDismiss = createNoteViewModel::dismissDialog,
             onCreate = { createNoteViewModel.submit(state.folder) },

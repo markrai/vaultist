@@ -67,6 +67,7 @@ func browseItems(snapshot *index.Snapshot, folder string) []browseItem {
 			Path: note.Path, Error: note.Error, ModifiedAt: &modifiedAt,
 		})
 	}
+	mergeIndexedFolders(folders, snapshot, folder)
 	items := make([]browseItem, 0, len(folders)+len(notes))
 	for _, folderItem := range folders {
 		items = append(items, folderItem)
@@ -74,4 +75,32 @@ func browseItems(snapshot *index.Snapshot, folder string) []browseItem {
 	sort.Slice(items, func(i, j int) bool { return strings.ToLower(items[i].Path) < strings.ToLower(items[j].Path) })
 	items = append(items, notes...)
 	return items
+}
+
+func mergeIndexedFolders(folders map[string]browseItem, snapshot *index.Snapshot, folder string) {
+	for folderPath := range snapshot.Folders {
+		if !isImmediateChildFolder(folder, folderPath) {
+			continue
+		}
+		name := folderPath
+		if slash := strings.LastIndexByte(folderPath, '/'); slash >= 0 {
+			name = folderPath[slash+1:]
+		}
+		folders[folderPath] = browseItem{Kind: "folder", Name: name, Path: folderPath}
+	}
+}
+
+func isImmediateChildFolder(parent, child string) bool {
+	if child == parent {
+		return false
+	}
+	if parent == "" {
+		return !strings.Contains(child, "/")
+	}
+	prefix := parent + "/"
+	if !strings.HasPrefix(child, prefix) {
+		return false
+	}
+	remainder := strings.TrimPrefix(child, prefix)
+	return !strings.Contains(remainder, "/")
 }

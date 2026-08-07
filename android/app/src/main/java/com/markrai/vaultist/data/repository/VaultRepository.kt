@@ -1,6 +1,7 @@
 package com.markrai.vaultist.data.repository
 
 import com.markrai.vaultist.domain.Backlink
+import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.BrowsePage
 import com.markrai.vaultist.domain.IndexState
 import com.markrai.vaultist.domain.Note
@@ -19,6 +20,7 @@ interface VaultRepository {
     suspend fun getNote(id: String): VaultResult<Note>
     suspend fun updateNote(id: String, revision: String, content: String): VaultResult<Note>
     suspend fun createNote(id: String, content: String): VaultResult<Note>
+    suspend fun createFolder(path: String): VaultResult<BrowseItem>
     suspend fun deleteNote(id: String, revision: String): VaultResult<Unit>
     suspend fun searchNotes(query: String, mode: SearchMode = SearchMode.Files, cursor: String? = null): VaultResult<SearchPage>
     suspend fun getBacklinks(id: String): VaultResult<List<Backlink>>

@@ -5,6 +5,7 @@ import com.markrai.vaultist.data.api.VaultistApi
 import com.markrai.vaultist.data.api.normalizeServerUrl
 import com.markrai.vaultist.data.api.parseApiError
 import com.markrai.vaultist.data.api.toBacklinks
+import com.markrai.vaultist.data.api.toBrowseItem
 import com.markrai.vaultist.data.api.toBrowsePage
 import com.markrai.vaultist.data.api.toIndexState
 import com.markrai.vaultist.data.api.toNote
@@ -61,6 +62,10 @@ class DefaultVaultRepository @Inject constructor(
 
     override suspend fun createNote(id: String, content: String) = configuredResult { base ->
         JSONObject(api.createNote(base, id, content).requireSuccess().body).toNote()
+    }
+
+    override suspend fun createFolder(path: String) = configuredResult { base ->
+        JSONObject(api.createFolder(base, path).requireSuccess().body).toBrowseItem()
     }
 
     override suspend fun deleteNote(id: String, revision: String) = configuredResult { base ->

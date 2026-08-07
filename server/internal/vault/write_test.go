@@ -51,3 +51,34 @@ func TestDeleteFileInsideRejectsTraversal(t *testing.T) {
 		t.Fatal("expected traversal rejection")
 	}
 }
+
+func TestMkdirInsideCreatesDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := MkdirInside(root, "Projects/Ideas"); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(root, "Projects", "Ideas"))
+	if err != nil || !info.IsDir() {
+		t.Fatalf("dir = %v err=%v", info, err)
+	}
+}
+
+func TestMkdirInsideRejectsExistingDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := MkdirInside(root, "Projects"); err != nil {
+		t.Fatal(err)
+	}
+	if err := MkdirInside(root, "Projects"); err != ErrFolderExists {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestMkdirInsideRejectsOccupiedFile(t *testing.T) {
+	root := t.TempDir()
+	if err := ReplaceFileAtomically(root, "Projects", []byte("not a dir")); err != nil {
+		t.Fatal(err)
+	}
+	if err := MkdirInside(root, "Projects"); err != ErrPathOccupied {
+		t.Fatalf("err = %v", err)
+	}
+}

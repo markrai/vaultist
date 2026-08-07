@@ -79,6 +79,38 @@ class CreateNoteViewModelTest {
     }
 
     @Test
+    fun submitCreatesFolderAndEmitsPendingFolder() = runTest {
+        val viewModel = viewModel()
+        viewModel.openDialog()
+        viewModel.updateMode(CreateItemMode.Folder)
+        viewModel.updateTitle("Ideas")
+        viewModel.submit("Folder")
+        advanceUntilIdle()
+
+        assertEquals("Folder/Ideas", repository.lastCreateFolderPath)
+        assertEquals("Folder/Ideas", viewModel.state.value.pendingCreatedFolder?.path)
+        assertNull(viewModel.state.value.pendingOpenNote)
+        assertFalse(viewModel.state.value.dialogVisible)
+    }
+
+    @Test
+    fun submitFolderSurfacesApiFailure() = runTest {
+        repository.createFolderResult = VaultResult.Failure(
+            com.markrai.vaultist.domain.VaultError.Api("folder_exists", "A folder with this path already exists"),
+        )
+        val viewModel = viewModel()
+        viewModel.openDialog()
+        viewModel.updateMode(CreateItemMode.Folder)
+        viewModel.updateTitle("Existing")
+        viewModel.submit("Folder")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.dialogVisible)
+        assertEquals("A folder with this path already exists", viewModel.state.value.error)
+        assertNull(viewModel.state.value.pendingCreatedFolder)
+    }
+
+    @Test
     fun createMissingLinkCreatesNoteInSourceFolder() = runTest {
         val viewModel = viewModel()
         viewModel.createMissingLink("Projects/A", "Cake")

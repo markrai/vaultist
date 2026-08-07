@@ -253,6 +253,22 @@ class BrowserViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Shows a just-created folder in the current folder before the index catches up.
+     * Browse-only; create orchestration stays in [com.markrai.vaultist.ui.create.CreateNoteViewModel].
+     */
+    fun includeCreatedFolder(folder: BrowseItem) {
+        val current = _state.value
+        if (current.isSearchResults || current.searchMode == SearchMode.Ask) return
+        if (folder.kind != BrowseKind.Folder) return
+        val parent = folder.path.substringBeforeLast('/', missingDelimiterValue = "")
+        if (parent != current.folder) return
+        if (current.items.any { it.kind == BrowseKind.Folder && it.path == folder.path }) return
+        _state.update { state ->
+            state.copy(items = sortBrowseItems(state.items + folder, state.sortMode))
+        }
+    }
+
     /** Wait for a write-triggered reindex, then reload browse from the server. */
     fun reconcileAfterMutation() {
         if (_state.value.searchMode == SearchMode.Ask) return

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestWriteNoteContentUpdatesFileAndRevision(t *testing.T) {
@@ -203,6 +204,60 @@ func TestCreateNoteRejectsInvalidID(t *testing.T) {
 	manager := newTestManager(t, root)
 	_, err := manager.CreateNote(context.Background(), "../secret", []byte(""))
 	if err != ErrInvalidNoteID {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestCreateFolderCreatesDirectoryAndIndexesIt(t *testing.T) {
+	root := t.TempDir()
+	manager := newTestManager(t, root)
+	name, path, err := manager.CreateFolder(context.Background(), "Projects/Ideas")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name != "Ideas" || path != "Projects/Ideas" {
+		t.Fatalf("name=%q path=%q", name, path)
+	}
+	info, err := os.Stat(filepath.Join(root, "Projects", "Ideas"))
+	if err != nil || !info.IsDir() {
+		t.Fatalf("dir = %v err=%v", info, err)
+	}
+	waitForIndexedFolder(t, manager, "Projects/Ideas")
+}
+
+func waitForIndexedFolder(t *testing.T, manager *Manager, folderPath string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		snapshot, err := manager.Current()
+		if err == nil {
+			if _, ok := snapshot.Folders[folderPath]; ok {
+				return
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for folder %q in snapshot", folderPath)
+}
+
+func TestCreateFolderRejectsExistingDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "Projects"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manager := newTestManager(t, root)
+	_, _, err := manager.CreateFolder(context.Background(), "Projects")
+	if err != ErrFolderExists {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestCreateFolderRejectsConflictingNote(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "Projects/Note.md", "# Note\n")
+	manager := newTestManager(t, root)
+	_, _, err := manager.CreateFolder(context.Background(), "Projects/Note")
+	if err != ErrFolderExists {
 		t.Fatalf("err = %v", err)
 	}
 }

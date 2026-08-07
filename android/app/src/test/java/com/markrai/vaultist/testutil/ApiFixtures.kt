@@ -50,4 +50,10 @@ object ApiFixtures {
     fun revisionConflictError() = """{"error":{"code":"revision_conflict","message":"The note changed since it was loaded","details":{"expected":"sha256:abc","actual":"sha256:def"}}}"""
 
     fun noteExistsError() = """{"error":{"code":"note_exists","message":"A note with this ID already exists"}}"""
+
+    const val FOLDER = """{
+      "kind":"folder","name":"Projects","path":"Projects"
+    }"""
+
+    fun folderExistsError() = """{"error":{"code":"folder_exists","message":"A folder with this path already exists"}}"""
 }

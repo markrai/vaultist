@@ -139,6 +139,31 @@ class BrowserViewModelTest {
     }
 
     @Test
+    fun includeCreatedFolderInsertsIntoCurrentFolder() = runTest(dispatcherRule.dispatcher) {
+        val existing = BrowseItem(BrowseKind.Note, "Folder/Old", "Old.md", "Old", "Folder/Old.md", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(BrowsePage(listOf(existing), null, "Folder"))
+        }
+        val viewModel = viewModel(repository)
+        viewModel.openFolder("Folder")
+        advanceUntilIdle()
+
+        viewModel.includeCreatedFolder(
+            BrowseItem(
+                kind = BrowseKind.Folder,
+                id = null,
+                name = "Ideas",
+                title = null,
+                path = "Folder/Ideas",
+                error = null,
+                modifiedAt = null,
+            ),
+        )
+
+        assertEquals(listOf("Folder/Ideas", "Folder/Old.md"), viewModel.state.value.items.map { it.path })
+    }
+
+    @Test
     fun afterNoteDeletedClearsSearchAndExcludesNote() = runTest(dispatcherRule.dispatcher) {
         val hit = BrowseItem(BrowseKind.Note, "Folder/Cake", "Cake.md", "Cake", "Folder/Cake.md", null)
         val repository = FakeVaultRepository().apply {

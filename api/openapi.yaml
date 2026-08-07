@@ -72,6 +72,25 @@ paths:
               schema: { $ref: "#/components/schemas/BrowseResponse" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /folders:
+    post:
+      summary: Create a new vault folder
+      operationId: createFolder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateFolderRequest" }
+      responses:
+        "201":
+          description: Created folder metadata for browse.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrowseItem" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/FolderExists" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /notes/{id}:
     get:
       summary: Get a note and its resolved links
@@ -267,6 +286,9 @@ components:
     NoteExists:
       description: A note with this ID already exists.
       content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    FolderExists:
+      description: A folder with this path already exists.
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
     Forbidden:
       description: The current authorization policy does not allow this operation.
       content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
@@ -314,6 +336,13 @@ components:
           type: string
           default: ""
           description: Initial Markdown body. Maximum 32 MiB.
+    CreateFolderRequest:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+          description: Vault-relative folder path without leading or trailing slashes and without a .md suffix.
     UpdateNoteRequest:
       type: object
       required: [content]
@@ -429,6 +458,6 @@ components:
           properties:
             code:
               type: string
-              enum: [vault_unavailable, note_not_found, link_target_missing, link_target_ambiguous, asset_not_found, invalid_note_id, invalid_asset_id, invalid_folder, invalid_query, invalid_pagination, index_not_ready, index_refresh_running, note_read_failed, asset_read_failed, route_not_found, forbidden, index_refresh_failed, revision_conflict, invalid_revision, invalid_note_body, note_write_failed, note_create_failed, note_exists]
+              enum: [vault_unavailable, note_not_found, link_target_missing, link_target_ambiguous, asset_not_found, invalid_note_id, invalid_asset_id, invalid_folder, invalid_query, invalid_pagination, index_not_ready, index_refresh_running, note_read_failed, asset_read_failed, route_not_found, forbidden, index_refresh_failed, revision_conflict, invalid_revision, invalid_note_body, note_write_failed, note_create_failed, note_exists, folder_create_failed, folder_exists]
             message: { type: string }
             details: { type: object, additionalProperties: true }

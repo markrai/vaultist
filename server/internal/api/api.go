@@ -51,6 +51,14 @@ func (h *Handler) serve(writer http.ResponseWriter, request *http.Request) {
 		h.createNoteRoute(writer, request)
 		return
 	}
+	if request.Method == http.MethodPost && request.URL.Path == apiPrefix+"/folders" {
+		if !h.authorizer.AuthorizeWrite(request) {
+			writeError(writer, http.StatusForbidden, "forbidden", "Write access is not authorized", nil)
+			return
+		}
+		h.createFolderRoute(writer, request)
+		return
+	}
 	if request.Method == http.MethodPost && request.URL.Path == apiPrefix+"/index/refresh" {
 		if !h.authorizer.AuthorizeRefresh(request) {
 			writeError(writer, http.StatusForbidden, "forbidden", "Refresh is not authorized", nil)

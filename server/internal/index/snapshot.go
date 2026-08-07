@@ -18,6 +18,7 @@ type Snapshot struct {
 	Notes            map[string]*model.Note
 	Assets           map[string]*model.Asset
 	Backlinks        map[string][]model.Backlink
+	Folders          map[string]struct{}
 	OrderedNoteIDs   []string
 	OrderedAssetIDs  []string
 	notePathExact    map[string][]string

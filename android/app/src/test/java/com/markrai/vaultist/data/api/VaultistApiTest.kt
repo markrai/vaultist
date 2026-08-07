@@ -128,5 +128,17 @@ class VaultistApiTest {
         assertEquals("/api/v1/index/status", server.takeRequest().path)
     }
 
+    @Test
+    fun createFolderUsesPostJsonBody() = runTest {
+        server.enqueue(MockResponse().setResponseCode(201).setBody(ApiFixtures.FOLDER))
+        val payload = api.createFolder(baseUrl(), "Projects")
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/v1/folders", request.path)
+        val body = org.json.JSONObject(request.body.readUtf8())
+        assertEquals("Projects", body.getString("path"))
+        assertEquals(201, payload.status)
+    }
+
     private fun baseUrl(): String = "http://127.0.0.1:${server.port}"
 }

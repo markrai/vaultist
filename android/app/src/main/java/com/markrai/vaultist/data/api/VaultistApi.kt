@@ -79,6 +79,19 @@ class VaultistApi @Inject constructor(private val client: OkHttpClient) {
         )
     }
 
+    suspend fun createFolder(baseUrl: String, path: String): ApiPayload {
+        val body = JSONObject()
+            .put("path", path)
+            .toString()
+            .toRequestBody("application/json".toMediaType())
+        return request(
+            Request.Builder()
+                .url(endpoint(baseUrl, listOf("folders")))
+                .post(body)
+                .build(),
+        )
+    }
+
     suspend fun backlinks(baseUrl: String, id: String): ApiPayload =
         get(baseUrl, listOf("notes", id, "backlinks"))
 

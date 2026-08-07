@@ -23,6 +23,8 @@ var ErrInvalidRevision = errors.New("invalid revision")
 var ErrWritePermission = errors.New("note write permission denied")
 var ErrNoteExists = errors.New("note already exists")
 var ErrInvalidNoteID = errors.New("invalid note id")
+var ErrFolderExists = errors.New("folder already exists")
+var ErrInvalidFolder = errors.New("invalid folder")
 
 type RevisionConflictError struct {
 	Expected string
@@ -166,6 +168,67 @@ func (m *Manager) CreateNote(ctx context.Context, id string, content []byte) (*m
 
 	_ = m.StartRefresh(ctx)
 	return note, nil
+}
+
+func (m *Manager) CreateFolder(ctx context.Context, folderPath string) (string, string, error) {
+	normalized, err := vault.NormalizeRelative(folderPath)
+	if err != nil {
+		return "", "", ErrInvalidFolder
+	}
+	if strings.HasSuffix(strings.ToLower(normalized), ".md") {
+		return "", "", ErrInvalidFolder
+	}
+
+	snapshot, err := m.Current()
+	if err != nil {
+		return "", "", err
+	}
+	if _, ok := snapshot.Folders[normalized]; ok {
+		return "", "", ErrFolderExists
+	}
+	if _, ok := snapshot.Notes[normalized]; ok {
+		return "", "", ErrFolderExists
+	}
+
+	target, err := vault.JoinInside(m.root, normalized)
+	if err != nil {
+		return "", "", ErrInvalidFolder
+	}
+	if info, statErr := os.Stat(target); statErr == nil {
+		if info.IsDir() {
+			return "", "", ErrFolderExists
+		}
+		return "", "", ErrFolderExists
+	} else if !os.IsNotExist(statErr) {
+		return "", "", fmt.Errorf("folder create failed: %w", statErr)
+	}
+
+	noteRelativePath := normalized + ".md"
+	noteFilePath, err := vault.JoinInside(m.root, noteRelativePath)
+	if err == nil {
+		if _, noteStatErr := os.Stat(noteFilePath); noteStatErr == nil {
+			return "", "", ErrFolderExists
+		} else if !os.IsNotExist(noteStatErr) {
+			return "", "", fmt.Errorf("folder create failed: %w", noteStatErr)
+		}
+	}
+
+	if err := vault.MkdirInside(m.root, normalized); err != nil {
+		if errors.Is(err, vault.ErrFolderExists) {
+			return "", "", ErrFolderExists
+		}
+		if errors.Is(err, vault.ErrPathOccupied) {
+			return "", "", ErrFolderExists
+		}
+		if isWritePermissionError(err) {
+			return "", "", ErrWritePermission
+		}
+		return "", "", fmt.Errorf("folder create failed: %w", err)
+	}
+
+	name := path.Base(normalized)
+	_ = m.StartRefresh(context.Background())
+	return name, normalized, nil
 }
 
 func (m *Manager) DeleteNote(ctx context.Context, id, ifMatch string) error {

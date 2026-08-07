@@ -3,6 +3,7 @@ package com.markrai.vaultist.ui.create
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.markrai.vaultist.data.repository.VaultRepository
+import com.markrai.vaultist.domain.BrowseItem
 import com.markrai.vaultist.domain.Note
 import com.markrai.vaultist.domain.VaultError
 import com.markrai.vaultist.domain.VaultResult
@@ -18,12 +19,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class CreateItemMode {
+    Note,
+    Folder,
+}
+
 data class CreateNoteUiState(
     val dialogVisible: Boolean = false,
+    val mode: CreateItemMode = CreateItemMode.Note,
     val title: String = "",
     val creating: Boolean = false,
     val error: String? = null,
     val pendingOpenNote: Note? = null,
+    val pendingCreatedFolder: BrowseItem? = null,
 )
 
 @HiltViewModel
@@ -44,6 +52,10 @@ class CreateNoteViewModel @Inject constructor(
         _state.update { CreateNoteUiState() }
     }
 
+    fun updateMode(mode: CreateItemMode) {
+        _state.update { it.copy(mode = mode, error = null) }
+    }
+
     fun updateTitle(title: String) {
         _state.update { it.copy(title = title, error = null) }
     }
@@ -52,12 +64,18 @@ class CreateNoteViewModel @Inject constructor(
         if (_state.value.creating) return
         val trimmedTitle = _state.value.title.trim()
         val validation = noteIdFromTitle(folder, trimmedTitle)
-        val id = validation.id
-        if (id == null) {
+        val path = validation.id
+        if (path == null) {
             _state.update { it.copy(error = validation.error) }
             return
         }
-        val content = ""
+        when (_state.value.mode) {
+            CreateItemMode.Note -> submitNote(path, "")
+            CreateItemMode.Folder -> submitFolder(path)
+        }
+    }
+
+    private fun submitNote(id: String, content: String) {
         viewModelScope.launch {
             _state.update { it.copy(creating = true, error = null) }
             when (val result = repository.createNote(id, content)) {
@@ -72,8 +90,26 @@ class CreateNoteViewModel @Inject constructor(
         }
     }
 
+    private fun submitFolder(path: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(creating = true, error = null) }
+            when (val result = repository.createFolder(path)) {
+                is VaultResult.Success -> {
+                    _state.update { CreateNoteUiState(pendingCreatedFolder = result.value) }
+                }
+                is VaultResult.Failure -> _state.update {
+                    it.copy(creating = false, error = result.error.userMessage())
+                }
+            }
+        }
+    }
+
     fun consumeOpenRequest() {
         _state.update { it.copy(pendingOpenNote = null) }
+    }
+
+    fun consumeCreatedFolderRequest() {
+        _state.update { it.copy(pendingCreatedFolder = null) }
     }
 
     fun createMissingLink(sourceNoteId: String, target: String) {

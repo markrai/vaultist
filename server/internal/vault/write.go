@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -58,6 +59,33 @@ func DeleteFileInside(root, relativePath string) error {
 			return fmt.Errorf("note file not found: %w", err)
 		}
 		return fmt.Errorf("delete note file: %w", err)
+	}
+	dir := filepath.Dir(target)
+	if dirFile, err := os.Open(dir); err == nil {
+		_ = dirFile.Sync()
+		_ = dirFile.Close()
+	}
+	return nil
+}
+
+var ErrFolderExists = errors.New("folder already exists")
+var ErrPathOccupied = errors.New("path occupied by file")
+
+func MkdirInside(root, relativePath string) error {
+	target, err := JoinInside(root, relativePath)
+	if err != nil {
+		return err
+	}
+	if info, statErr := os.Stat(target); statErr == nil {
+		if info.IsDir() {
+			return ErrFolderExists
+		}
+		return ErrPathOccupied
+	} else if !os.IsNotExist(statErr) {
+		return fmt.Errorf("create folder: %w", statErr)
+	}
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		return fmt.Errorf("create folder: %w", err)
 	}
 	dir := filepath.Dir(target)
 	if dirFile, err := os.Open(dir); err == nil {

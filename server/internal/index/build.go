@@ -38,6 +38,7 @@ func build(ctx context.Context, root, vaultName string, generation uint64, parse
 		Root: root, VaultName: vaultName, Generation: generation, BuiltAt: time.Now().UTC(),
 		AttachmentFolder: readAttachmentFolder(root), Notes: make(map[string]*model.Note),
 		Assets: make(map[string]*model.Asset), Backlinks: make(map[string][]model.Backlink),
+		Folders: make(map[string]struct{}),
 		notePathExact: make(map[string][]string), notePathFolded: make(map[string][]string),
 		noteNameFolded: make(map[string][]string), noteAliasFolded: make(map[string][]string),
 		assetPathExact: make(map[string][]string), assetPathFolded: make(map[string][]string),
@@ -66,6 +67,7 @@ func build(ctx context.Context, root, vaultName string, generation uint64, parse
 			if vault.IsHidden(relative) {
 				return fs.SkipDir
 			}
+			snapshot.Folders[relative] = struct{}{}
 			return nil
 		}
 		if vault.IsHidden(relative) || entry.Type()&os.ModeSymlink != 0 {

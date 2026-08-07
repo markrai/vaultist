@@ -6,6 +6,8 @@ import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
+import androidx.compose.material.Tab
+import androidx.compose.material.TabRow
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
@@ -22,14 +24,17 @@ import kotlinx.coroutines.delay
 @Composable
 fun CreateNoteDialog(
     folder: String,
+    mode: CreateItemMode,
     title: String,
     creating: Boolean,
     error: String?,
+    onModeChange: (CreateItemMode) -> Unit,
     onTitleChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onCreate: () -> Unit,
 ) {
-    val preview = noteIdFromTitle(folder, title).leaf
+    val validation = noteIdFromTitle(folder, title)
+    val preview = validation.leaf
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
@@ -41,20 +46,44 @@ fun CreateNoteDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New note") },
+        title = {
+            Text(
+                when (mode) {
+                    CreateItemMode.Note -> "New note"
+                    CreateItemMode.Folder -> "New folder"
+                },
+            )
+        },
         text = {
             Column {
+                TabRow(selectedTabIndex = mode.ordinal) {
+                    Tab(
+                        selected = mode == CreateItemMode.Note,
+                        onClick = { if (!creating) onModeChange(CreateItemMode.Note) },
+                        text = { Text("Note") },
+                    )
+                    Tab(
+                        selected = mode == CreateItemMode.Folder,
+                        onClick = { if (!creating) onModeChange(CreateItemMode.Folder) },
+                        text = { Text("Folder") },
+                    )
+                }
                 OutlinedTextField(
                     value = title,
                     onValueChange = onTitleChange,
-                    label = { Text("Title") },
+                    label = { Text("Name") },
                     enabled = !creating,
                     singleLine = true,
-                    modifier = Modifier.focusRequester(focusRequester),
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .focusRequester(focusRequester),
                 )
                 if (!preview.isNullOrBlank()) {
                     Text(
-                        text = preview + ".md",
+                        text = when (mode) {
+                            CreateItemMode.Note -> preview + ".md"
+                            CreateItemMode.Folder -> validation.id.orEmpty()
+                        },
                         style = MaterialTheme.typography.caption,
                         modifier = Modifier.padding(top = 4.dp),
                     )

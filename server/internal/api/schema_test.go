@@ -140,6 +140,22 @@ func TestResponsesMatchOpenAPISchemas(t *testing.T) {
 	}
 	validateSchema(t, document, "ErrorResponse", existsPayload)
 
+	createFolderPayload, createFolderStatus := fetchWithHeaders(t, http.MethodPost, base+"/api/v1/folders", strings.NewReader(`{"path":"Projects/SchemaFolder"}`), map[string]string{
+		"Content-Type": "application/json",
+	})
+	if createFolderStatus != http.StatusCreated {
+		t.Fatalf("create folder status = %d body=%s", createFolderStatus, createFolderPayload)
+	}
+	validateSchema(t, document, "BrowseItem", createFolderPayload)
+
+	folderExistsPayload, folderExistsStatus := fetchWithHeaders(t, http.MethodPost, base+"/api/v1/folders", strings.NewReader(`{"path":"Projects/SchemaFolder"}`), map[string]string{
+		"Content-Type": "application/json",
+	})
+	if folderExistsStatus != http.StatusConflict {
+		t.Fatalf("create folder conflict status = %d body=%s", folderExistsStatus, folderExistsPayload)
+	}
+	validateSchema(t, document, "ErrorResponse", folderExistsPayload)
+
 	deletePayload, deleteStatus := fetchWithHeaders(t, http.MethodDelete, base+"/api/v1/notes/Folder/Note", nil, map[string]string{
 		"If-Match": `"` + revisionAfterUpdate + `"`,
 	})
