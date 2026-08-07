@@ -115,6 +115,22 @@ class BrowserViewModel @Inject constructor(
         openFolder(parent)
     }
 
+    /** Leaves search and restores the current folder listing. */
+    fun exitSearch() {
+        filesSearchJob?.cancel()
+        val folder = _state.value.folder
+        _state.update {
+            it.copy(
+                query = "",
+                searching = false,
+                searched = false,
+                isSearchResults = false,
+                error = null,
+            )
+        }
+        loadBrowse(folder, keepQuery = false)
+    }
+
     fun retry() {
         when {
             _state.value.isSearchResults -> runSearch(reset = true)

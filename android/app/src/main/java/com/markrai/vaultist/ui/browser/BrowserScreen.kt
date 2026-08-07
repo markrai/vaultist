@@ -1,5 +1,6 @@
 package com.markrai.vaultist.ui.browser
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,6 +69,7 @@ import com.markrai.vaultist.domain.BrowseViewMode
 import com.markrai.vaultist.domain.SearchMode
 import com.markrai.vaultist.ui.ask.AskHint
 import com.markrai.vaultist.ui.ask.AskResultsPane
+import com.markrai.vaultist.ui.ask.AskUiState
 import com.markrai.vaultist.ui.ask.AskViewModel
 import com.markrai.vaultist.ui.create.CreateNoteDialog
 import com.markrai.vaultist.ui.create.CreateNoteViewModel
@@ -126,6 +128,20 @@ fun BrowserScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    BackHandler(
+        enabled = createState.dialogVisible ||
+            state.isSearchResults ||
+            state.folder.isNotEmpty() ||
+            state.searchMode == SearchMode.Ask,
+    ) {
+        when {
+            createState.dialogVisible -> createNoteViewModel.dismissDialog()
+            state.searchMode == SearchMode.Ask -> handleAskBack(state, askState, viewModel, askViewModel)
+            state.isSearchResults -> viewModel.exitSearch()
+            state.folder.isNotEmpty() -> viewModel.up()
+        }
     }
 
     Scaffold(topBar = {
@@ -606,3 +622,30 @@ private fun BrowseFolderTile(
         }
     }
 }
+
+private fun handleAskBack(
+    state: BrowserUiState,
+    askState: AskUiState,
+    viewModel: BrowserViewModel,
+    askViewModel: AskViewModel,
+) {
+    when {
+        askState.askSubmitting || askState.searching -> askViewModel.cancel()
+        askHasDisplayedResults(askState) -> askViewModel.clearResults()
+        state.query.isNotBlank() -> {
+            viewModel.updateQuery("")
+            askViewModel.clearResults()
+        }
+        else -> {
+            askViewModel.onLeftAsk()
+            viewModel.toggleSearchMode()
+        }
+    }
+}
+
+private fun askHasDisplayedResults(askState: AskUiState): Boolean =
+    askState.submittedQuestion != null ||
+        askState.askAnswer != null ||
+        askState.askSources.isNotEmpty() ||
+        askState.askMessage != null ||
+        askState.error != null

@@ -81,6 +81,31 @@ class BrowserViewModelTest {
     }
 
     @Test
+    fun exitSearchRestoresFolderBrowse() = runTest(dispatcherRule.dispatcher) {
+        val folderItem = BrowseItem(BrowseKind.Note, "Folder/Note", "Note.md", "Note", "Folder/Note.md", null)
+        val searchItem = BrowseItem(BrowseKind.Note, "Other/Hit", "Hit.md", "Hit", "Other/Hit.md", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(BrowsePage(listOf(folderItem), null, "Folder"))
+            searchResult = VaultResult.Success(SearchPage(listOf(searchItem), null, "hit"))
+        }
+        val viewModel = viewModel(repository)
+        viewModel.openFolder("Folder")
+        advanceUntilIdle()
+
+        viewModel.updateQuery("hit")
+        advanceTimeBy(300)
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.isSearchResults)
+
+        viewModel.exitSearch()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isSearchResults)
+        assertEquals("", viewModel.state.value.query)
+        assertEquals("Folder/Note", viewModel.state.value.items.single().id)
+    }
+
+    @Test
     fun contentSearchRunsOnlyOnSubmit() = runTest(dispatcherRule.dispatcher) {
         val item = BrowseItem(BrowseKind.Note, "Notes/Idea", "Idea.md", "Idea", "Notes/Idea.md", null)
         val repository = FakeVaultRepository().apply {
