@@ -17,11 +17,18 @@ class FakeThemePreferences(
     private val _appearance = MutableStateFlow(initialAppearance)
     override val appearance: Flow<AppAppearance> = _appearance.asStateFlow()
 
+    private val _colorizedHeadings = MutableStateFlow(false)
+    override val colorizedHeadings: Flow<Boolean> = _colorizedHeadings.asStateFlow()
+
     override suspend fun setColorTheme(theme: AppColorTheme) {
         _colorTheme.value = theme
     }
 
     override suspend fun setAppearance(appearance: AppAppearance) {
         _appearance.value = appearance
+    }
+
+    override suspend fun setColorizedHeadings(enabled: Boolean) {
+        _colorizedHeadings.value = enabled
     }
 }

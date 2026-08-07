@@ -18,6 +18,7 @@ import com.markrai.vaultist.data.settings.ModifiedDatePreferences
 import com.markrai.vaultist.data.settings.ThemePreferences
 import com.markrai.vaultist.domain.ModifiedDateStyle
 import com.markrai.vaultist.ui.components.LocalModifiedDateStyle
+import com.markrai.vaultist.ui.markdown.LocalColorizedHeadings
 import com.markrai.vaultist.ui.navigation.VaultistNavigation
 import com.markrai.vaultist.ui.theme.AppAppearance
 import com.markrai.vaultist.ui.theme.AppColorTheme
@@ -48,11 +49,17 @@ class MainActivity : ComponentActivity() {
             val modifiedDateStyle by modifiedDatePreferences.style.collectAsStateWithLifecycle(
                 initialValue = ModifiedDateStyle.Absolute,
             )
+            val colorizedHeadings by themePreferences.colorizedHeadings.collectAsStateWithLifecycle(
+                initialValue = false,
+            )
             VaultistTheme(
                 theme = theme,
                 darkTheme = appearance == AppAppearance.Dark,
             ) {
-                CompositionLocalProvider(LocalModifiedDateStyle provides modifiedDateStyle) {
+                CompositionLocalProvider(
+                    LocalModifiedDateStyle provides modifiedDateStyle,
+                    LocalColorizedHeadings provides colorizedHeadings,
+                ) {
                     Surface(
                         color = MaterialTheme.colors.background,
                         modifier = Modifier.fillMaxSize().systemBarsPadding(),

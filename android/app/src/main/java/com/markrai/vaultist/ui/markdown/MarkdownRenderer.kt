@@ -124,7 +124,12 @@ fun MarkdownRenderer(
             itemsIndexed(blocks, key = { index, block -> "${block.sourceLine}:$index" }) { _, block ->
                 when (block) {
                     is MarkdownBlock.Heading -> InlineText(
-                        block.text, note.links, MarkdownTypography.heading(block.level), onOpenNote, onMissing, onAmbiguous,
+                        block.text,
+                        note.links,
+                        MarkdownTypography.heading(block.level, LocalColorizedHeadings.current),
+                        onOpenNote,
+                        onMissing,
+                        onAmbiguous,
                         onClearSelection = clearSelection,
                         modifier = Modifier.padding(top = if (block.level <= 2) Spacing.md else Spacing.sm),
                     )
@@ -327,7 +332,9 @@ private fun InlineText(
     var layoutResult by remember(text, annotated) { mutableStateOf<TextLayoutResult?>(null) }
     Text(
         text = annotated,
-        style = style.copy(color = MaterialTheme.colors.onSurface),
+        style = style.copy(
+            color = if (style.color == Color.Unspecified) MaterialTheme.colors.onSurface else style.color,
+        ),
         modifier = modifier.pointerInput(annotated, layoutResult) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)

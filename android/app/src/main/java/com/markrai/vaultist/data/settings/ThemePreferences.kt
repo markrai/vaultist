@@ -10,4 +10,7 @@ interface ThemePreferences {
 
     val appearance: Flow<AppAppearance>
     suspend fun setAppearance(appearance: AppAppearance)
+
+    val colorizedHeadings: Flow<Boolean>
+    suspend fun setColorizedHeadings(enabled: Boolean)
 }

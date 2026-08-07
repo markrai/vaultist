@@ -34,6 +34,7 @@ data class SetupUiState(
     val enableAskThinking: Boolean = false,
     val colorTheme: AppColorTheme = AppColorTheme.Ruby,
     val appearance: AppAppearance = AppAppearance.Light,
+    val colorizedHeadings: Boolean = false,
     val relativeModifiedDates: Boolean = false,
     val dateTimeInsertFormat: DateTimeInsertFormat = DateTimeInsertFormat.IsoDateTime,
 )
@@ -70,6 +71,11 @@ class SetupViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            themePreferences.colorizedHeadings.collect { enabled ->
+                _state.update { it.copy(colorizedHeadings = enabled) }
+            }
+        }
+        viewModelScope.launch {
             modifiedDatePreferences.style.collect { style ->
                 _state.update { it.copy(relativeModifiedDates = style == ModifiedDateStyle.Relative) }
             }
@@ -100,6 +106,12 @@ class SetupViewModel @Inject constructor(
     fun setAppearance(appearance: AppAppearance) {
         viewModelScope.launch {
             themePreferences.setAppearance(appearance)
+        }
+    }
+
+    fun setColorizedHeadings(enabled: Boolean) {
+        viewModelScope.launch {
+            themePreferences.setColorizedHeadings(enabled)
         }
     }
 

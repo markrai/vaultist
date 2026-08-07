@@ -46,6 +46,7 @@ fun SetupScreen(onSaved: () -> Unit, onBack: () -> Unit, viewModel: SetupViewMod
         onEnableAskThinkingChange = viewModel::setEnableAskThinking,
         onColorThemeChange = viewModel::setColorTheme,
         onAppearanceChange = viewModel::setAppearance,
+        onColorizedHeadingsChange = viewModel::setColorizedHeadings,
         onRelativeModifiedDatesChange = viewModel::setRelativeModifiedDates,
         onDateTimeInsertFormatChange = viewModel::setDateTimeInsertFormat,
         onBack = onBack,
@@ -61,6 +62,7 @@ fun SetupContent(
     onEnableAskThinkingChange: (Boolean) -> Unit,
     onColorThemeChange: (AppColorTheme) -> Unit,
     onAppearanceChange: (AppAppearance) -> Unit,
+    onColorizedHeadingsChange: (Boolean) -> Unit,
     onRelativeModifiedDatesChange: (Boolean) -> Unit,
     onDateTimeInsertFormatChange: (DateTimeInsertFormat) -> Unit,
     onBack: () -> Unit,
@@ -114,8 +116,10 @@ fun SetupContent(
                         modifier = Modifier.weight(1f),
                         colorTheme = state.colorTheme,
                         appearance = state.appearance,
+                        colorizedHeadings = state.colorizedHeadings,
                         onColorThemeChange = onColorThemeChange,
                         onAppearanceChange = onAppearanceChange,
+                        onColorizedHeadingsChange = onColorizedHeadingsChange,
                     )
                 }
                 SetupTab.ASK -> {

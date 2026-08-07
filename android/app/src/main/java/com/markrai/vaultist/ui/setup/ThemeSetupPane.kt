@@ -21,8 +21,10 @@ import com.markrai.vaultist.ui.theme.Spacing
 fun ThemeSetupPane(
     colorTheme: AppColorTheme,
     appearance: AppAppearance,
+    colorizedHeadings: Boolean,
     onColorThemeChange: (AppColorTheme) -> Unit,
     onAppearanceChange: (AppAppearance) -> Unit,
+    onColorizedHeadingsChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -32,7 +34,7 @@ fun ThemeSetupPane(
             .padding(Spacing.md),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        Text("Theme", style = MaterialTheme.typography.subtitle1)
+        Text("Color", style = MaterialTheme.typography.subtitle1)
         Row(
             Modifier.fillMaxWidth().testTag("theme_toggle_row"),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
@@ -69,5 +71,13 @@ fun ThemeSetupPane(
                 modifier = Modifier.weight(1f).testTag("appearance_dark"),
             )
         }
+
+        SettingsSwitchRow(
+            title = "Colorized Headings",
+            subtitle = "Use distinct colors for H1–H6 in note view.",
+            checked = colorizedHeadings,
+            onCheckedChange = onColorizedHeadingsChange,
+            switchModifier = Modifier.testTag("colorized_headings_switch"),
+        )
     }
 }
