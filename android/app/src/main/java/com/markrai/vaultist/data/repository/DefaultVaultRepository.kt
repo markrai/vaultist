@@ -68,6 +68,11 @@ class DefaultVaultRepository @Inject constructor(
         JSONObject(api.createFolder(base, path).requireSuccess().body).toBrowseItem()
     }
 
+    override suspend fun deleteFolder(path: String) = configuredResult { base ->
+        api.deleteFolder(base, path).requireSuccess()
+        Unit
+    }
+
     override suspend fun deleteNote(id: String, revision: String) = configuredResult { base ->
         api.deleteNote(base, id, revision).requireSuccess()
         Unit

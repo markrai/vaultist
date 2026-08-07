@@ -82,3 +82,36 @@ func TestMkdirInsideRejectsOccupiedFile(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestRemoveDirInsideDeletesEmptyDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := MkdirInside(root, "Projects/Ideas"); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveDirInside(root, "Projects/Ideas"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "Projects", "Ideas")); !os.IsNotExist(err) {
+		t.Fatalf("expected folder removed, err=%v", err)
+	}
+}
+
+func TestRemoveDirInsideRejectsNonEmptyDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := MkdirInside(root, "Projects/Ideas"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReplaceFileAtomically(root, "Projects/Ideas/Note.md", []byte("# Note")); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveDirInside(root, "Projects/Ideas"); err != ErrFolderNotEmpty {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestRemoveDirInsideRejectsMissingDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := RemoveDirInside(root, "Missing"); err == nil {
+		t.Fatal("expected missing folder error")
+	}
+}

@@ -83,6 +83,14 @@ func (h *Handler) serve(writer http.ResponseWriter, request *http.Request) {
 		h.deleteNoteRoute(writer, request)
 		return
 	}
+	if request.Method == http.MethodDelete && strings.HasPrefix(request.URL.Path, apiPrefix+"/folders/") {
+		if !h.authorizer.AuthorizeWrite(request) {
+			writeError(writer, http.StatusForbidden, "forbidden", "Write access is not authorized", nil)
+			return
+		}
+		h.deleteFolderRoute(writer, request)
+		return
+	}
 	if !h.authorizer.AuthorizeRead(request) {
 		writeError(writer, http.StatusForbidden, "forbidden", "Read access is not authorized", nil)
 		return

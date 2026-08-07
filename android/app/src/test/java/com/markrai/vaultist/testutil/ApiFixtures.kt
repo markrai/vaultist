@@ -56,4 +56,6 @@ object ApiFixtures {
     }"""
 
     fun folderExistsError() = """{"error":{"code":"folder_exists","message":"A folder with this path already exists"}}"""
+
+    fun folderNotEmptyError() = """{"error":{"code":"folder_not_empty","message":"The folder is not empty"}}"""
 }

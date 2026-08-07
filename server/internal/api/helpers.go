@@ -75,3 +75,12 @@ func parseNoteIDFromPath(requestPath string) (string, error) {
 	}
 	return id, nil
 }
+
+func parseFolderPathFromPath(requestPath string) (string, error) {
+	raw := strings.TrimPrefix(requestPath, apiPrefix+"/folders/")
+	folderPath, err := decodeID(raw)
+	if err != nil || strings.EqualFold(path.Ext(folderPath), ".md") {
+		return "", errors.New("invalid folder path")
+	}
+	return folderPath, nil
+}

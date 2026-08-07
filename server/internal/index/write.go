@@ -24,6 +24,7 @@ var ErrWritePermission = errors.New("note write permission denied")
 var ErrNoteExists = errors.New("note already exists")
 var ErrInvalidNoteID = errors.New("invalid note id")
 var ErrFolderExists = errors.New("folder already exists")
+var ErrFolderNotEmpty = errors.New("folder not empty")
 var ErrInvalidFolder = errors.New("invalid folder")
 
 type RevisionConflictError struct {
@@ -229,6 +230,48 @@ func (m *Manager) CreateFolder(ctx context.Context, folderPath string) (string, 
 	name := path.Base(normalized)
 	_ = m.StartRefresh(context.Background())
 	return name, normalized, nil
+}
+
+func (m *Manager) DeleteFolder(ctx context.Context, folderPath string) error {
+	normalized, err := vault.NormalizeRelative(folderPath)
+	if err != nil {
+		return ErrInvalidFolder
+	}
+	if strings.HasSuffix(strings.ToLower(normalized), ".md") {
+		return ErrInvalidFolder
+	}
+
+	target, err := vault.JoinInside(m.root, normalized)
+	if err != nil {
+		return ErrInvalidFolder
+	}
+	if info, statErr := os.Stat(target); statErr != nil {
+		if os.IsNotExist(statErr) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("folder delete failed: %w", statErr)
+	} else if !info.IsDir() {
+		return ErrInvalidFolder
+	}
+
+	if err := vault.RemoveDirInside(m.root, normalized); err != nil {
+		if errors.Is(err, vault.ErrFolderNotEmpty) {
+			return ErrFolderNotEmpty
+		}
+		if errors.Is(err, vault.ErrPathOccupied) {
+			return ErrInvalidFolder
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			return ErrNotFound
+		}
+		if isWritePermissionError(err) {
+			return ErrWritePermission
+		}
+		return fmt.Errorf("folder delete failed: %w", err)
+	}
+
+	_ = m.StartRefresh(ctx)
+	return nil
 }
 
 func (m *Manager) DeleteNote(ctx context.Context, id, ifMatch string) error {

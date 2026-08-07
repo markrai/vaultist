@@ -344,6 +344,70 @@ class BrowserViewModelTest {
     }
 
     @Test
+    fun confirmDeleteFolderNavigatesUpAndHidesFolder() = runTest(dispatcherRule.dispatcher) {
+        val sync = PendingBrowseSync()
+        val deletedFolder = BrowseItem(BrowseKind.Folder, null, "Ideas", null, "Projects/Ideas", null)
+        val sibling = BrowseItem(BrowseKind.Folder, null, "Archive", null, "Projects/Archive", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(
+                BrowsePage(listOf(deletedFolder, sibling), null, "Projects"),
+            )
+        }
+        val viewModel = BrowserViewModel(
+            repository,
+            BrowseUiConfig(),
+            sync,
+            FakeBrowseSortPreferences(),
+            FakeBrowseViewPreferences(),
+        )
+        advanceUntilIdle()
+        viewModel.openFolder("Projects/Ideas")
+        advanceUntilIdle()
+        assertEquals("Projects/Ideas", viewModel.state.value.folder)
+
+        viewModel.requestDeleteFolder()
+        assertTrue(viewModel.state.value.showDeleteFolderDialog)
+        viewModel.confirmDeleteFolder()
+        repository.listNotesResult = VaultResult.Success(
+            BrowsePage(listOf(sibling), null, "Projects"),
+        )
+        advanceUntilIdle()
+
+        assertEquals("Projects", viewModel.state.value.folder)
+        assertEquals("Projects/Ideas", repository.lastDeleteFolderPath)
+        assertEquals(listOf("Projects/Archive"), viewModel.state.value.items.map { it.path })
+    }
+
+    @Test
+    fun onReturnedToBrowseAppliesPendingFolderDelete() = runTest(dispatcherRule.dispatcher) {
+        val sync = PendingBrowseSync()
+        val deletedFolder = BrowseItem(BrowseKind.Folder, null, "Ideas", null, "Projects/Ideas", null)
+        val stay = BrowseItem(BrowseKind.Folder, null, "Archive", null, "Projects/Archive", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(
+                BrowsePage(listOf(deletedFolder, stay), null, "Projects"),
+            )
+        }
+        val viewModel = BrowserViewModel(
+            repository,
+            BrowseUiConfig(),
+            sync,
+            FakeBrowseSortPreferences(),
+            FakeBrowseViewPreferences(),
+        )
+        advanceUntilIdle()
+        viewModel.openFolder("Projects")
+        advanceUntilIdle()
+        sync.offerAfterDeleteFolder("Projects/Ideas")
+        viewModel.onReturnedToBrowse()
+        repository.listNotesResult = VaultResult.Success(
+            BrowsePage(listOf(stay), null, "Projects"),
+        )
+        advanceUntilIdle()
+        assertEquals(listOf("Projects/Archive"), viewModel.state.value.items.map { it.path })
+    }
+
+    @Test
     fun afterNoteDeletedKeepsNoteHiddenUntilIndexDropsIt() = runTest(dispatcherRule.dispatcher) {
         val deleted = BrowseItem(BrowseKind.Note, "Gone", "Gone.md", "Gone", "Gone.md", null)
         val stay = BrowseItem(BrowseKind.Note, "Stay", "Stay.md", "Stay", "Stay.md", null)

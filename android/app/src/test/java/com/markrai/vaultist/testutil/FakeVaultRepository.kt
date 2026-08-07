@@ -46,9 +46,11 @@ class FakeVaultRepository : VaultRepository {
     var deleteNoteResult: VaultResult<Unit>? = null
     var createNoteResult: VaultResult<Note>? = null
     var createFolderResult: VaultResult<BrowseItem>? = null
+    var deleteFolderResult: VaultResult<Unit>? = null
     var lastCreateId: String? = null
     var lastCreateContent: String? = null
     var lastCreateFolderPath: String? = null
+    var lastDeleteFolderPath: String? = null
     var lastDeleteRevision: String? = null
     var indexStatusResult: VaultResult<IndexState> = VaultResult.Success(IndexState("ready", 1, 1, 0, 0))
     var indexStatusResults: List<VaultResult<IndexState>>? = null
@@ -96,6 +98,11 @@ class FakeVaultRepository : VaultRepository {
                 modifiedAt = null,
             ),
         )
+    }
+
+    override suspend fun deleteFolder(path: String): VaultResult<Unit> {
+        lastDeleteFolderPath = path
+        return deleteFolderResult ?: VaultResult.Success(Unit)
     }
 
     override suspend fun updateNote(id: String, revision: String, content: String): VaultResult<Note> {

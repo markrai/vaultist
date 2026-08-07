@@ -155,6 +155,17 @@ func TestResponsesMatchOpenAPISchemas(t *testing.T) {
 	}
 	validateSchema(t, document, "ErrorResponse", folderExistsPayload)
 
+	deleteFolderPayload, deleteFolderStatus := fetchWithHeaders(t, http.MethodPost, base+"/api/v1/folders", strings.NewReader(`{"path":"Projects/SchemaDelete"}`), map[string]string{
+		"Content-Type": "application/json",
+	})
+	if deleteFolderStatus != http.StatusCreated {
+		t.Fatalf("create delete-folder status = %d body=%s", deleteFolderStatus, deleteFolderPayload)
+	}
+	_, deleteFolderOkStatus := fetchWithHeaders(t, http.MethodDelete, base+"/api/v1/folders/Projects/SchemaDelete", nil, nil)
+	if deleteFolderOkStatus != http.StatusNoContent {
+		t.Fatalf("delete folder status = %d", deleteFolderOkStatus)
+	}
+
 	deletePayload, deleteStatus := fetchWithHeaders(t, http.MethodDelete, base+"/api/v1/notes/Folder/Note", nil, map[string]string{
 		"If-Match": `"` + revisionAfterUpdate + `"`,
 	})

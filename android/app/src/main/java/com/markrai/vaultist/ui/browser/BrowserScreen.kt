@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
@@ -34,11 +35,13 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Refresh
@@ -152,6 +155,18 @@ fun BrowserScreen(
                 )
             },
             actions = {
+                if (
+                    state.searchMode != SearchMode.Ask &&
+                    state.folder.isNotEmpty() &&
+                    state.vault?.readOnly == false
+                ) {
+                    IconButton(
+                        onClick = viewModel::requestDeleteFolder,
+                        enabled = !state.deletingFolder && !state.loading,
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete folder")
+                    }
+                }
                 if (state.searchMode != SearchMode.Ask) {
                     IconButton(onClick = viewModel::refresh, enabled = !state.refreshing) {
                         Icon(Icons.Default.Refresh, "Refresh index")
@@ -235,6 +250,23 @@ fun BrowserScreen(
                 )
             }
         }
+    }
+    if (state.showDeleteFolderDialog) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissDeleteFolderDialog,
+            title = { Text("Delete folder?") },
+            text = {
+                Text(
+                    "Only empty folders can be deleted.\n${state.folder}",
+                )
+            },
+            confirmButton = {
+                Button(onClick = viewModel::confirmDeleteFolder) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissDeleteFolderDialog) { Text("Cancel") }
+            },
+        )
     }
     if (createState.dialogVisible) {
         CreateNoteDialog(

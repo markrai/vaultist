@@ -92,6 +92,14 @@ class VaultistApi @Inject constructor(private val client: OkHttpClient) {
         )
     }
 
+    suspend fun deleteFolder(baseUrl: String, path: String): ApiPayload =
+        request(
+            Request.Builder()
+                .url(endpoint(baseUrl, folderPathSegments(path)))
+                .delete()
+                .build(),
+        )
+
     suspend fun backlinks(baseUrl: String, id: String): ApiPayload =
         get(baseUrl, listOf("notes", id, "backlinks"))
 
@@ -115,6 +123,9 @@ class VaultistApi @Inject constructor(private val client: OkHttpClient) {
         segments.forEach { builder.addPathSegment(it) }
         return builder.build()
     }
+
+    private fun folderPathSegments(path: String): List<String> =
+        listOf("folders") + path.split('/').filter { it.isNotEmpty() }
 
     private fun quoteRevision(revision: String): String =
         if (revision.startsWith("\"")) revision else "\"$revision\""

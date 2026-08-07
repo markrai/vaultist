@@ -262,6 +262,40 @@ func TestCreateFolderRejectsConflictingNote(t *testing.T) {
 	}
 }
 
+func TestDeleteFolderRemovesEmptyDirectory(t *testing.T) {
+	root := t.TempDir()
+	manager := newTestManager(t, root)
+	if _, _, err := manager.CreateFolder(context.Background(), "Projects/Ideas"); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.DeleteFolder(context.Background(), "Projects/Ideas"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "Projects", "Ideas")); !os.IsNotExist(err) {
+		t.Fatalf("expected folder removed, err=%v", err)
+	}
+}
+
+func TestDeleteFolderRejectsNonEmptyDirectory(t *testing.T) {
+	root := t.TempDir()
+	manager := newTestManager(t, root)
+	if _, _, err := manager.CreateFolder(context.Background(), "Projects/Ideas"); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "Projects/Ideas/Note.md", "# Note\n")
+	if err := manager.DeleteFolder(context.Background(), "Projects/Ideas"); err != ErrFolderNotEmpty {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestDeleteFolderNotFound(t *testing.T) {
+	root := t.TempDir()
+	manager := newTestManager(t, root)
+	if err := manager.DeleteFolder(context.Background(), "Missing"); err != ErrNotFound {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func writeFile(t *testing.T, root, relative, content string) {
 	t.Helper()
 	filePath := filepath.Join(root, filepath.FromSlash(relative))

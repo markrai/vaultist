@@ -43,6 +43,8 @@ data class BrowserUiState(
     val isSearchResults: Boolean = false,
     val searched: Boolean = false,
     val error: String? = null,
+    val showDeleteFolderDialog: Boolean = false,
+    val deletingFolder: Boolean = false,
 )
 
 @HiltViewModel
@@ -58,6 +60,7 @@ class BrowserViewModel @Inject constructor(
 
     private var filesSearchJob: Job? = null
     private val pendingDeletedNoteIds = mutableSetOf<String>()
+    private val pendingDeletedFolderPaths = mutableSetOf<String>()
     private val pendingUpsertNotes = mutableMapOf<String, Note>()
     private val pendingUpsertFolders = mutableMapOf<String, BrowseItem>()
 
@@ -106,8 +109,12 @@ class BrowserViewModel @Inject constructor(
     fun onReturnedToBrowse() {
         val mutations = pendingBrowseSync.drain()
         if (mutations.isEmpty()) return
-        val deletes = mutations.filterIsInstance<BrowseMutation.DeleteNote>()
-        val upserts = mutations.filter { it !is BrowseMutation.DeleteNote }
+        val deletes = mutations.filter {
+            it is BrowseMutation.DeleteNote || it is BrowseMutation.DeleteFolder
+        }
+        val upserts = mutations.filter {
+            it !is BrowseMutation.DeleteNote && it !is BrowseMutation.DeleteFolder
+        }
         if (deletes.isNotEmpty()) {
             filesSearchJob?.cancel()
             _state.update {
@@ -119,7 +126,13 @@ class BrowserViewModel @Inject constructor(
                     error = null,
                 )
             }
-            deletes.forEach { applyDeleteMutation(it.noteId) }
+            deletes.forEach { mutation ->
+                when (mutation) {
+                    is BrowseMutation.DeleteNote -> applyDeleteMutation(mutation.noteId)
+                    is BrowseMutation.DeleteFolder -> applyDeleteFolderMutation(mutation.path)
+                    else -> Unit
+                }
+            }
             loadBrowse(_state.value.folder)
         }
         upserts.forEach { applyBrowseMutation(it) }
@@ -280,6 +293,42 @@ class BrowserViewModel @Inject constructor(
         applyBrowseMutation(BrowseMutation.UpsertFolder(folder))
     }
 
+    fun requestDeleteFolder() {
+        if (_state.value.folder.isEmpty() || _state.value.vault?.readOnly != false) return
+        _state.update { it.copy(showDeleteFolderDialog = true) }
+    }
+
+    fun dismissDeleteFolderDialog() {
+        _state.update { it.copy(showDeleteFolderDialog = false) }
+    }
+
+    fun confirmDeleteFolder() {
+        val folderPath = _state.value.folder
+        if (folderPath.isEmpty() || _state.value.deletingFolder) return
+        viewModelScope.launch {
+            _state.update {
+                it.copy(deletingFolder = true, showDeleteFolderDialog = false, error = null)
+            }
+            when (val result = repository.deleteFolder(folderPath)) {
+                is VaultResult.Success -> {
+                    pendingBrowseSync.offerAfterDeleteFolder(folderPath)
+                    applyDeleteFolderMutation(folderPath)
+                    up()
+                    reconcileAfterMutation()
+                    _state.update { it.copy(deletingFolder = false) }
+                }
+                is VaultResult.Failure -> {
+                    _state.update {
+                        it.copy(
+                            deletingFolder = false,
+                            error = result.error.userMessage(),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     /** Wait for a write-triggered reindex, then reload browse from the server. */
     fun reconcileAfterMutation() {
         if (_state.value.searchMode == SearchMode.Ask) return
@@ -322,6 +371,14 @@ class BrowserViewModel @Inject constructor(
         }
     }
 
+    private fun applyDeleteFolderMutation(folderPath: String) {
+        pendingDeletedFolderPaths.add(folderPath)
+        pendingUpsertFolders.remove(folderPath)
+        _state.update {
+            it.copy(items = it.items.filter { item -> item.path !in pendingDeletedFolderPaths })
+        }
+    }
+
     private fun applyBrowseMutation(mutation: BrowseMutation) {
         when (mutation) {
             is BrowseMutation.UpsertNote -> {
@@ -331,9 +388,11 @@ class BrowserViewModel @Inject constructor(
             }
             is BrowseMutation.UpsertFolder -> {
                 pendingUpsertFolders[mutation.folder.path] = mutation.folder
+                pendingDeletedFolderPaths.remove(mutation.folder.path)
                 mergeUpsertFolderIntoCurrentItems(mutation.folder)
             }
             is BrowseMutation.DeleteNote -> applyDeleteMutation(mutation.noteId)
+            is BrowseMutation.DeleteFolder -> applyDeleteFolderMutation(mutation.path)
         }
     }
 
@@ -394,7 +453,10 @@ class BrowserViewModel @Inject constructor(
         }
         pendingUpsertFolders.values.forEach { folderItem ->
             val parent = folderItem.path.substringBeforeLast('/', missingDelimiterValue = "")
-            if (parent == folder && folderItem.path !in serverFolderPaths) {
+            if (parent == folder &&
+                folderItem.path !in pendingDeletedFolderPaths &&
+                folderItem.path !in serverFolderPaths
+            ) {
                 merged.add(folderItem)
             }
         }
@@ -472,6 +534,7 @@ class BrowserViewModel @Inject constructor(
         viewModelScope.launch {
             if (clearPendingMutations) {
                 pendingDeletedNoteIds.clear()
+                pendingDeletedFolderPaths.clear()
                 pendingUpsertNotes.clear()
                 pendingUpsertFolders.clear()
             }
@@ -495,7 +558,8 @@ class BrowserViewModel @Inject constructor(
                     when (val allItems = fetchAllBrowseItems(folder, firstPage.value)) {
                         is VaultResult.Success -> {
                             val filtered = allItems.value.filter { item ->
-                                item.id !in pendingDeletedNoteIds
+                                item.id !in pendingDeletedNoteIds &&
+                                    item.path !in pendingDeletedFolderPaths
                             }
                             val items = mergePendingUpserts(folder, filtered)
                             _state.update {

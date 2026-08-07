@@ -69,6 +69,7 @@ func DeleteFileInside(root, relativePath string) error {
 }
 
 var ErrFolderExists = errors.New("folder already exists")
+var ErrFolderNotEmpty = errors.New("folder not empty")
 var ErrPathOccupied = errors.New("path occupied by file")
 
 func MkdirInside(root, relativePath string) error {
@@ -86,6 +87,42 @@ func MkdirInside(root, relativePath string) error {
 	}
 	if err := os.MkdirAll(target, 0o755); err != nil {
 		return fmt.Errorf("create folder: %w", err)
+	}
+	dir := filepath.Dir(target)
+	if dirFile, err := os.Open(dir); err == nil {
+		_ = dirFile.Sync()
+		_ = dirFile.Close()
+	}
+	return nil
+}
+
+func RemoveDirInside(root, relativePath string) error {
+	target, err := JoinInside(root, relativePath)
+	if err != nil {
+		return err
+	}
+	info, statErr := os.Stat(target)
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
+			return fmt.Errorf("folder not found: %w", statErr)
+		}
+		return fmt.Errorf("delete folder: %w", statErr)
+	}
+	if !info.IsDir() {
+		return ErrPathOccupied
+	}
+	entries, err := os.ReadDir(target)
+	if err != nil {
+		return fmt.Errorf("delete folder: %w", err)
+	}
+	if len(entries) > 0 {
+		return ErrFolderNotEmpty
+	}
+	if err := os.Remove(target); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("folder not found: %w", err)
+		}
+		return fmt.Errorf("delete folder: %w", err)
 	}
 	dir := filepath.Dir(target)
 	if dirFile, err := os.Open(dir); err == nil {

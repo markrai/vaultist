@@ -9,6 +9,7 @@ sealed interface BrowseMutation {
     data class UpsertNote(val note: Note) : BrowseMutation
     data class UpsertFolder(val folder: BrowseItem) : BrowseMutation
     data class DeleteNote(val noteId: String) : BrowseMutation
+    data class DeleteFolder(val path: String) : BrowseMutation
 }
 
 /**
@@ -31,7 +32,8 @@ class PendingBrowseSync @Inject constructor() {
                 }
                 is BrowseMutation.UpsertFolder -> {
                     pending.removeAll {
-                        it is BrowseMutation.UpsertFolder && it.folder.path == mutation.folder.path
+                        (it is BrowseMutation.UpsertFolder && it.folder.path == mutation.folder.path) ||
+                            (it is BrowseMutation.DeleteFolder && it.path == mutation.folder.path)
                     }
                     pending.add(mutation)
                 }
@@ -39,6 +41,13 @@ class PendingBrowseSync @Inject constructor() {
                     pending.removeAll {
                         (it is BrowseMutation.UpsertNote && it.note.id == mutation.noteId) ||
                             (it is BrowseMutation.DeleteNote && it.noteId == mutation.noteId)
+                    }
+                    pending.add(mutation)
+                }
+                is BrowseMutation.DeleteFolder -> {
+                    pending.removeAll {
+                        (it is BrowseMutation.UpsertFolder && it.folder.path == mutation.path) ||
+                            (it is BrowseMutation.DeleteFolder && it.path == mutation.path)
                     }
                     pending.add(mutation)
                 }
@@ -52,5 +61,9 @@ class PendingBrowseSync @Inject constructor() {
 
     fun offerAfterDelete(noteId: String) {
         offer(BrowseMutation.DeleteNote(noteId))
+    }
+
+    fun offerAfterDeleteFolder(path: String) {
+        offer(BrowseMutation.DeleteFolder(path))
     }
 }

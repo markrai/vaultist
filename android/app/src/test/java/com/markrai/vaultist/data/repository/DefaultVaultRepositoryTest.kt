@@ -186,6 +186,19 @@ class DefaultVaultRepositoryTest {
     }
 
     @Test
+    fun deleteFolderMapsSuccessAndNotEmpty() = runTest {
+        server.enqueue(MockResponse().setResponseCode(204))
+        val deleted = repository.deleteFolder("Projects/Ideas")
+        assertTrue(deleted is VaultResult.Success)
+        assertEquals("DELETE", server.takeRequest().method)
+
+        server.enqueue(MockResponse().setResponseCode(409).setBody(ApiFixtures.folderNotEmptyError()))
+        val conflict = repository.deleteFolder("Projects/Ideas")
+        assertTrue(conflict is VaultResult.Failure)
+        assertEquals("folder_not_empty", ((conflict as VaultResult.Failure).error as VaultError.Api).code)
+    }
+
+    @Test
     fun searchNotesParsesSearchPage() = runTest {
         server.enqueue(MockResponse().setBody(ApiFixtures.SEARCH))
         val result = repository.searchNotes("other", SearchMode.Files, null)

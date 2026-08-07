@@ -140,5 +140,15 @@ class VaultistApiTest {
         assertEquals(201, payload.status)
     }
 
+    @Test
+    fun deleteFolderUsesDeleteOnPath() = runTest {
+        server.enqueue(MockResponse().setResponseCode(204))
+        val payload = api.deleteFolder(baseUrl(), "Projects/Ideas")
+        val request = server.takeRequest()
+        assertEquals("DELETE", request.method)
+        assertEquals("/api/v1/folders/Projects/Ideas", request.path)
+        assertEquals(204, payload.status)
+    }
+
     private fun baseUrl(): String = "http://127.0.0.1:${server.port}"
 }

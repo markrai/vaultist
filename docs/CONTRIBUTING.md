@@ -52,7 +52,7 @@ PRs that change handlers or DTOs without updating OpenAPI should not merge.
 
 ### Write / browse sync checklist
 
-When changing create, save, delete, folder create, browse return paths, or note GET/refresh behavior, read [Stale index, writes, and client sync](architecture.md#stale-index-writes-and-client-sync) and verify:
+When changing create, save, delete, folder create/delete, browse return paths, or note GET/refresh behavior, read [Stale index, writes, and client sync](architecture.md#stale-index-writes-and-client-sync) and verify:
 
 1. **Server:** write paths call coalescing `StartRefresh`; `GetNoteForRead` serves unindexed on-disk notes; GET `revision` matches disk bytes.
 2. **Android:** every write offers `BrowseMutation` via `PendingBrowseSync`; `loadBrowse` merges pending upserts/tombstones.

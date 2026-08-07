@@ -91,6 +91,19 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/FolderExists" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /folders/{path}:
+    delete:
+      summary: Delete an empty vault folder
+      operationId: deleteFolder
+      parameters:
+        - $ref: "#/components/parameters/FolderPath"
+      responses:
+        "204": { description: Folder deleted. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/FolderNotEmpty" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /notes/{id}:
     get:
       summary: Get a note and its resolved links
@@ -261,6 +274,12 @@ components:
       required: true
       schema: { type: string }
       description: Stable ID derived from the normalized vault-relative Markdown path without .md.
+    FolderPath:
+      name: path
+      in: path
+      required: true
+      schema: { type: string }
+      description: Vault-relative folder path without leading or trailing slashes and without a .md suffix.
     Limit:
       name: limit
       in: query
@@ -288,6 +307,9 @@ components:
       content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
     FolderExists:
       description: A folder with this path already exists.
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    FolderNotEmpty:
+      description: The folder is not empty and cannot be deleted.
       content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
     Forbidden:
       description: The current authorization policy does not allow this operation.
