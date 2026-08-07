@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.markrai.vaultist.ui.theme.AppAppearance
 import com.markrai.vaultist.ui.theme.AppColorTheme
+import com.markrai.vaultist.ui.theme.HeadingColorPalette
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,6 +20,7 @@ class DataStoreThemePreferences @Inject constructor(
     private val colorThemeKey = stringPreferencesKey("color_theme")
     private val appearanceKey = stringPreferencesKey("appearance")
     private val colorizedHeadingsKey = booleanPreferencesKey("colorized_headings")
+    private val headingColorPaletteKey = stringPreferencesKey("heading_color_palette")
 
     override val colorTheme: Flow<AppColorTheme> = context.vaultistDataStore.data.map { prefs ->
         AppColorTheme.fromId(prefs[colorThemeKey])
@@ -42,5 +44,13 @@ class DataStoreThemePreferences @Inject constructor(
 
     override suspend fun setColorizedHeadings(enabled: Boolean) {
         context.vaultistDataStore.edit { it[colorizedHeadingsKey] = enabled }
+    }
+
+    override val headingColorPalette: Flow<HeadingColorPalette> = context.vaultistDataStore.data.map { prefs ->
+        HeadingColorPalette.fromId(prefs[headingColorPaletteKey])
+    }
+
+    override suspend fun setHeadingColorPalette(palette: HeadingColorPalette) {
+        context.vaultistDataStore.edit { it[headingColorPaletteKey] = palette.id }
     }
 }

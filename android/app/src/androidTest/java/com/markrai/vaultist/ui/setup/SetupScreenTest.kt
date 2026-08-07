@@ -29,6 +29,7 @@ class SetupScreenTest {
                     onColorThemeChange = {},
                     onAppearanceChange = {},
                     onColorizedHeadingsChange = {},
+                    onHeadingColorPaletteChange = {},
                     onRelativeModifiedDatesChange = {},
                     onDateTimeInsertFormatChange = {},
                     onBack = {},
@@ -55,6 +56,7 @@ class SetupScreenTest {
                     onColorThemeChange = {},
                     onAppearanceChange = {},
                     onColorizedHeadingsChange = {},
+                    onHeadingColorPaletteChange = {},
                     onRelativeModifiedDatesChange = {},
                     onDateTimeInsertFormatChange = {},
                     onBack = {},
@@ -79,6 +81,7 @@ class SetupScreenTest {
                     onColorThemeChange = {},
                     onAppearanceChange = {},
                     onColorizedHeadingsChange = {},
+                    onHeadingColorPaletteChange = {},
                     onRelativeModifiedDatesChange = {},
                     onDateTimeInsertFormatChange = {},
                     onBack = {},
@@ -101,6 +104,7 @@ class SetupScreenTest {
                     onColorThemeChange = {},
                     onAppearanceChange = {},
                     onColorizedHeadingsChange = {},
+                    onHeadingColorPaletteChange = {},
                     onRelativeModifiedDatesChange = {},
                     onDateTimeInsertFormatChange = {},
                     onBack = {},
@@ -110,5 +114,9 @@ class SetupScreenTest {
         composeRule.onNodeWithTag("setup_tab_theme").performClick()
         composeRule.onNodeWithTag("theme_ruby").assertExists()
         composeRule.onNodeWithTag("appearance_dark").assertExists()
+        composeRule.onNodeWithTag("heading_palette_classic").assertExists()
+        composeRule.onNodeWithTag("heading_palette_classic_reversed").assertExists()
+        composeRule.onNodeWithTag("heading_palette_teal").assertExists()
+        composeRule.onNodeWithTag("heading_palette_teal_reversed").assertExists()
     }
 }

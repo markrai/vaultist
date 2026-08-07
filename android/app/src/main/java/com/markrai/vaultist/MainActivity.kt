@@ -19,9 +19,11 @@ import com.markrai.vaultist.data.settings.ThemePreferences
 import com.markrai.vaultist.domain.ModifiedDateStyle
 import com.markrai.vaultist.ui.components.LocalModifiedDateStyle
 import com.markrai.vaultist.ui.markdown.LocalColorizedHeadings
+import com.markrai.vaultist.ui.markdown.LocalHeadingColorPalette
 import com.markrai.vaultist.ui.navigation.VaultistNavigation
 import com.markrai.vaultist.ui.theme.AppAppearance
 import com.markrai.vaultist.ui.theme.AppColorTheme
+import com.markrai.vaultist.ui.theme.HeadingColorPalette
 import com.markrai.vaultist.ui.theme.VaultistTheme
 import com.markrai.vaultist.ui.widget.OpenNoteFromWidget
 import com.markrai.vaultist.ui.widget.WidgetIntents
@@ -52,6 +54,9 @@ class MainActivity : ComponentActivity() {
             val colorizedHeadings by themePreferences.colorizedHeadings.collectAsStateWithLifecycle(
                 initialValue = false,
             )
+            val headingColorPalette by themePreferences.headingColorPalette.collectAsStateWithLifecycle(
+                initialValue = HeadingColorPalette.Classic,
+            )
             VaultistTheme(
                 theme = theme,
                 darkTheme = appearance == AppAppearance.Dark,
@@ -59,6 +64,7 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     LocalModifiedDateStyle provides modifiedDateStyle,
                     LocalColorizedHeadings provides colorizedHeadings,
+                    LocalHeadingColorPalette provides headingColorPalette,
                 ) {
                     Surface(
                         color = MaterialTheme.colors.background,

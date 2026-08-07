@@ -2,6 +2,7 @@ package com.markrai.vaultist.ui.widget
 
 import androidx.compose.ui.graphics.Color
 import androidx.glance.unit.ColorProvider
+import com.markrai.vaultist.ui.theme.HeadingColorPalette
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -27,6 +28,21 @@ class WidgetHeadingColorsTest {
         assertEquals(
             ColorProvider(Color(0xFFBA68C8)),
             widgetHeadingTextColor(level = 6, colorizedHeadings = true, defaultColor = default),
+        )
+    }
+
+    @Test
+    fun usesSelectedPaletteWhenColorizedHeadingsEnabled() {
+        val default = ColorProvider(Color.Red)
+
+        assertEquals(
+            ColorProvider(Color(0xFF26A69A)),
+            widgetHeadingTextColor(
+                level = 4,
+                colorizedHeadings = true,
+                defaultColor = default,
+                palette = HeadingColorPalette.Teal,
+            ),
         )
     }
 }

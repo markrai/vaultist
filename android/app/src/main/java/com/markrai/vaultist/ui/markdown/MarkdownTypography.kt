@@ -11,8 +11,10 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.markrai.vaultist.R
+import com.markrai.vaultist.ui.theme.HeadingColorPalette
 
 val LocalColorizedHeadings = staticCompositionLocalOf { false }
+val LocalHeadingColorPalette = staticCompositionLocalOf { HeadingColorPalette.Classic }
 
 private val InterFontFamily = FontFamily(
     Font(R.font.inter_regular, FontWeight.Normal, FontStyle.Normal),
@@ -21,14 +23,10 @@ private val InterFontFamily = FontFamily(
     Font(R.font.inter_bold_italic, FontWeight.Bold, FontStyle.Italic),
 )
 
-internal fun colorizedHeadingColor(level: Int): Color = when (level.coerceIn(1, 6)) {
-    1 -> Color(0xFFE57373)
-    2 -> Color(0xFFFFB74D)
-    3 -> Color(0xFFFFD54F)
-    4 -> Color(0xFF81C784)
-    5 -> Color(0xFF64B5F6)
-    else -> Color(0xFFBA68C8)
-}
+internal fun colorizedHeadingColor(
+    level: Int,
+    palette: HeadingColorPalette = HeadingColorPalette.Classic,
+): Color = palette.colorForLevel(level)
 
 /** Read-only markdown prose typography (Inter + standard ligatures). Not used for edit or code. */
 object MarkdownTypography {
@@ -44,7 +42,11 @@ object MarkdownTypography {
     fun quote(): TextStyle = body().copy(fontStyle = FontStyle.Italic)
 
     @Composable
-    fun heading(level: Int, colorized: Boolean = LocalColorizedHeadings.current): TextStyle {
+    fun heading(
+        level: Int,
+        colorized: Boolean = LocalColorizedHeadings.current,
+        palette: HeadingColorPalette = LocalHeadingColorPalette.current,
+    ): TextStyle {
         val base = TextStyle(
             fontFamily = InterFontFamily,
             fontFeatureSettings = ProseFeatures,
@@ -56,6 +58,6 @@ object MarkdownTypography {
             },
             fontWeight = FontWeight.Bold,
         )
-        return if (colorized) base.copy(color = colorizedHeadingColor(level)) else base
+        return if (colorized) base.copy(color = colorizedHeadingColor(level, palette)) else base
     }
 }

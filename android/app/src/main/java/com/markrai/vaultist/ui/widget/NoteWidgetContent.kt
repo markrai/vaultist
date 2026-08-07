@@ -20,6 +20,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.markrai.vaultist.data.widget.NoteWidgetLoadResult
+import com.markrai.vaultist.ui.theme.HeadingColorPalette
 
 @Composable
 fun NoteWidgetRoot(
@@ -28,6 +29,7 @@ fun NoteWidgetRoot(
     noteId: String?,
     appWidgetId: Int,
     colorizedHeadings: Boolean,
+    headingColorPalette: HeadingColorPalette = HeadingColorPalette.Classic,
 ) {
     val context = LocalContext.current
     val openAction = noteId?.let {
@@ -61,7 +63,7 @@ fun NoteWidgetRoot(
                     )
                     LazyColumn(modifier = GlanceModifier.defaultWeight()) {
                         items(widgetContent.blocks, itemId = { it.stableId }) { block ->
-                            WidgetBlockRow(block, colorizedHeadings)
+                            WidgetBlockRow(block, colorizedHeadings, headingColorPalette)
                         }
                     }
                 }
@@ -82,7 +84,11 @@ private fun WidgetStatusText(message: String) {
 }
 
 @Composable
-private fun WidgetBlockRow(block: WidgetBlock, colorizedHeadings: Boolean) {
+private fun WidgetBlockRow(
+    block: WidgetBlock,
+    colorizedHeadings: Boolean,
+    headingColorPalette: HeadingColorPalette,
+) {
     when (block) {
         is WidgetBlock.Heading -> Text(
             text = block.text,
@@ -92,6 +98,7 @@ private fun WidgetBlockRow(block: WidgetBlock, colorizedHeadings: Boolean) {
                     level = block.level,
                     colorizedHeadings = colorizedHeadings,
                     defaultColor = GlanceTheme.colors.onBackground,
+                    palette = headingColorPalette,
                 ),
                 fontSize = headingSize(block.level),
                 fontWeight = FontWeight.Medium,

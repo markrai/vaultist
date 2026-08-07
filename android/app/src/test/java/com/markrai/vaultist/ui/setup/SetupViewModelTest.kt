@@ -9,6 +9,7 @@ import com.markrai.vaultist.testutil.FakeVaultRepository
 import com.markrai.vaultist.domain.DateTimeInsertFormat
 import com.markrai.vaultist.ui.theme.AppAppearance
 import com.markrai.vaultist.ui.theme.AppColorTheme
+import com.markrai.vaultist.ui.theme.HeadingColorPalette
 import com.markrai.vaultist.testutil.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -118,6 +119,25 @@ class SetupViewModelTest {
         viewModel.setColorizedHeadings(true)
         advanceUntilIdle()
         assertTrue(viewModel.state.value.colorizedHeadings)
+        assertEquals(1, widgetRefresh.refreshAllCalls)
+    }
+
+    @Test fun persistsHeadingColorPalettePreference() = runTest(dispatcherRule.dispatcher) {
+        val themePrefs = FakeThemePreferences()
+        val widgetRefresh = FakeNoteWidgetRefresher()
+        val viewModel = SetupViewModel(
+            FakeVaultRepository(),
+            FakeAskPreferences(),
+            themePrefs,
+            FakeModifiedDatePreferences(),
+            FakeDateTimeInsertPreferences(),
+            widgetRefresh,
+        )
+        advanceUntilIdle()
+        assertEquals(HeadingColorPalette.Classic, viewModel.state.value.headingColorPalette)
+        viewModel.setHeadingColorPalette(HeadingColorPalette.Teal)
+        advanceUntilIdle()
+        assertEquals(HeadingColorPalette.Teal, viewModel.state.value.headingColorPalette)
         assertEquals(1, widgetRefresh.refreshAllCalls)
     }
 

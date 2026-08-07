@@ -32,6 +32,7 @@ import com.markrai.vaultist.R
 import com.markrai.vaultist.domain.DateTimeInsertFormat
 import com.markrai.vaultist.ui.theme.AppAppearance
 import com.markrai.vaultist.ui.theme.AppColorTheme
+import com.markrai.vaultist.ui.theme.HeadingColorPalette
 import com.markrai.vaultist.ui.theme.Spacing
 
 @Composable
@@ -47,6 +48,7 @@ fun SetupScreen(onSaved: () -> Unit, onBack: () -> Unit, viewModel: SetupViewMod
         onColorThemeChange = viewModel::setColorTheme,
         onAppearanceChange = viewModel::setAppearance,
         onColorizedHeadingsChange = viewModel::setColorizedHeadings,
+        onHeadingColorPaletteChange = viewModel::setHeadingColorPalette,
         onRelativeModifiedDatesChange = viewModel::setRelativeModifiedDates,
         onDateTimeInsertFormatChange = viewModel::setDateTimeInsertFormat,
         onBack = onBack,
@@ -63,6 +65,7 @@ fun SetupContent(
     onColorThemeChange: (AppColorTheme) -> Unit,
     onAppearanceChange: (AppAppearance) -> Unit,
     onColorizedHeadingsChange: (Boolean) -> Unit,
+    onHeadingColorPaletteChange: (HeadingColorPalette) -> Unit,
     onRelativeModifiedDatesChange: (Boolean) -> Unit,
     onDateTimeInsertFormatChange: (DateTimeInsertFormat) -> Unit,
     onBack: () -> Unit,
@@ -117,9 +120,11 @@ fun SetupContent(
                         colorTheme = state.colorTheme,
                         appearance = state.appearance,
                         colorizedHeadings = state.colorizedHeadings,
+                        headingColorPalette = state.headingColorPalette,
                         onColorThemeChange = onColorThemeChange,
                         onAppearanceChange = onAppearanceChange,
                         onColorizedHeadingsChange = onColorizedHeadingsChange,
+                        onHeadingColorPaletteChange = onHeadingColorPaletteChange,
                     )
                 }
                 SetupTab.ASK -> {

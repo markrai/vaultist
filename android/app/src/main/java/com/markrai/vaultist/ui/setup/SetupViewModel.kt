@@ -15,6 +15,7 @@ import com.markrai.vaultist.domain.ModifiedDateStyle
 import com.markrai.vaultist.domain.VaultResult
 import com.markrai.vaultist.ui.theme.AppAppearance
 import com.markrai.vaultist.ui.theme.AppColorTheme
+import com.markrai.vaultist.ui.theme.HeadingColorPalette
 import com.markrai.vaultist.ui.userMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -35,6 +36,7 @@ data class SetupUiState(
     val colorTheme: AppColorTheme = AppColorTheme.Ruby,
     val appearance: AppAppearance = AppAppearance.Light,
     val colorizedHeadings: Boolean = false,
+    val headingColorPalette: HeadingColorPalette = HeadingColorPalette.Classic,
     val relativeModifiedDates: Boolean = false,
     val dateTimeInsertFormat: DateTimeInsertFormat = DateTimeInsertFormat.IsoDateTime,
 )
@@ -76,6 +78,11 @@ class SetupViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            themePreferences.headingColorPalette.collect { palette ->
+                _state.update { it.copy(headingColorPalette = palette) }
+            }
+        }
+        viewModelScope.launch {
             modifiedDatePreferences.style.collect { style ->
                 _state.update { it.copy(relativeModifiedDates = style == ModifiedDateStyle.Relative) }
             }
@@ -112,6 +119,13 @@ class SetupViewModel @Inject constructor(
     fun setColorizedHeadings(enabled: Boolean) {
         viewModelScope.launch {
             themePreferences.setColorizedHeadings(enabled)
+            noteWidgetRefresh.refreshAll()
+        }
+    }
+
+    fun setHeadingColorPalette(palette: HeadingColorPalette) {
+        viewModelScope.launch {
+            themePreferences.setHeadingColorPalette(palette)
             noteWidgetRefresh.refreshAll()
         }
     }

@@ -30,6 +30,7 @@ class NoteWidget : GlanceAppWidget() {
         val loader = entryPoint.noteWidgetLoader()
         val config = entryPoint.noteWidgetConfig()
         val colorizedHeadings = entryPoint.themePreferences().colorizedHeadings.first()
+        val headingColorPalette = entryPoint.themePreferences().headingColorPalette.first()
         val seededNoteId = getAppWidgetState(appContext, PreferencesGlanceStateDefinition, id)
             .let { prefs -> prefs[WidgetNoteState.noteIdKey] }
 
@@ -66,6 +67,7 @@ class NoteWidget : GlanceAppWidget() {
                     noteId = noteId,
                     appWidgetId = appWidgetId,
                     colorizedHeadings = colorizedHeadings,
+                    headingColorPalette = headingColorPalette,
                 )
             }
         }
