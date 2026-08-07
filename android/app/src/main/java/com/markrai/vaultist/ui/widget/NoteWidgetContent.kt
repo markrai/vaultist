@@ -115,7 +115,7 @@ private fun WidgetBlockRow(
             maxLines = 12,
         )
         is WidgetBlock.ListItem -> Text(
-            text = listPrefix(block.ordered) + block.text,
+            text = listPrefix(block.ordered, block.checked) + block.text,
             modifier = GlanceModifier.padding(vertical = 1.dp),
             style = TextStyle(
                 color = GlanceTheme.colors.onBackground,
@@ -151,4 +151,8 @@ private fun headingSize(level: Int) = when (level.coerceIn(1, 6)) {
     else -> 15.sp
 }
 
-private fun listPrefix(ordered: Boolean) = if (ordered) "• " else "• "
+private fun listPrefix(ordered: Boolean, checked: Boolean? = null): String = when {
+    checked != null -> if (checked) "☑ " else "☐ "
+    ordered -> "• "
+    else -> "• "
+}

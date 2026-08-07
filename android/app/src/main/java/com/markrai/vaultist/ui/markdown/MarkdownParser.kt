@@ -4,7 +4,13 @@ sealed interface MarkdownBlock {
     val sourceLine: Int
     data class Heading(val level: Int, val text: String, override val sourceLine: Int) : MarkdownBlock
     data class Paragraph(val text: String, override val sourceLine: Int) : MarkdownBlock
-    data class ListItem(val ordered: Boolean, val number: Int?, val text: String, override val sourceLine: Int) : MarkdownBlock
+    data class ListItem(
+        val ordered: Boolean,
+        val number: Int?,
+        val text: String,
+        val checked: Boolean? = null,
+        override val sourceLine: Int,
+    ) : MarkdownBlock
     data class Quote(val text: String, override val sourceLine: Int) : MarkdownBlock
     data class Code(val language: String?, val content: String, override val sourceLine: Int) : MarkdownBlock
 }
@@ -49,12 +55,18 @@ object MarkdownDocumentParser {
                     flushParagraph(); result += MarkdownBlock.Quote(trimmed.drop(2), index + 1)
                 }
                 trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("+ ") -> {
-                    flushParagraph(); result += MarkdownBlock.ListItem(false, null, trimmed.drop(2), index + 1)
+                    flushParagraph()
+                    result += listItem(false, null, trimmed.drop(2), index + 1)
                 }
                 orderedPrefixLength(trimmed) > 0 -> {
                     flushParagraph()
                     val prefix = orderedPrefixLength(trimmed)
-                    result += MarkdownBlock.ListItem(true, trimmed.take(prefix - 2).toIntOrNull(), trimmed.drop(prefix), index + 1)
+                    result += listItem(
+                        ordered = true,
+                        number = trimmed.take(prefix - 2).toIntOrNull(),
+                        body = trimmed.drop(prefix),
+                        sourceLine = index + 1,
+                    )
                 }
                 else -> {
                     if (paragraph.isEmpty()) paragraphStart = index + 1
@@ -66,6 +78,29 @@ object MarkdownDocumentParser {
         flushParagraph()
         return result
     }
+
+    private fun listItem(ordered: Boolean, number: Int?, body: String, sourceLine: Int): MarkdownBlock.ListItem {
+        val task = parseTaskMarker(body)
+        return MarkdownBlock.ListItem(
+            ordered = ordered,
+            number = number,
+            text = task.text,
+            checked = task.checked,
+            sourceLine = sourceLine,
+        )
+    }
+
+    internal fun parseTaskMarker(text: String): TaskMarkerParse = when {
+        text.length < 3 || text[0] != '[' || text[2] != ']' -> TaskMarkerParse(null, text)
+        else -> when (text[1]) {
+            ' ' -> TaskMarkerParse(false, stripTaskBody(text.drop(3)))
+            'x', 'X' -> TaskMarkerParse(true, stripTaskBody(text.drop(3)))
+            else -> TaskMarkerParse(null, text)
+        }
+    }
+
+    private fun stripTaskBody(remainder: String): String =
+        if (remainder.startsWith(" ")) remainder.drop(1) else remainder
 
     private fun skipFrontmatter(lines: List<String>): Int {
         for (index in 1 until lines.size) if (lines[index].trim() == "---" || lines[index].trim() == "...") return index + 1
@@ -83,6 +118,8 @@ object MarkdownDocumentParser {
         return if (digits.isNotEmpty() && line.drop(digits.length).startsWith(". ")) digits.length + 2 else 0
     }
 }
+
+internal data class TaskMarkerParse(val checked: Boolean?, val text: String)
 
 fun headingSlug(value: String): String = value.lowercase().trim()
     .replace(Regex("[^\\p{L}\\p{N}\\p{M} -]+"), "")

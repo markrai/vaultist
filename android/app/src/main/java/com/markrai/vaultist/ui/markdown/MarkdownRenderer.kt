@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.Card
+import androidx.compose.material.Checkbox
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
@@ -137,11 +138,19 @@ fun MarkdownRenderer(
                         block.text, note, assetUrl, onOpenNote, onMissing, onAmbiguous, onOpenImage, clearSelection,
                     )
                     is MarkdownBlock.ListItem -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Text(
-                            if (block.ordered) "${block.number ?: 1}." else "•",
-                            style = MarkdownTypography.body(),
-                            modifier = Modifier.clearSelectionOnTap(clearSelection),
-                        )
+                        when (block.checked) {
+                            null -> Text(
+                                if (block.ordered) "${block.number ?: 1}." else "•",
+                                style = MarkdownTypography.body(),
+                                modifier = Modifier.clearSelectionOnTap(clearSelection),
+                            )
+                            else -> Checkbox(
+                                checked = block.checked,
+                                onCheckedChange = null,
+                                enabled = false,
+                                modifier = Modifier.clearSelectionOnTap(clearSelection),
+                            )
+                        }
                         InlineText(
                             block.text, note.links, MarkdownTypography.body(), onOpenNote, onMissing, onAmbiguous,
                             onClearSelection = clearSelection,

@@ -17,6 +17,7 @@ Goldmark parses the body for:
 
 - ATX headings (`#` … `######`)
 - Paragraphs, lists, blockquotes
+- GFM task-list items on list lines: `- [ ]`, `- [x]`, `- [X]` (and `*`, `+`, or ordered `N. [ ]` forms). Android read-only display renders these as checkboxes; the index treats them as ordinary list lines.
 - Fenced code blocks (`` ``` `` or `~~~`, run length ≥ 3)
 - Standard Markdown links and images (`[text](url)`)
 
@@ -77,7 +78,7 @@ Android fragment scroll compares `headingSlug(heading.text)` to `headingSlug(fra
 | Layer | Package | Responsibility |
 |---|---|---|
 | Index parser | `server/internal/markdown` | Frontmatter, headings + slugs, all link occurrences, attachments, line/column/context |
-| Display parser | `android/.../ui/markdown/MarkdownParser.kt` | Block structure only (headings, paragraphs, lists, quotes, code) |
+| Display parser | `android/.../ui/markdown/MarkdownParser.kt` | Block structure only (headings, paragraphs, lists, GFM task lists, quotes, code) |
 | Display renderer | `android/.../ui/markdown/MarkdownRenderer.kt` | Inline styling; vault links from server `Note.links`; web URLs via markdown / autolink / bare URL presentation |
 
 Android does **not** re-parse wiki links for resolution. Future editing (Phase 8+) must treat the Go index parser as authoritative for note structure.

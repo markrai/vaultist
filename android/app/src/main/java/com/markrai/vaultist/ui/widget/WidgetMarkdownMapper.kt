@@ -45,7 +45,7 @@ object WidgetMarkdownMapper {
             }
             is MarkdownBlock.ListItem -> {
                 val text = text.trim()
-                if (text.isEmpty()) null else WidgetBlock.ListItem(text, ordered, stableId)
+                if (text.isEmpty()) null else WidgetBlock.ListItem(text, ordered, checked, stableId)
             }
             is MarkdownBlock.Quote -> {
                 val text = text.trim()

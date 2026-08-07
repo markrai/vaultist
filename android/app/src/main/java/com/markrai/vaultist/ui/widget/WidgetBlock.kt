@@ -17,6 +17,7 @@ sealed interface WidgetBlock {
     data class ListItem(
         val text: String,
         val ordered: Boolean,
+        val checked: Boolean? = null,
         override val stableId: Long,
     ) : WidgetBlock
 

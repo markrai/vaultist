@@ -43,4 +43,39 @@ class MarkdownParserTest {
         assertEquals(1, blocks.first().sourceLine)
         assertEquals(5, blocks.last().sourceLine)
     }
+
+    @Test fun parsesUncheckedTaskListItem() {
+        val item = MarkdownDocumentParser.parse("- [ ] Buy milk").single() as MarkdownBlock.ListItem
+        assertEquals(false, item.checked)
+        assertEquals("Buy milk", item.text)
+        assertEquals(false, item.ordered)
+    }
+
+    @Test fun parsesCheckedTaskListItemWithLowerAndUpperX() {
+        val lower = MarkdownDocumentParser.parse("- [x] Done").single() as MarkdownBlock.ListItem
+        assertEquals(true, lower.checked)
+        assertEquals("Done", lower.text)
+
+        val upper = MarkdownDocumentParser.parse("* [X] Also done").single() as MarkdownBlock.ListItem
+        assertEquals(true, upper.checked)
+        assertEquals("Also done", upper.text)
+    }
+
+    @Test fun parsesOrderedTaskListItem() {
+        val item = MarkdownDocumentParser.parse("1. [ ] First step").single() as MarkdownBlock.ListItem
+        assertEquals(false, item.checked)
+        assertEquals("First step", item.text)
+        assertTrue(item.ordered)
+        assertEquals(1, item.number)
+    }
+
+    @Test fun plainListItemsHaveNullChecked() {
+        val normal = MarkdownDocumentParser.parse("- item").single() as MarkdownBlock.ListItem
+        assertEquals(null, normal.checked)
+        assertEquals("item", normal.text)
+
+        val bracketText = MarkdownDocumentParser.parse("- [not a box]").single() as MarkdownBlock.ListItem
+        assertEquals(null, bracketText.checked)
+        assertEquals("[not a box]", bracketText.text)
+    }
 }

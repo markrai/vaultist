@@ -79,4 +79,25 @@ class WidgetMarkdownMapperTest {
         val second = WidgetMarkdownMapper.map(note, NoteWidgetConfig())
         assertEquals(first.blocks.map { it.stableId }, second.blocks.map { it.stableId })
     }
+
+    @Test
+    fun mapsTaskListItemsWithCheckboxGlyphs() {
+        val taskNote = note.copy(
+            content = """
+                - [ ] Open
+                - [x] Done
+            """.trimIndent(),
+        )
+        val content = WidgetMarkdownMapper.map(taskNote, NoteWidgetConfig())
+        val items = buildList {
+            for (block in content.blocks) {
+                if (block is WidgetBlock.ListItem) add(block)
+            }
+        }
+        assertEquals(2, items.size)
+        assertEquals(false, items[0].checked)
+        assertEquals("Open", items[0].text)
+        assertEquals(true, items[1].checked)
+        assertEquals("Done", items[1].text)
+    }
 }
