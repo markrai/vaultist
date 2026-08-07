@@ -265,9 +265,6 @@ private fun BrowseTopBarTitle(
                 }
             }
         }
-        if (!state.isSearchResults && state.searchMode != SearchMode.Ask && state.folder.isNotEmpty()) {
-            Text(state.folder, style = MaterialTheme.typography.caption)
-        }
     }
 }
 
@@ -450,11 +447,7 @@ private fun LazyListScope.browseResultsChrome(
         }
     }
     if (!state.isSearchResults && state.folder.isNotEmpty()) item {
-        Text(
-            "..",
-            Modifier.fillMaxWidth().clickable(onClick = onUp).padding(vertical = Spacing.md),
-            color = MaterialTheme.colors.primary,
-        )
+        ParentFolderRow(folder = state.folder, onUp = onUp)
     }
     if (state.items.isEmpty() && !state.searching && !state.loading) {
         item {
@@ -490,11 +483,7 @@ private fun LazyGridScope.browseResultsChrome(
         }
     }
     if (!state.isSearchResults && state.folder.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-        Text(
-            "..",
-            Modifier.fillMaxWidth().clickable(onClick = onUp).padding(vertical = Spacing.md),
-            color = MaterialTheme.colors.primary,
-        )
+        ParentFolderRow(folder = state.folder, onUp = onUp)
     }
     if (state.items.isEmpty() && !state.searching && !state.loading) {
         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -516,6 +505,34 @@ private fun LazyGridScope.browseResultsChrome(
                 Text(if (state.loadingMore) "Loading…" else "Load more")
             }
         }
+    }
+}
+
+@Composable
+private fun ParentFolderRow(
+    folder: String,
+    onUp: () -> Unit,
+) {
+    val folderName = folder.substringAfterLast('/')
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = Spacing.md),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "..",
+            Modifier
+                .padding(start = Spacing.md)
+                .clickable(onClick = onUp),
+            color = MaterialTheme.colors.primary,
+        )
+        Text(
+            folderName,
+            color = MaterialTheme.colors.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End,
+        )
     }
 }
 
