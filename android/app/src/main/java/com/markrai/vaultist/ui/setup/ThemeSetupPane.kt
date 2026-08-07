@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -107,20 +108,25 @@ fun ThemeSetupPane(
         ) {
             HeadingPaletteRows.forEach { (forward, reversed) ->
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    modifier = Modifier.fillMaxWidth(0.85f),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     HeadingPaletteSwatchOption(
                         palette = forward,
                         selected = headingColorPalette == forward,
                         onClick = { onHeadingColorPaletteChange(forward) },
-                        modifier = Modifier.testTag("heading_palette_${forward.id}"),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("heading_palette_${forward.id}"),
                     )
                     HeadingPaletteSwatchOption(
                         palette = reversed,
                         selected = headingColorPalette == reversed,
                         onClick = { onHeadingColorPaletteChange(reversed) },
-                        modifier = Modifier.testTag("heading_palette_${reversed.id}"),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("heading_palette_${reversed.id}"),
                     )
                 }
             }
@@ -155,7 +161,10 @@ private fun HeadingPaletteSwatchOption(
                 unselectedColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
             ),
         )
-        HeadingColorSwatches(colors = palette.swatchColors())
+        HeadingColorSwatches(
+            colors = palette.swatchColors(),
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -168,7 +177,8 @@ private fun HeadingColorSwatches(
         colors.forEach { color ->
             Box(
                 modifier = Modifier
-                    .size(14.dp)
+                    .weight(1f)
+                    .aspectRatio(1f)
                     .background(color),
             )
         }
