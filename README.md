@@ -4,19 +4,16 @@
 
 # What is this?
 
-a 2-part app Markdown vault viewer & editor: an Android app, and a Go HTTP server which runs on a Linux host. Windows server coming soon!
+A lightweight Android companion for your Markdown vault, backed by a self-hosted Go server.
 
 # Why?
 
-Invariably, this question gets asked within the open-source community: Why create another "Markdown editor" when so many already exist? The answer is a combination of reasons: Because the current offerings are too bloated with features, non-intuitive, or sometimes, simply too limited in capability.
+Vaultist isn't trying to replace every Markdown application. It's trying to be the best companion to an existing Markdown vault.
+Most Markdown apps try to do everything: editing, graph views, plugins, canvases, publishing, databases, and more. Vaultist takes a different approach. It focuses on what you do most often: reading your notes, making quick edits, and getting to your information quickly.
 
-What if a viewer could just be a viewer? A capable editor when called upon? What if it offered features which have been requested repeatedly, but seldom fulfilled? What if we could try out intuitive features, without being forced into them?
+It also gives us the freedom to explore ideas that traditional editors rarely prioritize: thoughtful mobile interactions, features the community has requested for years, and workflows that stay out of your way instead of forcing you into them.
 
-That's what Vaultist is about. Simple, incredibly capable, and unique in its own right.
-
-# How is it different?    
-
-Most Markdown vault viewers put the raw filesystem in front of the client - an SMB/WebDAV mount, direct local storage access, or a synced local mirror - and make every device walk, parse, and resolve the vault itself. Vaultist instead puts a stateful indexing server behind a narrow, versioned JSON API. Because only the Go server touches disk, link resolution, backlinks, aliases, and search are computed once against an immutable snapshot (so reads are never torn mid-refresh), edits go through conditional, atomically-applied writes rather than last-writer-wins, and HTTP brings ETags, conditional GETs, and range-based image streaming for free - all while the client stays thin and low-privilege, speaking nothing but `/api/v1`. The deliberate trade-offs are that Vaultist is online-only (no offline mirror) and requires running a single host process.
+Vaultist is built on a simple belief: your notes should be yours, and the software that opens them should feel intuitive.
 
 # Quick Start
 
