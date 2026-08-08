@@ -18,6 +18,7 @@ import com.markrai.vaultist.data.settings.ModifiedDatePreferences
 import com.markrai.vaultist.data.settings.ThemePreferences
 import com.markrai.vaultist.domain.ModifiedDateStyle
 import com.markrai.vaultist.ui.components.LocalModifiedDateStyle
+import com.markrai.vaultist.ui.markdown.LocalColorizeCheckboxStatus
 import com.markrai.vaultist.ui.markdown.LocalColorizedHeadings
 import com.markrai.vaultist.ui.markdown.LocalHeadingColorPalette
 import com.markrai.vaultist.ui.navigation.VaultistNavigation
@@ -54,6 +55,9 @@ class MainActivity : ComponentActivity() {
             val colorizedHeadings by themePreferences.colorizedHeadings.collectAsStateWithLifecycle(
                 initialValue = false,
             )
+            val colorizeCheckboxStatus by themePreferences.colorizeCheckboxStatus.collectAsStateWithLifecycle(
+                initialValue = false,
+            )
             val headingColorPalette by themePreferences.headingColorPalette.collectAsStateWithLifecycle(
                 initialValue = HeadingColorPalette.Classic,
             )
@@ -64,6 +68,7 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     LocalModifiedDateStyle provides modifiedDateStyle,
                     LocalColorizedHeadings provides colorizedHeadings,
+                    LocalColorizeCheckboxStatus provides colorizeCheckboxStatus,
                     LocalHeadingColorPalette provides headingColorPalette,
                 ) {
                     Surface(

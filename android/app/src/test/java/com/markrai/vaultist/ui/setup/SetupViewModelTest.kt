@@ -122,6 +122,25 @@ class SetupViewModelTest {
         assertEquals(1, widgetRefresh.refreshAllCalls)
     }
 
+    @Test fun persistsColorizeCheckboxStatusPreference() = runTest(dispatcherRule.dispatcher) {
+        val themePrefs = FakeThemePreferences()
+        val widgetRefresh = FakeNoteWidgetRefresher()
+        val viewModel = SetupViewModel(
+            FakeVaultRepository(),
+            FakeAskPreferences(),
+            themePrefs,
+            FakeModifiedDatePreferences(),
+            FakeDateTimeInsertPreferences(),
+            widgetRefresh,
+        )
+        advanceUntilIdle()
+        assertFalse(viewModel.state.value.colorizeCheckboxStatus)
+        viewModel.setColorizeCheckboxStatus(true)
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.colorizeCheckboxStatus)
+        assertEquals(1, widgetRefresh.refreshAllCalls)
+    }
+
     @Test fun persistsHeadingColorPalettePreference() = runTest(dispatcherRule.dispatcher) {
         val themePrefs = FakeThemePreferences()
         val widgetRefresh = FakeNoteWidgetRefresher()

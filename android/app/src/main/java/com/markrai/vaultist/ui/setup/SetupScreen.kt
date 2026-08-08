@@ -48,6 +48,7 @@ fun SetupScreen(onSaved: () -> Unit, onBack: () -> Unit, viewModel: SetupViewMod
         onColorThemeChange = viewModel::setColorTheme,
         onAppearanceChange = viewModel::setAppearance,
         onColorizedHeadingsChange = viewModel::setColorizedHeadings,
+        onColorizeCheckboxStatusChange = viewModel::setColorizeCheckboxStatus,
         onHeadingColorPaletteChange = viewModel::setHeadingColorPalette,
         onRelativeModifiedDatesChange = viewModel::setRelativeModifiedDates,
         onDateTimeInsertFormatChange = viewModel::setDateTimeInsertFormat,
@@ -65,6 +66,7 @@ fun SetupContent(
     onColorThemeChange: (AppColorTheme) -> Unit,
     onAppearanceChange: (AppAppearance) -> Unit,
     onColorizedHeadingsChange: (Boolean) -> Unit,
+    onColorizeCheckboxStatusChange: (Boolean) -> Unit,
     onHeadingColorPaletteChange: (HeadingColorPalette) -> Unit,
     onRelativeModifiedDatesChange: (Boolean) -> Unit,
     onDateTimeInsertFormatChange: (DateTimeInsertFormat) -> Unit,
@@ -120,10 +122,12 @@ fun SetupContent(
                         colorTheme = state.colorTheme,
                         appearance = state.appearance,
                         colorizedHeadings = state.colorizedHeadings,
+                        colorizeCheckboxStatus = state.colorizeCheckboxStatus,
                         headingColorPalette = state.headingColorPalette,
                         onColorThemeChange = onColorThemeChange,
                         onAppearanceChange = onAppearanceChange,
                         onColorizedHeadingsChange = onColorizedHeadingsChange,
+                        onColorizeCheckboxStatusChange = onColorizeCheckboxStatusChange,
                         onHeadingColorPaletteChange = onHeadingColorPaletteChange,
                     )
                 }

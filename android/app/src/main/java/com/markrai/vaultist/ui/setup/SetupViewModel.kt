@@ -36,6 +36,7 @@ data class SetupUiState(
     val colorTheme: AppColorTheme = AppColorTheme.Ruby,
     val appearance: AppAppearance = AppAppearance.Light,
     val colorizedHeadings: Boolean = false,
+    val colorizeCheckboxStatus: Boolean = false,
     val headingColorPalette: HeadingColorPalette = HeadingColorPalette.Classic,
     val relativeModifiedDates: Boolean = false,
     val dateTimeInsertFormat: DateTimeInsertFormat = DateTimeInsertFormat.IsoDateTime,
@@ -75,6 +76,11 @@ class SetupViewModel @Inject constructor(
         viewModelScope.launch {
             themePreferences.colorizedHeadings.collect { enabled ->
                 _state.update { it.copy(colorizedHeadings = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            themePreferences.colorizeCheckboxStatus.collect { enabled ->
+                _state.update { it.copy(colorizeCheckboxStatus = enabled) }
             }
         }
         viewModelScope.launch {
@@ -119,6 +125,13 @@ class SetupViewModel @Inject constructor(
     fun setColorizedHeadings(enabled: Boolean) {
         viewModelScope.launch {
             themePreferences.setColorizedHeadings(enabled)
+            noteWidgetRefresh.refreshAll()
+        }
+    }
+
+    fun setColorizeCheckboxStatus(enabled: Boolean) {
+        viewModelScope.launch {
+            themePreferences.setColorizeCheckboxStatus(enabled)
             noteWidgetRefresh.refreshAll()
         }
     }

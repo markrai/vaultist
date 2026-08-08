@@ -14,6 +14,7 @@ import com.markrai.vaultist.R
 import com.markrai.vaultist.ui.theme.HeadingColorPalette
 
 val LocalColorizedHeadings = staticCompositionLocalOf { false }
+val LocalColorizeCheckboxStatus = staticCompositionLocalOf { false }
 val LocalHeadingColorPalette = staticCompositionLocalOf { HeadingColorPalette.Classic }
 
 private val InterFontFamily = FontFamily(

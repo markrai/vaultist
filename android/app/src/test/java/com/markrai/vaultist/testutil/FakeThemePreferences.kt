@@ -22,6 +22,9 @@ class FakeThemePreferences(
     private val _colorizedHeadings = MutableStateFlow(false)
     override val colorizedHeadings: Flow<Boolean> = _colorizedHeadings.asStateFlow()
 
+    private val _colorizeCheckboxStatus = MutableStateFlow(false)
+    override val colorizeCheckboxStatus: Flow<Boolean> = _colorizeCheckboxStatus.asStateFlow()
+
     private val _headingColorPalette = MutableStateFlow(initialHeadingColorPalette)
     override val headingColorPalette: Flow<HeadingColorPalette> = _headingColorPalette.asStateFlow()
 
@@ -35,6 +38,10 @@ class FakeThemePreferences(
 
     override suspend fun setColorizedHeadings(enabled: Boolean) {
         _colorizedHeadings.value = enabled
+    }
+
+    override suspend fun setColorizeCheckboxStatus(enabled: Boolean) {
+        _colorizeCheckboxStatus.value = enabled
     }
 
     override suspend fun setHeadingColorPalette(palette: HeadingColorPalette) {

@@ -39,10 +39,12 @@ fun ThemeSetupPane(
     colorTheme: AppColorTheme,
     appearance: AppAppearance,
     colorizedHeadings: Boolean,
+    colorizeCheckboxStatus: Boolean,
     headingColorPalette: HeadingColorPalette,
     onColorThemeChange: (AppColorTheme) -> Unit,
     onAppearanceChange: (AppAppearance) -> Unit,
     onColorizedHeadingsChange: (Boolean) -> Unit,
+    onColorizeCheckboxStatusChange: (Boolean) -> Unit,
     onHeadingColorPaletteChange: (HeadingColorPalette) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -115,6 +117,7 @@ fun ThemeSetupPane(
                     HeadingPaletteSwatchOption(
                         palette = forward,
                         selected = headingColorPalette == forward,
+                        enabled = colorizedHeadings,
                         onClick = { onHeadingColorPaletteChange(forward) },
                         modifier = Modifier
                             .weight(1f)
@@ -123,6 +126,7 @@ fun ThemeSetupPane(
                     HeadingPaletteSwatchOption(
                         palette = reversed,
                         selected = headingColorPalette == reversed,
+                        enabled = colorizedHeadings,
                         onClick = { onHeadingColorPaletteChange(reversed) },
                         modifier = Modifier
                             .weight(1f)
@@ -131,6 +135,14 @@ fun ThemeSetupPane(
                 }
             }
         }
+
+        SettingsSwitchRow(
+            title = "Colorize Checkbox Status",
+            subtitle = "Show unchecked tasks in red and checked tasks in green.",
+            checked = colorizeCheckboxStatus,
+            onCheckedChange = onColorizeCheckboxStatusChange,
+            switchModifier = Modifier.testTag("colorize_checkbox_status_switch"),
+        )
     }
 }
 
@@ -138,34 +150,51 @@ fun ThemeSetupPane(
 private fun HeadingPaletteSwatchOption(
     palette: HeadingColorPalette,
     selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val swatchColors = palette.swatchColors().let { colors ->
+        if (enabled) colors else colors.map { it.toGrayscale() }
+    }
     Row(
         modifier = modifier
-            .selectable(
-                selected = selected,
-                onClick = onClick,
-                role = Role.RadioButton,
+            .then(
+                if (enabled) {
+                    Modifier.selectable(
+                        selected = selected,
+                        onClick = onClick,
+                        role = Role.RadioButton,
+                    )
+                } else {
+                    Modifier
+                },
             )
             .padding(vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = null,
-            modifier = Modifier.size(20.dp),
-            colors = RadioButtonDefaults.colors(
-                selectedColor = MaterialTheme.colors.primary,
-                unselectedColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
-            ),
-        )
+        if (enabled) {
+            RadioButton(
+                selected = selected,
+                onClick = null,
+                modifier = Modifier.size(20.dp),
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = MaterialTheme.colors.primary,
+                    unselectedColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+                ),
+            )
+        }
         HeadingColorSwatches(
-            colors = palette.swatchColors(),
+            colors = swatchColors,
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+private fun Color.toGrayscale(): Color {
+    val gray = 0.299f * red + 0.587f * green + 0.114f * blue
+    return Color(gray, gray, gray, alpha)
 }
 
 @Composable

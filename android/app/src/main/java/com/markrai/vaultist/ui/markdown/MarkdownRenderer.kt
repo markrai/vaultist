@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.Card
 import androidx.compose.material.Checkbox
+import androidx.compose.material.CheckboxDefaults
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.LocalMinimumInteractiveComponentEnforcement
@@ -330,6 +331,11 @@ private fun MarkdownListItemRow(
     onClearSelection: () -> Unit,
 ) {
     val bodyStyle = MarkdownTypography.body()
+    val colorize = LocalColorizeCheckboxStatus.current
+    val darkTheme = !MaterialTheme.colors.isLight
+    val taskColor = block.checked?.let { checked ->
+        if (colorize) taskStatusColor(checked, darkTheme) else null
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -347,22 +353,34 @@ private fun MarkdownListItemRow(
                     style = bodyStyle,
                     modifier = Modifier.clearSelectionOnTap(onClearSelection),
                 )
-                else -> CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
-                    Checkbox(
-                        checked = block.checked,
-                        onCheckedChange = { onTaskToggle(block.sourceLine) },
-                        enabled = canToggleTasks && !taskToggleInFlight,
-                        modifier = Modifier
-                            .size(TaskCheckboxSize)
-                            .clearSelectionOnTap(onClearSelection),
-                    )
+                else -> {
+                    val checked = block.checked
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
+                        Checkbox(
+                            checked = checked,
+                            onCheckedChange = { onTaskToggle(block.sourceLine) },
+                            enabled = canToggleTasks && !taskToggleInFlight,
+                            colors = if (colorize) {
+                                CheckboxDefaults.colors(
+                                    checkedColor = taskStatusColor(true, darkTheme),
+                                    uncheckedColor = taskStatusColor(false, darkTheme),
+                                    checkmarkColor = Color.White,
+                                )
+                            } else {
+                                CheckboxDefaults.colors()
+                            },
+                            modifier = Modifier
+                                .size(TaskCheckboxSize)
+                                .clearSelectionOnTap(onClearSelection),
+                        )
+                    }
                 }
             }
         }
         InlineText(
             block.text,
             links,
-            bodyStyle,
+            if (taskColor != null) bodyStyle.copy(color = taskColor) else bodyStyle,
             onOpenNote,
             onMissing,
             onAmbiguous,

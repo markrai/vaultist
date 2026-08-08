@@ -31,6 +31,7 @@ fun NoteWidgetRoot(
     noteId: String?,
     appWidgetId: Int,
     colorizedHeadings: Boolean,
+    colorizeCheckboxStatus: Boolean,
     headingColorPalette: HeadingColorPalette = HeadingColorPalette.Classic,
 ) {
     val context = LocalContext.current
@@ -69,6 +70,7 @@ fun NoteWidgetRoot(
                                 block = block,
                                 appWidgetId = appWidgetId,
                                 colorizedHeadings = colorizedHeadings,
+                                colorizeCheckboxStatus = colorizeCheckboxStatus,
                                 headingColorPalette = headingColorPalette,
                             )
                         }
@@ -95,6 +97,7 @@ private fun WidgetBlockRow(
     block: WidgetBlock,
     appWidgetId: Int,
     colorizedHeadings: Boolean,
+    colorizeCheckboxStatus: Boolean,
     headingColorPalette: HeadingColorPalette,
 ) {
     when (block) {
@@ -139,7 +142,11 @@ private fun WidgetBlockRow(
                 text = listPrefix(block.ordered, block.checked) + block.text,
                 modifier = rowModifier.padding(vertical = 1.dp),
                 style = TextStyle(
-                    color = GlanceTheme.colors.onBackground,
+                    color = widgetTaskStatusTextColor(
+                        checked = block.checked,
+                        colorizeCheckboxStatus = colorizeCheckboxStatus,
+                        defaultColor = GlanceTheme.colors.onBackground,
+                    ),
                     fontSize = 14.sp,
                 ),
                 maxLines = 8,

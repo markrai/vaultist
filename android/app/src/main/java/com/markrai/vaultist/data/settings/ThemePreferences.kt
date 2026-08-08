@@ -15,6 +15,9 @@ interface ThemePreferences {
     val colorizedHeadings: Flow<Boolean>
     suspend fun setColorizedHeadings(enabled: Boolean)
 
+    val colorizeCheckboxStatus: Flow<Boolean>
+    suspend fun setColorizeCheckboxStatus(enabled: Boolean)
+
     val headingColorPalette: Flow<HeadingColorPalette>
     suspend fun setHeadingColorPalette(palette: HeadingColorPalette)
 }
