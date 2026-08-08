@@ -9,11 +9,11 @@ A lightweight Android companion for your Markdown vault, backed by a self-hosted
 # Why?
 
 Vaultist isn't trying to replace every Markdown application. It's trying to be the best companion to an existing Markdown vault.
-Most Markdown apps try to do everything: editing, graph views, plugins, canvases, publishing, databases, and more. Vaultist takes a different approach. It focuses on what you do most often: reading your notes, making quick edits, and getting to your information quickly.
+Most Markdown apps try to do everything. Vaultist focuses on what you do most often: reading your notes, making quick edits, and getting to your information quickly.
 
-It also gives us the freedom to explore ideas that traditional editors rarely prioritize: thoughtful mobile interactions, features the community has requested for years, and workflows that stay out of your way instead of forcing you into them.
+It also gives us the freedom to explore ideas that traditional editors rarely prioritize: features the community has requested for years, and workflows that stay out of your way instead of forcing you into them.
 
-Vaultist is built on a simple belief: your notes should be yours, and the software that opens them should feel intuitive.
+Our simple belief: your notes should be yours, and the software that opens them should feel intuitive.
 
 # Quick Start
 
