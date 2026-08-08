@@ -69,13 +69,27 @@ When changing create, save, delete, folder create/delete, browse return paths, o
 
 The Android display parser must not grow index responsibilities (no wiki scanner in Kotlin).
 
+## Server development
+
+Requirements: Go 1.23 or newer. The server requires `VAULT_ROOT`; the listen address defaults to `127.0.0.1:8080`. The Go module path is `github.com/markrai/vaultist/server`.
+
+Windows PowerShell against the mapped Markdown Vault:
+
+```powershell
+$env:VAULT_ROOT='O:\'; $env:VAULT_NAME='Vault'; go run .\cmd\vaultist-server
+```
+
+Run that command from `server`. The status endpoint is `http://127.0.0.1:8080/api/v1/status`.
+
 ## Android config and build
 
-**Version catalog:** [`android/gradle/libs.versions.toml`](../android/gradle/libs.versions.toml) — bump AGP, Kotlin, Compose BOM, and library versions here.
+**Version catalog:** [`android/gradle/libs.versions.toml`](../android/gradle/libs.versions.toml) — bump AGP, Kotlin, Compose BOM, and library versions here. Toolchain pins: AGP 8.9.1, Kotlin 2.0.21, Gradle 8.11.1, Java 17, compile/target SDK 36, minimum SDK 26, Material 2, Compose BOM `2024.03.00`. Open `android` as the Android Studio project or use its wrapper directly.
 
 **Runtime config (Hilt):** [`di/config/`](../android/app/src/main/java/com/markrai/vaultist/di/config/) — `NetworkConfig`, `AskRuntimeConfig`, `BrowseUiConfig`. Inject these instead of hardcoding timeouts and Ask budgets in engines or ViewModels.
 
 **Gradle modules:** stay single-module (`:app`) until boundaries are stable, the catalog is in place, and config is injectable at module seams. Only then consider `:feature-ask`, `:core-model`, etc.
+
+**Development URLs:** the emulator development URL is `http://10.0.2.2:8080`; Android emulator `localhost` addresses the emulator itself. Cleartext is restricted to emulator/loopback development hosts. Tailnet and other remote server URLs must use HTTPS.
 
 ## Change habits
 
@@ -90,11 +104,19 @@ From `server`:
 
 ```powershell
 go test ./...
+go test -race ./...
 go vet ./...
+go build -trimpath -ldflags='-s -w' ./cmd\vaultist-server
 ```
 
 From `android`:
 
 ```powershell
-.\gradlew.bat :app:testDebugUnitTest :app:lintDebug
+.\gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:compileDebugAndroidTestKotlin
+```
+
+Instrumentation execution additionally requires a running emulator or physical device:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest
 ```

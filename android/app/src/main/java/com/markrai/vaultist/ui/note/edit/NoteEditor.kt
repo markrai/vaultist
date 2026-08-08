@@ -49,6 +49,7 @@ fun NoteEditor(
     initialPartialScrollOffsetPx: Int,
     onDraftChange: (NoteEditDraft) -> Unit,
     onEditorFocusChanged: (Boolean) -> Unit,
+    onInsertCheckbox: () -> Unit,
     onInsertDateTime: () -> Unit,
     onInsertWikiLink: () -> Unit,
     onWikiSuggestionSelected: (String) -> Unit,
@@ -159,6 +160,7 @@ fun NoteEditor(
                     }
                     Box(Modifier.background(MaterialTheme.colors.surface.copy(alpha = 0.94f))) {
                         NoteEditorToolbar(
+                            onInsertCheckbox = onInsertCheckbox,
                             onInsertDateTime = onInsertDateTime,
                             onInsertWikiLink = onInsertWikiLink,
                             enabled = !saving,

@@ -13,12 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Schedule
 import com.markrai.vaultist.ui.theme.Spacing
 
 @Composable
 fun NoteEditorToolbar(
+    onInsertCheckbox: () -> Unit,
     onInsertDateTime: () -> Unit,
     onInsertWikiLink: () -> Unit,
     modifier: Modifier = Modifier,
@@ -28,6 +30,13 @@ fun NoteEditorToolbar(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
+        NoteEditorToolButton(
+            onClick = onInsertCheckbox,
+            contentDescription = "Insert checkbox",
+            enabled = enabled,
+        ) {
+            Icon(Icons.Default.CheckBox, contentDescription = null, tint = MaterialTheme.colors.onPrimary)
+        }
         NoteEditorToolButton(
             onClick = onInsertDateTime,
             contentDescription = "Insert date and time",

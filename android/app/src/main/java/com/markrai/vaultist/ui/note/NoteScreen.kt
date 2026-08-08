@@ -192,6 +192,7 @@ fun NoteScreen(
                 initialPartialScrollOffsetPx = state.editorPartialScrollOffsetPx,
                 onDraftChange = viewModel::updateDraft,
                 onEditorFocusChanged = viewModel::onEditorFocusChanged,
+                onInsertCheckbox = viewModel::insertCheckbox,
                 onInsertDateTime = viewModel::insertDateTime,
                 onInsertWikiLink = viewModel::insertWikiLinkStart,
                 onWikiSuggestionSelected = viewModel::applyWikiSuggestion,

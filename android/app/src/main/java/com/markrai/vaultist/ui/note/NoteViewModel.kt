@@ -154,6 +154,12 @@ class NoteViewModel @Inject constructor(
         }
     }
 
+    fun insertCheckbox() {
+        val current = _state.value
+        if (!current.editing) return
+        updateDraft(DraftTextEdit.insertAtSelection(current.draft, "- [ ] "))
+    }
+
     fun insertDateTime() {
         val current = _state.value
         if (!current.editing) return
