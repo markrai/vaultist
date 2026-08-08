@@ -2,8 +2,10 @@ package index
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -208,6 +210,134 @@ func TestCreateNoteRejectsInvalidID(t *testing.T) {
 	}
 }
 
+func TestCreateNoteRejectsHiddenID(t *testing.T) {
+	root := t.TempDir()
+	manager := newTestManager(t, root)
+	if _, err := manager.CreateNote(context.Background(), ".trash/secret", []byte("hidden")); err != ErrInvalidNoteID {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConcurrentCreateNoteIsExclusive(t *testing.T) {
+	root := t.TempDir()
+	manager := newTestManager(t, root)
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var wait sync.WaitGroup
+	for _, content := range []string{"first", "second"} {
+		wait.Add(1)
+		go func(content string) {
+			defer wait.Done()
+			<-start
+			_, err := manager.CreateNote(context.Background(), "Concurrent", []byte(content))
+			results <- err
+		}(content)
+	}
+	close(start)
+	wait.Wait()
+	close(results)
+
+	var successes, conflicts int
+	for err := range results {
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, ErrNoteExists):
+			conflicts++
+		default:
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if successes != 1 || conflicts != 1 {
+		t.Fatalf("successes=%d conflicts=%d", successes, conflicts)
+	}
+}
+
+func TestConcurrentWriteNoteContentHonorsRevision(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "Note.md", "original")
+	manager := newTestManager(t, root)
+	note := manager.snapshot.Load().Notes["Note"]
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var wait sync.WaitGroup
+	for _, content := range []string{"first", "second"} {
+		wait.Add(1)
+		go func(content string) {
+			defer wait.Done()
+			<-start
+			_, err := manager.WriteNoteContent(context.Background(), note.ID, note.Revision, []byte(content))
+			results <- err
+		}(content)
+	}
+	close(start)
+	wait.Wait()
+	close(results)
+
+	var successes, conflicts int
+	for err := range results {
+		switch {
+		case err == nil:
+			successes++
+		default:
+			var conflict *RevisionConflictError
+			if errors.As(err, &conflict) {
+				conflicts++
+			} else {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		}
+	}
+	if successes != 1 || conflicts != 1 {
+		t.Fatalf("successes=%d conflicts=%d", successes, conflicts)
+	}
+}
+
+func TestConcurrentUpdateAndDeleteAreSerializable(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "Note.md", "original")
+	manager := newTestManager(t, root)
+	note := manager.snapshot.Load().Notes["Note"]
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var wait sync.WaitGroup
+	wait.Add(2)
+	go func() {
+		defer wait.Done()
+		<-start
+		_, err := manager.WriteNoteContent(context.Background(), note.ID, note.Revision, []byte("updated"))
+		results <- err
+	}()
+	go func() {
+		defer wait.Done()
+		<-start
+		results <- manager.DeleteNote(context.Background(), note.ID, note.Revision)
+	}()
+	close(start)
+	wait.Wait()
+	close(results)
+
+	var successes, rejected int
+	for err := range results {
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, ErrNotFound):
+			rejected++
+		default:
+			var conflict *RevisionConflictError
+			if errors.As(err, &conflict) {
+				rejected++
+			} else {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		}
+	}
+	if successes != 1 || rejected != 1 {
+		t.Fatalf("successes=%d rejected=%d", successes, rejected)
+	}
+}
+
 func TestCreateFolderCreatesDirectoryAndIndexesIt(t *testing.T) {
 	root := t.TempDir()
 	manager := newTestManager(t, root)
@@ -259,6 +389,52 @@ func TestCreateFolderRejectsConflictingNote(t *testing.T) {
 	_, _, err := manager.CreateFolder(context.Background(), "Projects/Note")
 	if err != ErrFolderExists {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestFolderMutationsRejectHiddenPath(t *testing.T) {
+	root := t.TempDir()
+	manager := newTestManager(t, root)
+	if _, _, err := manager.CreateFolder(context.Background(), ".trash/Folder"); err != ErrInvalidFolder {
+		t.Fatalf("create err = %v", err)
+	}
+	if err := manager.DeleteFolder(context.Background(), ".trash"); err != ErrInvalidFolder {
+		t.Fatalf("delete err = %v", err)
+	}
+}
+
+func TestConcurrentCreateFolderIsExclusive(t *testing.T) {
+	root := t.TempDir()
+	manager := newTestManager(t, root)
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var wait sync.WaitGroup
+	for range 2 {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			<-start
+			_, _, err := manager.CreateFolder(context.Background(), "Projects")
+			results <- err
+		}()
+	}
+	close(start)
+	wait.Wait()
+	close(results)
+
+	var successes, conflicts int
+	for err := range results {
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, ErrFolderExists):
+			conflicts++
+		default:
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if successes != 1 || conflicts != 1 {
+		t.Fatalf("successes=%d conflicts=%d", successes, conflicts)
 	}
 }
 

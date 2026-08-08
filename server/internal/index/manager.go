@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -27,10 +28,14 @@ type Manager struct {
 	parser    *mdparser.Parser
 	snapshot  atomic.Pointer[Snapshot]
 	mu        sync.Mutex
-	state     model.IndexState
-	cancel    context.CancelFunc
-	log       *slog.Logger
-	refreshHook func()
+	// mutationMu serializes mutations issued through this Manager so revision
+	// checks and writes are one in-process operation. External filesystem
+	// writers and other Vaultist processes are not covered by this lock.
+	mutationMu     sync.Mutex
+	state          model.IndexState
+	cancel         context.CancelFunc
+	log            *slog.Logger
+	refreshHook    func()
 	pendingRefresh bool
 }
 
@@ -41,6 +46,12 @@ func NewManager(root, vaultName string) (*Manager, error) {
 	}
 	abs, err := filepath.Abs(root)
 	if err != nil {
+		return nil, fmt.Errorf("resolve vault root: %w", err)
+	}
+	resolved, err := filepath.EvalSymlinks(abs)
+	if err == nil {
+		abs = resolved
+	} else if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("resolve vault root: %w", err)
 	}
 	if strings.TrimSpace(vaultName) == "" {

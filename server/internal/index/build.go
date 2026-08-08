@@ -38,7 +38,7 @@ func build(ctx context.Context, root, vaultName string, generation uint64, parse
 		Root: root, VaultName: vaultName, Generation: generation, BuiltAt: time.Now().UTC(),
 		AttachmentFolder: readAttachmentFolder(root), Notes: make(map[string]*model.Note),
 		Assets: make(map[string]*model.Asset), Backlinks: make(map[string][]model.Backlink),
-		Folders: make(map[string]struct{}),
+		Folders:       make(map[string]struct{}),
 		notePathExact: make(map[string][]string), notePathFolded: make(map[string][]string),
 		noteNameFolded: make(map[string][]string), noteAliasFolded: make(map[string][]string),
 		assetPathExact: make(map[string][]string), assetPathFolded: make(map[string][]string),
@@ -118,12 +118,7 @@ func readAndParseNote(root string, pending pendingNote, parser *mdparser.Parser)
 		Title:      strings.TrimSuffix(path.Base(pending.relative), path.Ext(pending.relative)),
 		ModifiedAt: pending.info.ModTime().UTC(), Size: pending.info.Size(),
 	}
-	filePath, err := vault.JoinInside(root, pending.relative)
-	if err != nil {
-		note.Error = "invalid note path"
-		return note, NoteSearchBlobs{}
-	}
-	file, err := os.Open(filePath)
+	file, err := vault.OpenFileInside(root, pending.relative)
 	if err != nil {
 		note.Error = "note could not be read"
 		return note, NoteSearchBlobs{}
@@ -193,8 +188,12 @@ func mediaTypeForExtension(extension string) string {
 }
 
 func readAttachmentFolder(root string) string {
-	configPath := filepath.Join(root, ".obsidian", "app.json")
-	data, err := os.ReadFile(configPath)
+	file, err := vault.OpenFileInside(root, ".obsidian/app.json")
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, (1<<20)+1))
 	if err != nil || len(data) > 1<<20 {
 		return ""
 	}

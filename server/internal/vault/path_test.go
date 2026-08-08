@@ -23,4 +23,9 @@ func TestHiddenDirectory(t *testing.T) {
 	if IsHidden("Projects/Vega.md") {
 		t.Fatal("normal path marked hidden")
 	}
+	for _, hiddenNote := range []string{".private.md", ".trash/deleted.md", "folder/.cache/value.md"} {
+		if _, err := NoteID(hiddenNote); err == nil {
+			t.Errorf("NoteID(%q) unexpectedly accepted hidden path", hiddenNote)
+		}
+	}
 }

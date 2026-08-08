@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"regexp"
@@ -58,6 +59,8 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 	if len(content) > maxNoteWriteBytes {
 		return nil, fmt.Errorf("note body exceeds write limit")
 	}
+	m.mutationMu.Lock()
+	defer m.mutationMu.Unlock()
 
 	snapshot, err := m.Current()
 	if err != nil {
@@ -68,11 +71,14 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 		return nil, err
 	}
 
-	filePath, err := vault.JoinInside(m.root, relativePath)
+	file, err := vault.OpenFileInside(m.root, relativePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("invalid note path")
 	}
-	current, err := os.ReadFile(filePath)
+	current, err := readMutationNote(file)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrNotFound
@@ -91,7 +97,7 @@ func (m *Manager) WriteNoteContent(ctx context.Context, id, ifMatch string, cont
 		return nil, fmt.Errorf("note write failed: %w", err)
 	}
 
-	info, err := os.Stat(filePath)
+	info, err := vault.StatInside(m.root, relativePath)
 	if err != nil {
 		return nil, fmt.Errorf("note write failed: %w", err)
 	}
@@ -123,6 +129,8 @@ func (m *Manager) CreateNote(ctx context.Context, id string, content []byte) (*m
 		return nil, ErrInvalidNoteID
 	}
 	relativePath := noteID + ".md"
+	m.mutationMu.Lock()
+	defer m.mutationMu.Unlock()
 
 	snapshot, err := m.Current()
 	if err != nil {
@@ -132,24 +140,23 @@ func (m *Manager) CreateNote(ctx context.Context, id string, content []byte) (*m
 		return nil, ErrNoteExists
 	}
 
-	filePath, err := vault.JoinInside(m.root, relativePath)
-	if err != nil {
-		return nil, ErrInvalidNoteID
-	}
-	if _, statErr := os.Stat(filePath); statErr == nil {
+	if _, statErr := vault.StatInside(m.root, relativePath); statErr == nil {
 		return nil, ErrNoteExists
 	} else if !os.IsNotExist(statErr) {
 		return nil, fmt.Errorf("note create failed: %w", statErr)
 	}
 
-	if err := vault.ReplaceFileAtomically(m.root, relativePath, content); err != nil {
+	if err := vault.CreateFileAtomically(m.root, relativePath, content); err != nil {
+		if errors.Is(err, vault.ErrPathOccupied) || os.IsExist(err) {
+			return nil, ErrNoteExists
+		}
 		if isWritePermissionError(err) {
 			return nil, ErrWritePermission
 		}
 		return nil, fmt.Errorf("note create failed: %w", err)
 	}
 
-	info, err := os.Stat(filePath)
+	info, err := vault.StatInside(m.root, relativePath)
 	if err != nil {
 		return nil, fmt.Errorf("note create failed: %w", err)
 	}
@@ -176,9 +183,14 @@ func (m *Manager) CreateFolder(ctx context.Context, folderPath string) (string, 
 	if err != nil {
 		return "", "", ErrInvalidFolder
 	}
+	if vault.IsHidden(normalized) {
+		return "", "", ErrInvalidFolder
+	}
 	if strings.HasSuffix(strings.ToLower(normalized), ".md") {
 		return "", "", ErrInvalidFolder
 	}
+	m.mutationMu.Lock()
+	defer m.mutationMu.Unlock()
 
 	snapshot, err := m.Current()
 	if err != nil {
@@ -191,11 +203,7 @@ func (m *Manager) CreateFolder(ctx context.Context, folderPath string) (string, 
 		return "", "", ErrFolderExists
 	}
 
-	target, err := vault.JoinInside(m.root, normalized)
-	if err != nil {
-		return "", "", ErrInvalidFolder
-	}
-	if info, statErr := os.Stat(target); statErr == nil {
+	if info, statErr := vault.StatInside(m.root, normalized); statErr == nil {
 		if info.IsDir() {
 			return "", "", ErrFolderExists
 		}
@@ -205,13 +213,10 @@ func (m *Manager) CreateFolder(ctx context.Context, folderPath string) (string, 
 	}
 
 	noteRelativePath := normalized + ".md"
-	noteFilePath, err := vault.JoinInside(m.root, noteRelativePath)
-	if err == nil {
-		if _, noteStatErr := os.Stat(noteFilePath); noteStatErr == nil {
-			return "", "", ErrFolderExists
-		} else if !os.IsNotExist(noteStatErr) {
-			return "", "", fmt.Errorf("folder create failed: %w", noteStatErr)
-		}
+	if _, noteStatErr := vault.StatInside(m.root, noteRelativePath); noteStatErr == nil {
+		return "", "", ErrFolderExists
+	} else if !os.IsNotExist(noteStatErr) {
+		return "", "", fmt.Errorf("folder create failed: %w", noteStatErr)
 	}
 
 	if err := vault.MkdirInside(m.root, normalized); err != nil {
@@ -237,15 +242,16 @@ func (m *Manager) DeleteFolder(ctx context.Context, folderPath string) error {
 	if err != nil {
 		return ErrInvalidFolder
 	}
+	if vault.IsHidden(normalized) {
+		return ErrInvalidFolder
+	}
 	if strings.HasSuffix(strings.ToLower(normalized), ".md") {
 		return ErrInvalidFolder
 	}
+	m.mutationMu.Lock()
+	defer m.mutationMu.Unlock()
 
-	target, err := vault.JoinInside(m.root, normalized)
-	if err != nil {
-		return ErrInvalidFolder
-	}
-	if info, statErr := os.Stat(target); statErr != nil {
+	if info, statErr := vault.StatInside(m.root, normalized); statErr != nil {
 		if os.IsNotExist(statErr) {
 			return ErrNotFound
 		}
@@ -279,6 +285,8 @@ func (m *Manager) DeleteNote(ctx context.Context, id, ifMatch string) error {
 	if err != nil {
 		return ErrInvalidRevision
 	}
+	m.mutationMu.Lock()
+	defer m.mutationMu.Unlock()
 
 	snapshot, err := m.Current()
 	if err != nil {
@@ -289,11 +297,14 @@ func (m *Manager) DeleteNote(ctx context.Context, id, ifMatch string) error {
 		return err
 	}
 
-	filePath, err := vault.JoinInside(m.root, relativePath)
+	file, err := vault.OpenFileInside(m.root, relativePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return ErrNotFound
+		}
 		return fmt.Errorf("invalid note path")
 	}
-	current, err := os.ReadFile(filePath)
+	current, err := readMutationNote(file)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return ErrNotFound
@@ -327,11 +338,7 @@ func resolveOnDiskNote(snapshot *Snapshot, root, id string) (noteID, relativePat
 		return "", "", ErrInvalidNoteID
 	}
 	relativePath = noteID + ".md"
-	filePath, err := vault.JoinInside(root, relativePath)
-	if err != nil {
-		return "", "", ErrInvalidNoteID
-	}
-	if _, statErr := os.Stat(filePath); statErr != nil {
+	if _, statErr := vault.StatInside(root, relativePath); statErr != nil {
 		if os.IsNotExist(statErr) {
 			return "", "", ErrNotFound
 		}
@@ -362,4 +369,13 @@ func isWritePermissionError(err error) bool {
 		err = errors.Unwrap(err)
 	}
 	return false
+}
+
+func readMutationNote(file *os.File) ([]byte, error) {
+	defer file.Close()
+	content, err := io.ReadAll(io.LimitReader(file, maxNoteWriteBytes+1))
+	if err != nil || len(content) > maxNoteWriteBytes {
+		return nil, fmt.Errorf("note could not be read")
+	}
+	return content, nil
 }

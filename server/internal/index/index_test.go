@@ -39,6 +39,31 @@ func TestIndexedNoteModifiedAtFromMtime(t *testing.T) {
 	}
 }
 
+func TestIndexRejectsSymlinkedObsidianConfiguration(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeTestFile(t, outside, "app.json", `{"attachmentFolderPath":"outside"}`)
+	if err := os.Symlink(outside, filepath.Join(root, ".obsidian")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	writeTestFile(t, root, "Home.md", "# Home")
+
+	manager, err := NewManager(root, "Test Vault")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := manager.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.AttachmentFolder != "" {
+		t.Fatalf("attachment folder escaped vault: %q", snapshot.AttachmentFolder)
+	}
+}
+
 func TestIndexResolutionBacklinksAssetsAndRefresh(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, ".obsidian/app.json", `{"attachmentFolderPath":"attachments"}`)

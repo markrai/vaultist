@@ -27,7 +27,7 @@ func (h *Handler) notes(writer http.ResponseWriter, request *http.Request) {
 	}
 	folder := strings.Trim(strings.ReplaceAll(request.URL.Query().Get("folder"), "\\", "/"), "/")
 	if folder != "" {
-		if _, err := vault.NormalizeRelative(folder); err != nil {
+		if _, err := vault.NormalizeRelative(folder); err != nil || vault.IsHidden(folder) {
 			writeError(writer, http.StatusBadRequest, "invalid_folder", "Folder is invalid", nil)
 			return
 		}

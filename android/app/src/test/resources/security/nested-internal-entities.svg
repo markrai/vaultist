@@ -1,0 +1,8 @@
+<!DOCTYPE svg [
+  <!ENTITY a "1234567890">
+  <!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">
+  <!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;">
+]>
+<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">
+  <text id="expanded">&c;</text>
+</svg>

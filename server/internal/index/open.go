@@ -12,11 +12,7 @@ func (s *Snapshot) OpenNote(id string) (*model.Note, *os.File, error) {
 	if !ok {
 		return nil, nil, ErrNotFound
 	}
-	filePath, err := vault.JoinInside(s.Root, note.Path)
-	if err != nil {
-		return nil, nil, ErrNotFound
-	}
-	file, err := os.Open(filePath)
+	file, err := vault.OpenFileInside(s.Root, note.Path)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -28,11 +24,7 @@ func (s *Snapshot) OpenAsset(id string) (*model.Asset, *os.File, error) {
 	if !ok {
 		return nil, nil, ErrNotFound
 	}
-	filePath, err := vault.JoinInside(s.Root, asset.Path)
-	if err != nil {
-		return nil, nil, ErrNotFound
-	}
-	file, err := os.Open(filePath)
+	file, err := vault.OpenFileInside(s.Root, asset.Path)
 	if err != nil {
 		return nil, nil, err
 	}

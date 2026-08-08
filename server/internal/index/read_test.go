@@ -49,3 +49,21 @@ func TestGetNoteForReadMissingNote(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestGetNoteForReadRejectsHiddenOnDiskNote(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, ".trash/Secret.md", "hidden")
+	manager, err := NewManager(root, "Test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	if err := manager.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = manager.GetNoteForRead(".trash/Secret")
+	if err != ErrInvalidNoteID {
+		t.Fatalf("err = %v", err)
+	}
+}

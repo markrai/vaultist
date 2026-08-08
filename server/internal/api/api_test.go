@@ -116,6 +116,7 @@ func TestHTTPContract(t *testing.T) {
 
 	assertAPIError(t, server.URL+"/api/v1/notes/Nope", http.StatusNotFound, "note_not_found")
 	assertAPIError(t, server.URL+"/api/v1/notes/../secret", http.StatusBadRequest, "invalid_note_id")
+	assertAPIError(t, server.URL+"/api/v1/notes?folder=.trash", http.StatusBadRequest, "invalid_folder")
 	assertAPIError(t, server.URL+"/api/v1/assets/../secret.png", http.StatusBadRequest, "invalid_asset_id")
 	assertStatus(t, http.MethodPost, server.URL+"/api/v1/index/refresh", strings.NewReader(""), http.StatusAccepted)
 }

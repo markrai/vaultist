@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -29,12 +30,16 @@ func (h *Handler) asset(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	defer file.Close()
+	writer.Header().Set("Content-Type", asset.MediaType)
+	writer.Header().Set("ETag", asset.ETag)
+	writer.Header().Set("Cache-Control", "private, max-age=3600, must-revalidate")
+	if asset.MediaType == "image/svg+xml" {
+		writer.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": asset.Filename}))
+		writer.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'")
+	}
 	if request.Header.Get("If-None-Match") == asset.ETag {
 		writer.WriteHeader(http.StatusNotModified)
 		return
 	}
-	writer.Header().Set("Content-Type", asset.MediaType)
-	writer.Header().Set("ETag", asset.ETag)
-	writer.Header().Set("Cache-Control", "private, max-age=3600, must-revalidate")
 	http.ServeContent(writer, request, asset.Filename, asset.ModifiedAt, file)
 }

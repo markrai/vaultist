@@ -3,6 +3,7 @@ package vault
 import (
 	"errors"
 	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,9 @@ func NoteID(relativePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if IsHidden(normalized) {
+		return "", ErrInvalidPath
+	}
 	if !strings.EqualFold(path.Ext(normalized), ".md") {
 		return "", ErrInvalidPath
 	}
@@ -43,30 +47,50 @@ func IsHidden(relativePath string) bool {
 	return false
 }
 
-func JoinInside(root, relativePath string) (string, error) {
-	normalized, err := NormalizeRelative(relativePath)
-	if err != nil {
-		return "", err
-	}
+func openRoot(root string) (string, *os.Root, error) {
 	rootAbs, err := filepath.Abs(root)
 	if err != nil {
-		return "", ErrInvalidPath
+		return "", nil, err
 	}
-	candidate := filepath.Join(rootAbs, filepath.FromSlash(normalized))
-	rel, err := filepath.Rel(rootAbs, candidate)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", ErrInvalidPath
+	rootAbs, err = filepath.EvalSymlinks(rootAbs)
+	if err != nil {
+		return "", nil, err
 	}
-	if resolved, evalErr := filepath.EvalSymlinks(candidate); evalErr == nil {
-		resolvedRel, relErr := filepath.Rel(rootAbs, resolved)
-		if relErr != nil || resolvedRel == ".." || strings.HasPrefix(resolvedRel, ".."+string(filepath.Separator)) {
-			return "", ErrInvalidPath
+	handle, err := os.OpenRoot(rootAbs)
+	if err != nil {
+		return "", nil, err
+	}
+	return rootAbs, handle, nil
+}
+
+func rejectSymlinkComponents(root *os.Root, normalized string, allowMissing bool) error {
+	// Rejecting stable symlink components is Vaultist policy. Rooted operations,
+	// not this pre-check, enforce confinement during concurrent replacement.
+	var current string
+	for _, component := range strings.Split(normalized, "/") {
+		current = path.Join(current, component)
+		info, err := root.Lstat(filepath.FromSlash(current))
+		if err != nil {
+			if allowMissing && os.IsNotExist(err) {
+				return nil
+			}
+			return err
 		}
-		candidate = resolved
+		if info.Mode()&os.ModeSymlink != 0 {
+			return ErrInvalidPath
+		}
 	}
-	return candidate, nil
+	return nil
 }
 
 func Walk(root string, fn fs.WalkDirFunc) error {
-	return filepath.WalkDir(root, fn)
+	rootAbs, rootHandle, err := openRoot(root)
+	if err != nil {
+		return err
+	}
+	defer rootHandle.Close()
+	return fs.WalkDir(rootHandle.FS(), ".", func(relative string, entry fs.DirEntry, walkErr error) error {
+		filePath := filepath.Join(rootAbs, filepath.FromSlash(relative))
+		return fn(filePath, entry, walkErr)
+	})
 }

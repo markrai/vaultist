@@ -25,11 +25,7 @@ func (m *Manager) GetNoteForRead(id string) (*model.Note, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	filePath, err := vault.JoinInside(m.root, relativePath)
-	if err != nil {
-		return nil, nil, ErrNotFound
-	}
-	content, err := readNoteFile(filePath)
+	content, err := readNoteFile(m.root, relativePath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -38,7 +34,7 @@ func (m *Manager) GetNoteForRead(id string) (*model.Note, []byte, error) {
 		note.Revision = ContentRevision(content)
 		return &note, content, nil
 	}
-	info, err := os.Stat(filePath)
+	info, err := vault.StatInside(m.root, relativePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("note could not be read")
 	}
@@ -50,8 +46,8 @@ func (m *Manager) GetNoteForRead(id string) (*model.Note, []byte, error) {
 	return note, content, nil
 }
 
-func readNoteFile(filePath string) ([]byte, error) {
-	file, err := os.Open(filePath)
+func readNoteFile(root, relativePath string) ([]byte, error) {
+	file, err := vault.OpenFileInside(root, relativePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrNotFound
