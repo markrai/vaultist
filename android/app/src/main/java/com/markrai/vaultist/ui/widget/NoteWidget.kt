@@ -17,6 +17,8 @@ import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.currentState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import com.markrai.vaultist.data.widget.NoteWidgetLoadResult
+import com.markrai.vaultist.ui.theme.AppAppearance
+import com.markrai.vaultist.ui.theme.AppColorTheme
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.first
 
@@ -32,6 +34,8 @@ class NoteWidget : GlanceAppWidget() {
         val colorizedHeadings = entryPoint.themePreferences().colorizedHeadings.first()
         val colorizeCheckboxStatus = entryPoint.themePreferences().colorizeCheckboxStatus.first()
         val headingColorPalette = entryPoint.themePreferences().headingColorPalette.first()
+        val colorTheme = entryPoint.themePreferences().colorTheme.first()
+        val appearance = entryPoint.themePreferences().appearance.first()
         val seededNoteId = getAppWidgetState(appContext, PreferencesGlanceStateDefinition, id)
             .let { prefs -> prefs[WidgetNoteState.noteIdKey] }
 
@@ -67,6 +71,8 @@ class NoteWidget : GlanceAppWidget() {
                     content = content,
                     noteId = noteId,
                     appWidgetId = appWidgetId,
+                    colorTheme = colorTheme,
+                    appearance = appearance,
                     colorizedHeadings = colorizedHeadings,
                     colorizeCheckboxStatus = colorizeCheckboxStatus,
                     headingColorPalette = headingColorPalette,

@@ -16,12 +16,15 @@ import androidx.glance.background
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
 import androidx.glance.text.FontFamily
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.markrai.vaultist.data.widget.NoteWidgetLoadResult
+import com.markrai.vaultist.ui.theme.AppAppearance
+import com.markrai.vaultist.ui.theme.AppColorTheme
 import com.markrai.vaultist.ui.theme.HeadingColorPalette
 
 @Composable
@@ -30,54 +33,79 @@ fun NoteWidgetRoot(
     content: NoteWidgetContent?,
     noteId: String?,
     appWidgetId: Int,
+    colorTheme: AppColorTheme,
+    appearance: AppAppearance,
     colorizedHeadings: Boolean,
     colorizeCheckboxStatus: Boolean,
     headingColorPalette: HeadingColorPalette = HeadingColorPalette.Classic,
 ) {
     val context = LocalContext.current
+    val darkTheme = appearance == AppAppearance.Dark
+    val primaryColor = widgetPrimaryColor(colorTheme, darkTheme)
+    val onPrimaryColor = widgetOnPrimaryColor(colorTheme, darkTheme)
     val openAction = noteId?.let {
         GlanceModifier.clickable(actionStartActivity(WidgetIntents.openNote(context, it, appWidgetId)))
     } ?: GlanceModifier
 
-    Box(
+    Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(GlanceTheme.colors.background)
-            .then(openAction)
-            .padding(12.dp),
+            .background(GlanceTheme.colors.background),
     ) {
         when (loadResult) {
-            NoteWidgetLoadResult.Unbound -> WidgetStatusText("Choose a note in widget settings.")
-            NoteWidgetLoadResult.ServerNotConfigured -> WidgetStatusText("Open Vaultist to configure the server.")
-            NoteWidgetLoadResult.NoteMissing -> WidgetStatusText("Note no longer exists.")
-            NoteWidgetLoadResult.Offline -> WidgetStatusText("Vault server is unavailable.")
-            is NoteWidgetLoadResult.Failure -> WidgetStatusText(loadResult.message)
             is NoteWidgetLoadResult.Content -> {
-                val widgetContent = content ?: return@Box
-                Column(modifier = GlanceModifier.fillMaxSize()) {
+                val widgetContent = content ?: return@Column
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxWidth()
+                        .background(primaryColor)
+                        .then(openAction)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                ) {
                     Text(
                         text = widgetContent.title,
                         style = TextStyle(
-                            color = GlanceTheme.colors.onBackground,
+                            color = onPrimaryColor,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                         ),
                         maxLines = 2,
                     )
-                    LazyColumn(modifier = GlanceModifier.defaultWeight()) {
-                        items(widgetContent.blocks, itemId = { it.stableId }) { block ->
-                            WidgetBlockRow(
-                                block = block,
-                                appWidgetId = appWidgetId,
-                                colorizedHeadings = colorizedHeadings,
-                                colorizeCheckboxStatus = colorizeCheckboxStatus,
-                                headingColorPalette = headingColorPalette,
-                            )
-                        }
+                }
+                LazyColumn(
+                    modifier = GlanceModifier
+                        .defaultWeight()
+                        .padding(12.dp),
+                ) {
+                    items(widgetContent.blocks, itemId = { it.stableId }) { block ->
+                        WidgetBlockRow(
+                            block = block,
+                            appWidgetId = appWidgetId,
+                            colorizedHeadings = colorizedHeadings,
+                            colorizeCheckboxStatus = colorizeCheckboxStatus,
+                            headingColorPalette = headingColorPalette,
+                        )
                     }
                 }
             }
+            NoteWidgetLoadResult.Unbound -> WidgetStatusPane(openAction, "Choose a note in widget settings.")
+            NoteWidgetLoadResult.ServerNotConfigured -> WidgetStatusPane(openAction, "Open Vaultist to configure the server.")
+            NoteWidgetLoadResult.NoteMissing -> WidgetStatusPane(openAction, "Note no longer exists.")
+            NoteWidgetLoadResult.Offline -> WidgetStatusPane(openAction, "Vault server is unavailable.")
+            is NoteWidgetLoadResult.Failure -> WidgetStatusPane(openAction, loadResult.message)
         }
+    }
+}
+
+@Composable
+private fun WidgetStatusPane(openAction: GlanceModifier, message: String) {
+    Box(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .then(openAction)
+            .padding(12.dp),
+    ) {
+        WidgetStatusText(message)
     }
 }
 

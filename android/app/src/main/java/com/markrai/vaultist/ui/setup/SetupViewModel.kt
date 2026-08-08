@@ -113,12 +113,14 @@ class SetupViewModel @Inject constructor(
     fun setColorTheme(theme: AppColorTheme) {
         viewModelScope.launch {
             themePreferences.setColorTheme(theme)
+            noteWidgetRefresh.refreshAll()
         }
     }
 
     fun setAppearance(appearance: AppAppearance) {
         viewModelScope.launch {
             themePreferences.setAppearance(appearance)
+            noteWidgetRefresh.refreshAll()
         }
     }
 
