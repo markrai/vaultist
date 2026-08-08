@@ -62,6 +62,7 @@ flowchart LR
 | Create → editor | `NoteOpenSeed` seeds the editor from the create `201` body; `includeCreatedNote` adds a pending upsert. Do not reconcile browse when navigating into the new note. | `BrowserScreen`, `CreateNoteViewModel` |
 | Note reload | Silent reload after save/resume must not downgrade `revision` when content is unchanged (`mergeLoadedNote`). | `NoteViewModel` |
 | Read-mode task toggle | Tapping a GFM task checkbox in read view flips the source line and PUTs immediately via `NoteViewModel.toggleTask` (not full edit mode). | `NoteViewModel`, `TaskLineToggle` |
+| Widget task toggle | Tapping a task row on the home-screen widget flips the source line and PUTs via `ToggleTaskAction` / `WidgetTaskToggle`, then refreshes bound widgets. | `ToggleTaskAction`, `WidgetTaskToggle`, `NoteWidgetRefresh` |
 | Widget | Refresh bound widgets when note content or revision changes on load/save/delete (app-driven; no periodic polling). | `NoteViewModel`, `NoteWidgetRefresh` |
 
 Manual browse refresh clears pending mutations once the server list is authoritative again.
@@ -123,7 +124,7 @@ Ask never mounts the vault filesystem. Host reachability, index readiness, and T
 
 The first widget lives under `ui/widget` (Glance UI, configuration Activity, markdown mapping) and `data/widget` (per-instance note bindings, loader, refresh orchestration). Each widget instance binds to one note ID chosen in a configuration Activity (search + root note list via `VaultRepository`).
 
-Glance loads note content through a Hilt `WidgetEntryPoint` that exposes `NoteWidgetLoader` only at the widget boundary. The loader returns domain `Note` values or typed widget failures; `WidgetMarkdownMapper` maps `MarkdownDocumentParser` blocks into widget-specific `WidgetBlock` rows rendered in a Glance `LazyColumn` (headings, paragraphs, lists, quotes, code — no images or in-widget wiki navigation). Tap opens `MainActivity` with a one-shot `OpenNoteFromWidget` event consumed once the app is configured.
+Glance loads note content through a Hilt `WidgetEntryPoint` that exposes loader, store, repository, and refresh dependencies at the widget boundary. The loader returns domain `Note` values or typed widget failures; `WidgetMarkdownMapper` maps `MarkdownDocumentParser` blocks into widget-specific `WidgetBlock` rows rendered in a Glance `LazyColumn` (headings, paragraphs, lists, quotes, code — no images or in-widget wiki navigation). Tap on non-task rows opens `MainActivity` with a one-shot `OpenNoteFromWidget` event consumed once the app is configured. Tap on a GFM task row runs `ToggleTaskAction`, which flips the marker and saves before reloading the widget.
 
 Widget bindings use a dedicated DataStore file (`vaultist_widget_preferences`). Updates are app-driven (configuration, note save/delete, note open/reload when content or revision changes, server URL change) with `updatePeriodMillis = 0` — no periodic network polling in v1. Deleting a widget instance removes its binding.
 

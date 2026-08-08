@@ -17,7 +17,7 @@ Goldmark parses the body for:
 
 - ATX headings (`#` … `######`)
 - Paragraphs, lists, blockquotes
-- GFM task-list items on list lines: `- [ ]`, `- [x]`, `- [X]` (and `*`, `+`, or ordered `N. [ ]` forms). Android read view renders these as checkboxes and allows tapping to toggle and save when the vault is writable; the home-screen widget shows them as display-only glyphs. The index treats them as ordinary list lines.
+- GFM task-list items on list lines: `- [ ]`, `- [x]`, `- [X]` (and `*`, `+`, or ordered `N. [ ]` forms). Android read view and the home-screen widget render these as checkboxes and allow tapping to toggle and save when the vault is writable. The index treats them as ordinary list lines.
 - Fenced code blocks (`` ``` `` or `~~~`, run length ≥ 3)
 - Standard Markdown links and images (`[text](url)`)
 

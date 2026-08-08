@@ -6,7 +6,9 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.LocalContext
+import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
+import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.lazy.LazyColumn
 import androidx.glance.appwidget.lazy.items
@@ -63,7 +65,12 @@ fun NoteWidgetRoot(
                     )
                     LazyColumn(modifier = GlanceModifier.defaultWeight()) {
                         items(widgetContent.blocks, itemId = { it.stableId }) { block ->
-                            WidgetBlockRow(block, colorizedHeadings, headingColorPalette)
+                            WidgetBlockRow(
+                                block = block,
+                                appWidgetId = appWidgetId,
+                                colorizedHeadings = colorizedHeadings,
+                                headingColorPalette = headingColorPalette,
+                            )
                         }
                     }
                 }
@@ -86,6 +93,7 @@ private fun WidgetStatusText(message: String) {
 @Composable
 private fun WidgetBlockRow(
     block: WidgetBlock,
+    appWidgetId: Int,
     colorizedHeadings: Boolean,
     headingColorPalette: HeadingColorPalette,
 ) {
@@ -114,15 +122,29 @@ private fun WidgetBlockRow(
             ),
             maxLines = 12,
         )
-        is WidgetBlock.ListItem -> Text(
-            text = listPrefix(block.ordered, block.checked) + block.text,
-            modifier = GlanceModifier.padding(vertical = 1.dp),
-            style = TextStyle(
-                color = GlanceTheme.colors.onBackground,
-                fontSize = 14.sp,
-            ),
-            maxLines = 8,
-        )
+        is WidgetBlock.ListItem -> {
+            val rowModifier = if (block.checked != null) {
+                GlanceModifier.clickable(
+                    actionRunCallback<ToggleTaskAction>(
+                        actionParametersOf(
+                            ToggleTaskAction.appWidgetIdKey to appWidgetId,
+                            ToggleTaskAction.sourceLineKey to block.stableId.toInt(),
+                        ),
+                    ),
+                )
+            } else {
+                GlanceModifier
+            }
+            Text(
+                text = listPrefix(block.ordered, block.checked) + block.text,
+                modifier = rowModifier.padding(vertical = 1.dp),
+                style = TextStyle(
+                    color = GlanceTheme.colors.onBackground,
+                    fontSize = 14.sp,
+                ),
+                maxLines = 8,
+            )
+        }
         is WidgetBlock.Quote -> Text(
             text = block.text,
             modifier = GlanceModifier.padding(start = 8.dp, top = 2.dp, bottom = 2.dp),
