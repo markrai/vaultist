@@ -18,6 +18,6 @@ class DraftTextEditTest {
         val draft = NoteEditDraft("See [[Oth", 9, 9)
         val updated = DraftTextEdit.replaceRange(draft, 4 until 9, "[[Folder/Other]]")
         assertEquals("See [[Folder/Other]]", updated.text)
-        assertEquals(22, updated.selectionStart)
+        assertEquals(20, updated.selectionStart)
     }
 }
