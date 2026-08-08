@@ -132,6 +132,79 @@ class BrowserViewModelTest {
         assertEquals("Notes/Idea", viewModel.state.value.items.single().id)
     }
 
+    @Test
+    fun toggleToContentKeepsBrowseWhenNotInSearchResults() = runTest(dispatcherRule.dispatcher) {
+        val folderItem = BrowseItem(BrowseKind.Note, "Folder/Note", "Note.md", "Note", "Folder/Note.md", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(BrowsePage(listOf(folderItem), null, "Folder"))
+        }
+        val viewModel = viewModel(repository)
+        viewModel.openFolder("Folder")
+        advanceUntilIdle()
+
+        val listNotesCallsBeforeToggle = repository.listNotesCallCount
+        viewModel.toggleSearchMode()
+        advanceUntilIdle()
+
+        assertEquals(SearchMode.Content, viewModel.state.value.searchMode)
+        assertFalse(viewModel.state.value.isSearchResults)
+        assertEquals("Folder/Note", viewModel.state.value.items.single().id)
+        assertEquals(listNotesCallsBeforeToggle, repository.listNotesCallCount)
+    }
+
+    @Test
+    fun toggleToContentReloadsBrowseWhenLeavingFilesSearch() = runTest(dispatcherRule.dispatcher) {
+        val folderItem = BrowseItem(BrowseKind.Note, "Folder/Note", "Note.md", "Note", "Folder/Note.md", null)
+        val searchItem = BrowseItem(BrowseKind.Note, "Other/Hit", "Hit.md", "Hit", "Other/Hit.md", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(BrowsePage(listOf(folderItem), null, "Folder"))
+            searchResult = VaultResult.Success(SearchPage(listOf(searchItem), null, "hit"))
+        }
+        val viewModel = viewModel(repository)
+        viewModel.openFolder("Folder")
+        advanceUntilIdle()
+
+        viewModel.updateQuery("hit")
+        advanceTimeBy(300)
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.isSearchResults)
+        assertEquals("Other/Hit", viewModel.state.value.items.single().id)
+
+        val listNotesCallsBeforeToggle = repository.listNotesCallCount
+        viewModel.toggleSearchMode()
+        advanceUntilIdle()
+
+        assertEquals(SearchMode.Content, viewModel.state.value.searchMode)
+        assertFalse(viewModel.state.value.isSearchResults)
+        assertEquals("hit", viewModel.state.value.query)
+        assertEquals("Folder/Note", viewModel.state.value.items.single().id)
+        assertTrue(repository.listNotesCallCount > listNotesCallsBeforeToggle)
+    }
+
+    @Test
+    fun toggleThroughAskAndBackToFilesKeepsBrowseWhenNotInSearchResults() = runTest(dispatcherRule.dispatcher) {
+        val folderItem = BrowseItem(BrowseKind.Note, "Folder/Note", "Note.md", "Note", "Folder/Note.md", null)
+        val repository = FakeVaultRepository().apply {
+            listNotesResult = VaultResult.Success(BrowsePage(listOf(folderItem), null, "Folder"))
+        }
+        val viewModel = viewModel(repository)
+        viewModel.openFolder("Folder")
+        advanceUntilIdle()
+
+        val listNotesCallsAfterInitialLoad = repository.listNotesCallCount
+        viewModel.toggleSearchMode() // Files -> Content
+        advanceUntilIdle()
+        viewModel.toggleSearchMode() // Content -> Ask
+        advanceUntilIdle()
+        viewModel.toggleSearchMode() // Ask -> Files
+        advanceUntilIdle()
+
+        assertEquals(SearchMode.Files, viewModel.state.value.searchMode)
+        assertFalse(viewModel.state.value.isSearchResults)
+        assertEquals("Folder/Note", viewModel.state.value.items.single().id)
+        assertEquals(listNotesCallsAfterInitialLoad, repository.listNotesCallCount)
+    }
+
     @Test fun createUpsertSurvivesStaleLoadBrowse() = runTest(dispatcherRule.dispatcher) {
         val existing = BrowseItem(BrowseKind.Note, "Folder/Old", "Old.md", "Old", "Folder/Old.md", null)
         val repository = FakeVaultRepository().apply {

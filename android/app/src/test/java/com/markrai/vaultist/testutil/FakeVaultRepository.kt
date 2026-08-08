@@ -38,7 +38,9 @@ class FakeVaultRepository : VaultRepository {
     override suspend fun getVault() = VaultResult.Success(VaultMetadata("Test", 1, 0, 1, vaultReadOnly))
     var listNotesResult: VaultResult<BrowsePage>? = null
     var listNotesDelayMs: Long = 0
+    var listNotesCallCount: Int = 0
     override suspend fun listNotes(folder: String, cursor: String?): VaultResult<BrowsePage> {
+        listNotesCallCount++
         if (listNotesDelayMs > 0) delay(listNotesDelayMs)
         return listNotesResult ?: VaultResult.Success(BrowsePage(emptyList(), null, folder))
     }

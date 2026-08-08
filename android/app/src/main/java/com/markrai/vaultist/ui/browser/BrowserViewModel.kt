@@ -183,26 +183,35 @@ class BrowserViewModel @Inject constructor(
     }
 
     fun toggleSearchMode() {
-        val nextMode = when (_state.value.searchMode) {
+        val current = _state.value
+        val nextMode = when (current.searchMode) {
             SearchMode.Files -> SearchMode.Content
             SearchMode.Content -> SearchMode.Ask
             SearchMode.Ask -> SearchMode.Files
         }
         filesSearchJob?.cancel()
+        val keepBrowseItems = !current.isSearchResults
         _state.update {
             it.copy(
                 searchMode = nextMode,
                 searching = false,
                 searched = false,
                 isSearchResults = false,
-                items = emptyList(),
+                items = if (keepBrowseItems) it.items else emptyList(),
                 nextCursor = null,
                 error = null,
             )
         }
         when (nextMode) {
-            SearchMode.Files -> onFilesQueryChanged(_state.value.query)
-            SearchMode.Content -> loadBrowse(_state.value.folder, keepQuery = true)
+            SearchMode.Files -> {
+                val query = _state.value.query
+                if (!keepBrowseItems || query.isNotBlank() || _state.value.items.isEmpty()) {
+                    onFilesQueryChanged(query)
+                }
+            }
+            SearchMode.Content -> if (!keepBrowseItems) {
+                loadBrowse(_state.value.folder, keepQuery = true)
+            }
             SearchMode.Ask -> Unit
         }
     }
